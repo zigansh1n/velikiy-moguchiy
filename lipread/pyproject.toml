@@ -17,7 +17,7 @@ dependencies = [
     "scipy==1.16.3",
     "pandas",
     "tqdm==4.67.3",
-    "pillow==11.3.0",
+    "pillow==12.3.0",
     # ffmpeg для кадров с камеры у пользователей приложения без Homebrew (режим «губы», mac/ SPLipsRuntime).
     "imageio-ffmpeg==0.6.0",
     # «Помочь обучить» (federated/client) в том же окружении приложения: протокол, подписи, сеть, скачивание роликов.
