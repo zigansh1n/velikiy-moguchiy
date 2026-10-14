@@ -110,8 +110,10 @@ extension KeyboardViewController {
       mode == .idle
     {
       let canAutocorrect = autocorrectEnabled && fieldAllowsSuggestions
+      let canPutYo = yoEnabled && fieldAllowsSuggestions
       let plan = suggestionEngine.queue.sync {
-        suggestionEngine.replacement(contextBefore: context, autocorrectEnabled: canAutocorrect)
+        suggestionEngine.replacement(
+          contextBefore: context, autocorrectEnabled: canAutocorrect, yoEnabled: canPutYo)
       }
       if let plan {
         for _ in 0..<plan.original.count { textDocumentProxy.deleteBackward() }

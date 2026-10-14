@@ -137,6 +137,9 @@ targets:
       - path: Shared
       - path: KeyboardExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
+      # Russian words for completions and «ё» (Scripts/build_keyboard_words.py).
+      - path: Resources/Keyboard
+        buildPhase: resources
     configFiles:
       Debug: Config/Debug.xcconfig
       Release: Config/Release.xcconfig
@@ -168,6 +171,9 @@ targets:
           - "KeyboardKitPort/KeyboardSurfaceView.swift"
       - path: Shared
       - path: KeyboardExtension/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      # Russian words for completions and «ё» (Scripts/build_keyboard_words.py).
+      - path: Resources/Keyboard
         buildPhase: resources
     dependencies:
       - package: KeyboardKit
