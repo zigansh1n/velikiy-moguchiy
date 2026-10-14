@@ -78,17 +78,31 @@ PY
 }
 
 # capture <prefix> <dir>: every case in light and dark with the active keyboard.
+# A screenshot that shows no keyboard, half a keyboard or the wrong one (iOS
+# puts its own keyboard in when our extension is late) is taken again, twice
+# at most; the gate fails only if it stays wrong.
 capture() {
   mkdir -p $2
+  local side=${1%%-*} appearance cases attempt log
   for appearance in ${=APPEARANCES}; do
     xcrun simctl ui $UDID appearance $appearance
     sleep 2
-    env TEST_RUNNER_PARITY_OUT=$2 TEST_RUNNER_PARITY_PREFIX=$1-$appearance \
-      TEST_RUNNER_PARITY_KINDS=$CASES \
-      xcodebuild test-without-building -xctestrun $XCTESTRUN -destination "id=$UDID" \
-      -only-testing:KeyboardParityUITests/KeyboardParityCaptureTests/testCaptureKeyboards \
-      > $OUT/capture-$1-$appearance.log 2>&1 \
-      || { tail -20 $OUT/capture-$1-$appearance.log; echo "parity: capture $1 failed"; exit 1; }
+    cases=$CASES
+    log=$OUT/capture-$1-$appearance.log
+    : > $log
+    for attempt in 1 2 3; do
+      env TEST_RUNNER_PARITY_OUT=$2 TEST_RUNNER_PARITY_PREFIX=$1-$appearance \
+        TEST_RUNNER_PARITY_KINDS=$cases \
+        xcodebuild test-without-building -xctestrun $XCTESTRUN -destination "id=$UDID" \
+        -only-testing:KeyboardParityUITests/KeyboardParityCaptureTests/testCaptureKeyboards \
+        >> $log 2>&1 \
+        || { tail -20 $log; echo "parity: capture $1 failed"; exit 1; }
+      cases=$(python3 Scripts/parity/check_capture.py --side $side --dir $2 \
+        --prefix $1-$appearance --cases $cases)
+      [[ -z "$cases" ]] && break
+      echo "parity: $1-$appearance attempt $attempt, capturing again: $cases"
+    done
+    [[ -z "$cases" ]] || { echo "parity: $1-$appearance stayed wrong after 3 attempts: $cases"; exit 1; }
   done
   # Only the keyboard and a little above it are compared (and kept in git).
   python3 - $2/$1-*.png <<'PY'

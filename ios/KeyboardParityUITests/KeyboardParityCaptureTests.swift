@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// Captures whatever keyboard is active (Apple's or ours) over the parity host's
@@ -23,8 +24,7 @@ final class KeyboardParityCaptureTests: XCTestCase {
         "PARITY_KIND": parts[0], "PARITY_RETURN": parts[1], "PARITY_AUTOCORRECT": parts[2],
       ]
       app.launch()
-      // The keyboard slides in and the extension settles its first layout.
-      sleep(5)
+      waitForSteadyKeyboard()
       let name = "\(prefix)-\(parts[0])-\(parts[1])-ac\(parts[2])"
       let png = XCUIScreen.main.screenshot().pngRepresentation
       try png.write(to: URL(fileURLWithPath: out).appendingPathComponent("\(name).png"))
@@ -33,6 +33,29 @@ final class KeyboardParityCaptureTests: XCTestCase {
         encoding: .utf8)
       app.terminate()
     }
+  }
+
+  /// The keyboard slides in and the extension settles its first layout: wait
+  /// until the lower half of the screen (the keyboard, not the blinking caret)
+  /// stops changing, at least 3 s and at most 15 s.
+  private func waitForSteadyKeyboard() {
+    sleep(3)
+    var previous: Data?
+    let deadline = Date().addingTimeInterval(12)
+    while Date() < deadline {
+      let sample = Self.lowerHalf(of: XCUIScreen.main.screenshot().image)
+      if let sample, sample == previous { return }
+      previous = sample
+      usleep(500_000)
+    }
+  }
+
+  private static func lowerHalf(of image: UIImage) -> Data? {
+    guard let cgImage = image.cgImage,
+      let half = cgImage.cropping(
+        to: CGRect(x: 0, y: cgImage.height / 2, width: cgImage.width, height: cgImage.height / 2))
+    else { return nil }
+    return UIImage(cgImage: half).pngData()
   }
 
   /// Touch zones of the keys that Accessibility exposes. Apple's keyboard lists
