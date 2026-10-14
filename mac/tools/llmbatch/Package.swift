@@ -10,8 +10,11 @@ let package = Package(
     name: "llmbatch",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/ml-explore/mlx-swift.git", from: "0.30.6"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "3.31.3"),
+        .package(url: "https://github.com/ml-explore/mlx-swift.git", from: "0.31.6"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "3.31.4"),
+        .package(url: "https://github.com/huggingface/swift-transformers.git", from: "1.1.6"),
+        // Same constraint as mac/Packages/MLXBridge/Package.swift.
+        .package(url: "https://github.com/huggingface/swift-jinja.git", "2.0.0"..<"2.4.0"),
     ],
     targets: [
         .executableTarget(
@@ -19,6 +22,8 @@ let package = Package(
             dependencies: [
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
+                .product(name: "Tokenizers", package: "swift-transformers"),
                 .product(name: "MLXFast", package: "mlx-swift"),
             ]
         ),
