@@ -233,6 +233,8 @@ def post(body: bytes, token: str):
             raise Unavailable(f"HTTP {e.code}") from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise Unavailable(type(e).__name__) from e
+        if VERBOSE:
+            print("text review: RAW " + raw[:6000].decode("utf-8", "replace"))
         try:
             text, finish = reply_text(raw)
         except (ValueError, KeyError, IndexError, TypeError, AttributeError) as e:
