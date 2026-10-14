@@ -100,7 +100,19 @@ jobs:
         run: cargo build --workspace
       - name: Build with local recognition
         # Not released (sherpa-onnx brings GPL-3.0 espeak-ng), but kept building.
-        run: cargo build --workspace --features velikiy-moguchiy-windows/sherpa-onnx
+        # After a cache restore the sherpa-onnx-sys build script can count as already run while the libraries
+        # it downloaded into target/sherpa-onnx-prebuilt are gone; the crate then fails to link ("could not
+        # find native static library"). Cleaning it makes the script download them again.
+        run: |
+          cargo clean -p sherpa-onnx-sys
+          cargo build --workspace --features velikiy-moguchiy-windows/sherpa-onnx
+      - name: Debug sherpa
+        if: failure()
+        run: |
+          find target -maxdepth 4 -ipath '*sherpa*' | head -40
+          find target -ipath '*sherpa-onnx-prebuilt*' -name '*.lib' | head -40
+          ls -la target/debug/build | grep -i sherpa || true
+          for d in target/debug/build/sherpa-onnx-sys-*; do echo "$d"; ls "$d"; cat "$d/output" 2>/dev/null | head; cat "$d/stderr" 2>/dev/null | head; done
 
   federated:
     name: Federated (pytest)
@@ -116,11 +128,17 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install
-        run: python -m pip install numpy safetensors cryptography pydantic fastapi uvicorn python-multipart httpx pytest
+        run: python -m pip install numpy safetensors cryptography pydantic fastapi uvicorn python-multipart httpx huggingface_hub pytest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Test
         # test_convert needs the lipread environment with torch and skips itself;
-        # the pmset/ioreg probe skips itself off macOS.
-        run: python -m pytest
+        # the pmset/ioreg probe skips itself off macOS. Node runs the intake
+        # Worker's tests and the Python/Worker signature compatibility check.
+        run: |
+          python -m pytest
+          cd worker && node --test
 
   lipread:
     name: Lip reading (offline tests)

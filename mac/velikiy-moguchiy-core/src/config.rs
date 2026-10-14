@@ -50,12 +50,17 @@ pub struct RecordingSection {
     /// silence that follow speech; 0 turns it off. Never applies to hold.
     #[serde(default)]
     pub auto_stop_silence_s: f64,
+    /// Any recording ends after this many seconds; 0 (or a missing key, as in
+    /// configs written before it existed) means no limit.
+    #[serde(default)]
+    pub max_duration_s: f64,
 }
 
 impl Default for RecordingSection {
     fn default() -> Self {
         Self {
             auto_stop_silence_s: 0.0,
+            max_duration_s: 0.0,
         }
     }
 }
@@ -66,6 +71,17 @@ impl RecordingSection {
     pub fn silence_timeout_s(&self) -> f32 {
         let s = self.auto_stop_silence_s;
         if s.is_finite() && (1.0..=60.0).contains(&s) {
+            s as f32
+        } else {
+            0.0
+        }
+    }
+
+    /// The recording limit in seconds, 0 when off. Below 10 s it would cut
+    /// dictations short and above 2 hours it guards nothing, so those are off.
+    pub fn max_duration(&self) -> f32 {
+        let s = self.max_duration_s;
+        if s.is_finite() && (10.0..=7200.0).contains(&s) {
             s as f32
         } else {
             0.0
@@ -1488,6 +1504,9 @@ where
     }
     Ok(name)
 }
+/// For a config without `asr.qwen.url`: such configs were written when the
+/// China endpoint was the only one, so it stays theirs. New configs get the
+/// international endpoint from DEFAULT_CONFIG_YAML.
 fn default_qwen_url() -> String {
     "wss://dashscope.aliyuncs.com/api-ws/v1/realtime".into()
 }
@@ -2569,7 +2588,9 @@ asr:
 
   # Qwen (Aliyun DashScope) Realtime ASR
   qwen:
-    url: "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
+    # International (Singapore) endpoint; keys made in the China console work
+    # at wss://dashscope.aliyuncs.com/api-ws/v1/realtime instead
+    url: "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime"
     api_key: ""
     # api_keys: []       # several DashScope keys: the next one is used when a key is rejected or out of quota
     model: "qwen3.8-omni-flash-realtime"  # or qwen3-asr-flash-realtime: verbatim, no rewording
@@ -2676,7 +2697,7 @@ llm:
         model: "mlx/Qwen3-0.6B-4bit"      # relative to ~/.velikiy-moguchiy/models/, or absolute path
 
 feedback:
-  start_sound: false
+  start_sound: true                    # a short sound when recording starts
   stop_sound: false
   error_sound: false
   mute_system_output: false
@@ -2754,7 +2775,10 @@ snippets: []
 
 recording:
   # 免提录音在说话之后静音这么多秒自动结束；0 为关闭（按住模式不受影响）
-  auto_stop_silence_s: 0
+  auto_stop_silence_s: 30
+  # Any recording ends after this many seconds (a forgotten hands-free
+  # recording keeps the microphone open); 0 is no limit
+  max_duration_s: 600
 
 overlay:
   font_family: "system"
@@ -3215,16 +3239,40 @@ mod tests {
         assert_eq!(parsed.recording.silence_timeout_s(), 3.0);
 
         for (value, expected) in [(0.0, 0.0), (0.5, 0.0), (2.0, 2.0), (8.0, 8.0), (61.0, 0.0), (f64::NAN, 0.0)] {
-            let r = RecordingSection { auto_stop_silence_s: value };
+            let r = RecordingSection {
+                auto_stop_silence_s: value,
+                max_duration_s: 0.0,
+            };
             assert_eq!(r.silence_timeout_s(), expected, "{value}");
         }
+        // A config written before the limit existed keeps recording without one.
+        assert_eq!(parsed.recording.max_duration(), 0.0);
+        for (value, expected) in [(0.0, 0.0), (5.0, 0.0), (600.0, 600.0), (9000.0, 0.0), (f64::NAN, 0.0)] {
+            let r = RecordingSection {
+                auto_stop_silence_s: 0.0,
+                max_duration_s: value,
+            };
+            assert_eq!(r.max_duration(), expected, "{value}");
+        }
+    }
+
+    #[test]
+    fn new_configs_use_the_international_endpoint_and_old_ones_keep_china() {
+        let root: serde_yaml::Value = serde_yaml::from_str(DEFAULT_CONFIG_YAML).unwrap();
+        assert_eq!(
+            root["asr"]["qwen"]["url"].as_str(),
+            Some(crate::dashscope_check::INTERNATIONAL_URL)
+        );
+        assert_eq!(default_qwen_url(), crate::dashscope_check::CHINA_URL);
     }
 
     #[test]
     fn default_template_declares_the_voice_feature_keys() {
         let root: serde_yaml::Value = serde_yaml::from_str(DEFAULT_CONFIG_YAML).unwrap();
         assert_eq!(root["commands"]["enabled"].as_bool(), Some(true));
-        assert_eq!(root["recording"]["auto_stop_silence_s"].as_u64(), Some(0));
+        assert_eq!(root["recording"]["auto_stop_silence_s"].as_u64(), Some(30));
+        assert_eq!(root["recording"]["max_duration_s"].as_u64(), Some(600));
+        assert_eq!(root["feedback"]["start_sound"].as_bool(), Some(true));
         assert_eq!(root["hotkey"]["mode_key"].as_str(), Some(""));
         for key in ["edit_key", "undo_key", "repaste_key"] {
             assert_eq!(root["hotkey"][key].as_str(), Some(""), "{key}");

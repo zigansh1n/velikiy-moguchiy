@@ -12,12 +12,14 @@
 		016C00AC990046E011C6D91B /* ContentView+Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F0B4A946E3EAC2B2140769 /* ContentView+Setup.swift */; };
 		03C6B2FD2E3D00C92EA51FB7 /* KeyboardViewController+Typing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E90254FF9BFDA424B61F3C8 /* KeyboardViewController+Typing.swift */; };
 		03CC3696E2FFE25E30951964 /* KeyboardStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9D428A1597CFB726049115 /* KeyboardStrings.swift */; };
+		040376FEEDBAADD8B3CDA24C /* SetupProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB1F4C0434CA67B9D642073 /* SetupProgressTests.swift */; };
 		043741863773EF377BB1CC45 /* RecoverableRecordingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8068D251CA56F625E5593D /* RecoverableRecordingStore.swift */; };
 		06F5B56BC96F307BEE2E1B5C /* KeyboardSharedStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38670B6B977733D2E3C9E8F8 /* KeyboardSharedStateTests.swift */; };
 		08635F5C850A112B27E313D5 /* KeyboardInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD101CCDF2BF9427C670F2B /* KeyboardInteractionState.swift */; };
 		086E4E9A2570CEED1D216DF9 /* TypingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A62709F2E47A1BEF27085 /* TypingStats.swift */; };
 		08743435FFC0681B82ADB00A /* KeyboardStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9D428A1597CFB726049115 /* KeyboardStrings.swift */; };
 		08DDCFAB7C235D5A70932258 /* SuggestionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C140421271722BE4F82E3FAF /* SuggestionRules.swift */; };
+		08EECC10674C9EB011A63406 /* SetupChecklist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0468E4725C8FBBF7EDE5F83A /* SetupChecklist.swift */; };
 		09C96AD32F7940C6D0B9E738 /* SmartPunctuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B521A56A7A3A5E0DDA59129D /* SmartPunctuation.swift */; };
 		0A873C1FDD5D45A7EBA5578F /* TypingStatsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ECF0DB4F90B91A97E32E50 /* TypingStatsScreen.swift */; };
 		0ABA168D03F10DD24D75D038 /* RelayTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C5EC72EF13C4448B0F3F76 /* RelayTypes.swift */; };
@@ -37,6 +39,7 @@
 		163DB7541DCB98AF76143F62 /* RelayProtocolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECED4BACBC29EE3286A10BE1 /* RelayProtocolTests.swift */; };
 		169DFF67DE7403BF50B843B8 /* DashScopeRealtimeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA6A54E4F2C50E9F3DD3583 /* DashScopeRealtimeSession.swift */; };
 		16A06BDB1901AD30CAFACBB3 /* KeyboardCalloutViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 328079E44B9797700D39E2B7 /* KeyboardCalloutViews.swift */; };
+		16BC4137C2618E9E8650A635 /* DictationFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947E9C29AA2D5A02BA1F3551 /* DictationFailure.swift */; };
 		16DB75A58D6174F98C815C46 /* RelayLiveActivityIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B89B21E849845F56A6F614B /* RelayLiveActivityIntents.swift */; };
 		1709A8BEF377E1C0EB3B417F /* CredentialAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F6DC84385982174B634FC01 /* CredentialAvailabilityTests.swift */; };
 		170DF6EABCB5E3F594F62599 /* DeleteRepeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D62CB3740B259CE0FE920BE /* DeleteRepeat.swift */; };
@@ -47,6 +50,7 @@
 		19DFC0ECE4C6BE40568F255D /* TrackpadCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EB9681E91B7C9377B055D8 /* TrackpadCursor.swift */; };
 		19E37C5619D696C1AD9F1197 /* RelayLaunchRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65777C69BA30D9EBD6D3740D /* RelayLaunchRequest.swift */; };
 		1AB80B84F3117F423A9842C3 /* DashScopeRecordingTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4BF7DAE28532740B328885 /* DashScopeRecordingTranscriber.swift */; };
+		1AE4B664F216FB2AFED7A8DB /* NetworkPathMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19CF7B8919AC25ADD0B5F00 /* NetworkPathMonitor.swift */; };
 		1CE3D95758D96E245259E8F9 /* RelayTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C5EC72EF13C4448B0F3F76 /* RelayTypes.swift */; };
 		1CE699C434630B5DF8CD9AD9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4475EE8BA23E6C8042D64151 /* Assets.xcassets */; };
 		1CEB78AC7EB2BD5501F85019 /* KeyboardViewController+KeyboardSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A4F29E850D9806CA30B431E /* KeyboardViewController+KeyboardSurface.swift */; };
@@ -71,6 +75,7 @@
 		25BBE78AABA68082C4120357 /* KeyboardInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBD101CCDF2BF9427C670F2B /* KeyboardInteractionState.swift */; };
 		25D110D1B1A5AAF2585D2392 /* ContentView+Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0046918A11D1A9F417DF29 /* ContentView+Handoff.swift */; };
 		2A62D48F9B655DE4F36DCB0F /* KeyboardViewController+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8E2734C609FDF5093BFE56 /* KeyboardViewController+Layout.swift */; };
+		2A82EBA6DEA8FE04019F622B /* DashScopeRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E67C3EE53631597A7AE8F09 /* DashScopeRegion.swift */; };
 		2A9EFB6F19020F454B2870E8 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0D4342DA6C8FBA35C85614 /* KeyboardViewController.swift */; };
 		2B2093B6DD379D9FE42FC911 /* TypingStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8A62709F2E47A1BEF27085 /* TypingStats.swift */; };
 		2C2C2A14B25677281B1841FE /* DashScopeTimeout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31806C7023F3AD459147C84 /* DashScopeTimeout.swift */; };
@@ -102,6 +107,7 @@
 		38CE4861BC27F00BA370AA93 /* DeleteRepeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D62CB3740B259CE0FE920BE /* DeleteRepeat.swift */; };
 		38CEEBABD2EEF2592273AB51 /* TranscriptHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A1E04EF7468381DB831C6B /* TranscriptHistoryStoreTests.swift */; };
 		397C8B70F211BDD9EA8775A2 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 329CA46112455AF11EA8B114 /* InfoPlist.strings */; };
+		399DBAC2E8A5FE2DA2C2FC47 /* DashScopeConnectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5198C4A47C6C32A39640375 /* DashScopeConnectionScreen.swift */; };
 		39B4E994AEAE2AFCF6FA5076 /* KeyboardViewController+Layout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8E2734C609FDF5093BFE56 /* KeyboardViewController+Layout.swift */; };
 		3B1F2E3A59864373F92BBF95 /* KeyboardPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E280AC8EF85225245E018D /* KeyboardPreferences.swift */; };
 		3C0B6B6183720C263B89092A /* RelayLiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A9B052E4C80676EA9ABFC3 /* RelayLiveActivityController.swift */; };
@@ -135,6 +141,7 @@
 		4BEE38A7B4CA091CFADC65BB /* RelaySessionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD8EA7C6779759DCC121AC9 /* RelaySessionPolicy.swift */; };
 		4C120FF6959027D3D08D2FE8 /* ContentView+Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F0B4A946E3EAC2B2140769 /* ContentView+Setup.swift */; };
 		4DD13492B626E49C61799771 /* KeyboardViewController+Typing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E90254FF9BFDA424B61F3C8 /* KeyboardViewController+Typing.swift */; };
+		4DE405C8626A738E42506FB2 /* DashScopeRegionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139D00E270A5239123084FE8 /* DashScopeRegionTests.swift */; };
 		4DFD88D78283CFF090271FDF /* AudioCaptureEngine+Recording.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA746B9AF400A0CE4CD827B4 /* AudioCaptureEngine+Recording.swift */; };
 		4E17C699251615F7791F4CE7 /* apple-ru-light-email-return-ac1.png in Resources */ = {isa = PBXBuildFile; fileRef = 5764651229C78CBFFB168CF2 /* apple-ru-light-email-return-ac1.png */; };
 		4E432FF5C048A450ED87E672 /* KeyboardViewController+Suggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73C4A5F77DBEA4C7857E789C /* KeyboardViewController+Suggestions.swift */; };
@@ -143,9 +150,11 @@
 		4EA5DCC98F7D01802A02D358 /* KeyFeedbackPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDD7314F8242716DF8CE84E /* KeyFeedbackPolicyTests.swift */; };
 		4EEA22DF3EEBB38A1EF9636C /* KeyboardLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1916BB678F726A33824C5D03 /* KeyboardLogicTests.swift */; };
 		4F8C3E80D84E6EB01CB41760 /* SharedRelayStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB2D762036AEE068C896AA12 /* SharedRelayStore.swift */; };
+		4FD18B6A70C3931C904AF4BE /* GettingStartedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EE5FB9496CDB4C44B355E /* GettingStartedScreen.swift */; };
 		50262F9489F1DA729DDC837B /* KeyFeedbackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD4D6560682805AA41DE9F8 /* KeyFeedbackEngine.swift */; };
 		50862493DFF1C6D8D7E4A98B /* KeyFeedbackPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F533953CC9675142499318F8 /* KeyFeedbackPolicy.swift */; };
 		510258CE5DBE1B2C20EDAD4D /* KeyboardViewController+HostResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6348E904452F0A1C07E499AD /* KeyboardViewController+HostResolution.swift */; };
+		517541B9CCC34E0351954AE5 /* DashScopeRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E67C3EE53631597A7AE8F09 /* DashScopeRegion.swift */; };
 		51EA84CEEB30450F1732F681 /* KeyboardPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E280AC8EF85225245E018D /* KeyboardPreferences.swift */; };
 		51F7BCB6CA1D06CA0C0F7599 /* apple-en-dark-number-return-ac1.png in Resources */ = {isa = PBXBuildFile; fileRef = F88DCEFCFFA822EBAAEA7444 /* apple-en-dark-number-return-ac1.png */; };
 		5252AEDA21E34C40F37F2F55 /* KeyboardSurfaceViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA14FF1149A844B4DB62788C /* KeyboardSurfaceViewTests.swift */; };
@@ -200,6 +209,7 @@
 		6955DD3ECF04C85CC2B1D12D /* DeleteRepeat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D62CB3740B259CE0FE920BE /* DeleteRepeat.swift */; };
 		69CB4E05F53553EA2A2386E9 /* VelikiyMoguchiyWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0807B0FF5109A045C6362E17 /* VelikiyMoguchiyWidgetsBundle.swift */; };
 		6B00EC018B787C74281A2CDD /* ContentView+Overview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F768ED67EDA59AE08485089 /* ContentView+Overview.swift */; };
+		6B51957B79FB9AA20039256E /* DictationFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947E9C29AA2D5A02BA1F3551 /* DictationFailure.swift */; };
 		6B7BFB48F9F844153554AB4E /* TrackpadCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94EB9681E91B7C9377B055D8 /* TrackpadCursor.swift */; };
 		6BAEF54B747E26A236024599 /* VelikiyMoguchiyKKKeyboardEN.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D62850B84BC2EE4B719728D0 /* VelikiyMoguchiyKKKeyboardEN.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6C895072F4B200C7E72AEE15 /* DictationLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA50553D263FB2AB30E0A08D /* DictationLanguage.swift */; };
@@ -227,6 +237,7 @@
 		7C105AAEF8E74D96349D5867 /* KeyboardViewController+ContainingAppLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF07BEAED5B9DE4E793A0F97 /* KeyboardViewController+ContainingAppLaunch.swift */; };
 		7D464B8E60C7209FD6695FBB /* OldStandard-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 85181F604403D706D1FC86A4 /* OldStandard-Bold.ttf */; };
 		7E4FBF04B737B94EF236062B /* KeyboardTrackedRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF5B23086407A706A0752C4E /* KeyboardTrackedRequest.swift */; };
+		7EB5CA8EAD969DB2EE36EBFE /* DashScopeKeyCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A30444FB8B9E9175EDDF9D /* DashScopeKeyCheck.swift */; };
 		7FB20B4F6C51958133355B20 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D743F3719301388387D2EDF5 /* PrivacyInfo.xcprivacy */; };
 		80A76774C64D9877D42C606B /* KeyboardViewController+RelayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464727DE7623E4CED0C32E57 /* KeyboardViewController+RelayState.swift */; };
 		82992391892102820A02B745 /* LiveWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFFF78CA7B1BF23DD3C1834C /* LiveWaveformView.swift */; };
@@ -277,6 +288,7 @@
 		9711A114A28ED5D45728CC01 /* KeyboardPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E280AC8EF85225245E018D /* KeyboardPreferences.swift */; };
 		97B0625C07CC82974BB0F038 /* TypingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE42BCD5AFF8ED21D5A2A41 /* TypingProbe.swift */; };
 		988D9D1EEF722329AFD1A707 /* KeyTouchTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422AE8624576DB5C05C11846 /* KeyTouchTracker.swift */; };
+		98BFF6A950D3EAC7DDC6AA15 /* DictationFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D8628EF9646547CAE07F05 /* DictationFailureTests.swift */; };
 		98D129BF9A2DEB7F3508EBDB /* KeyFeedbackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD4D6560682805AA41DE9F8 /* KeyFeedbackEngine.swift */; };
 		9926CEBBBB5BB7C007E44E15 /* ContentView+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A90741EB349900F46B878CB /* ContentView+Helpers.swift */; };
 		996F9D676CC08499DFB18853 /* SmartPunctuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B521A56A7A3A5E0DDA59129D /* SmartPunctuation.swift */; };
@@ -299,6 +311,7 @@
 		A2C79C35A12943BA294FFFB6 /* StatusOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DAAB2A9D248040B577BD7EC /* StatusOverlayView.swift */; };
 		A2CE540782181080A909496B /* ThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = 1F03135CAC827262FF10E9F9 /* ThirdPartyNotices.txt */; };
 		A429BDA5E49F6E9AE9297A90 /* RelayController+Recovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9834D81B3E1F32C59F52B4 /* RelayController+Recovery.swift */; };
+		A4525583B3519DDF591380A7 /* DashScopeConnectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5198C4A47C6C32A39640375 /* DashScopeConnectionScreen.swift */; };
 		A46056D156ED08FDE390774F /* AutocapitalizationRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD66D9D71AA6CE8EEE16505 /* AutocapitalizationRules.swift */; };
 		A477D5EC066CDD5D5C998FE7 /* KeyTouchTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422AE8624576DB5C05C11846 /* KeyTouchTracker.swift */; };
 		A4D745E085BF111077BB2492 /* KeyboardStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F9D428A1597CFB726049115 /* KeyboardStrings.swift */; };
@@ -311,6 +324,7 @@
 		A691886E8DEE48D49FCC9251 /* TypingProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE42BCD5AFF8ED21D5A2A41 /* TypingProbe.swift */; };
 		A6F0FE77DD2B5952B3250C03 /* SuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031C3CC6EB81783A27D1010E /* SuggestionEngine.swift */; };
 		A73AC9C9D9B73F198ABF8FCC /* apple-en-light-number-return-ac1.png in Resources */ = {isa = PBXBuildFile; fileRef = F8D38DBCF10AED9F1DECBA2E /* apple-en-light-number-return-ac1.png */; };
+		A73B5D524A46EF07EC0443BA /* SetupChecklist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0468E4725C8FBBF7EDE5F83A /* SetupChecklist.swift */; };
 		A7D77C2146DBACA3834AC633 /* KeyboardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 143D05B95E950A8351CC0F9D /* KeyboardKit */; };
 		A8F88A16659B9CDC754D33D5 /* apple-ru-dark-web-go-ac0.ax.tsv in Resources */ = {isa = PBXBuildFile; fileRef = 1748D88E7CF9F1CEFAB088A9 /* apple-ru-dark-web-go-ac0.ax.tsv */; };
 		A9BC3F55AEBB10C4FE664509 /* SmartPunctuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B521A56A7A3A5E0DDA59129D /* SmartPunctuation.swift */; };
@@ -354,9 +368,11 @@
 		C578A5BB0F11C0342090EDC1 /* KeyFeedbackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD4D6560682805AA41DE9F8 /* KeyFeedbackEngine.swift */; };
 		C677B47EB10DDEF7A2E670B0 /* KeyFeedbackPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F533953CC9675142499318F8 /* KeyFeedbackPolicy.swift */; };
 		C7666DB57C8C3F610CDAF565 /* KeyboardPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E280AC8EF85225245E018D /* KeyboardPreferences.swift */; };
+		C886D4B532EC7BF456ECD229 /* GettingStartedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EE5FB9496CDB4C44B355E /* GettingStartedScreen.swift */; };
 		C8E220B1F9DA3D352F29DFD2 /* KeyboardInputKindResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980A349B708E128B2C93EC80 /* KeyboardInputKindResolver.swift */; };
 		C91185FCB026C663165A1E79 /* AutocapitalizationRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD66D9D71AA6CE8EEE16505 /* AutocapitalizationRules.swift */; };
 		C95E05279A6FA4FF42FF63B7 /* apple-en-light-number-return-ac1.ax.tsv in Resources */ = {isa = PBXBuildFile; fileRef = 688379681D2297CB99912289 /* apple-en-light-number-return-ac1.ax.tsv */; };
+		C985691AA1446312ADF699B3 /* DashScopeKeyCheck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95A30444FB8B9E9175EDDF9D /* DashScopeKeyCheck.swift */; };
 		C995386C315A520A39282CBD /* AutocapitalizationRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD66D9D71AA6CE8EEE16505 /* AutocapitalizationRules.swift */; };
 		C9C8F004CAAB4DA116263F35 /* SuggestionBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100B9373C32FE73DD2558C51 /* SuggestionBarView.swift */; };
 		CB00C78DA121179DADBBF63C /* RelaySessionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FD8EA7C6779759DCC121AC9 /* RelaySessionPolicy.swift */; };
@@ -389,6 +405,7 @@
 		DC06E75F14E403C6E03A091D /* KeyFeedbackPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F533953CC9675142499318F8 /* KeyFeedbackPolicy.swift */; };
 		DCA8ABC445198CACA72A7F34 /* KeyboardViewController+ContainingAppLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF07BEAED5B9DE4E793A0F97 /* KeyboardViewController+ContainingAppLaunch.swift */; };
 		DD034242256FCD77C3137C59 /* RelayLiveActivityIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B89B21E849845F56A6F614B /* RelayLiveActivityIntents.swift */; };
+		DD12E58A0875E375E22EDB60 /* NetworkPathMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19CF7B8919AC25ADD0B5F00 /* NetworkPathMonitor.swift */; };
 		DD92921054862944F480CD92 /* KeyboardButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AF4D410EEEF18BB779292FC /* KeyboardButton.swift */; };
 		DE7D6B7DA42B09D813EE0978 /* KeyboardSurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A473CED566576FD5748AF331 /* KeyboardSurfaceView.swift */; };
 		DF15CCF40ED32F2409E18B45 /* AudioCaptureEngine+Streaming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07CA00E3C7427478D8FC2B8 /* AudioCaptureEngine+Streaming.swift */; };
@@ -550,8 +567,10 @@
 
 /* Begin PBXFileReference section */
 		00644700B85726209986043D /* HistoryRetentionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRetentionSettings.swift; sourceTree = "<group>"; };
+		006EE5FB9496CDB4C44B355E /* GettingStartedScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedScreen.swift; sourceTree = "<group>"; };
 		028C0F94ABFC48FAAFF58446 /* RelayController+Publishing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RelayController+Publishing.swift"; sourceTree = "<group>"; };
 		031C3CC6EB81783A27D1010E /* SuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionEngine.swift; sourceTree = "<group>"; };
+		0468E4725C8FBBF7EDE5F83A /* SetupChecklist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupChecklist.swift; sourceTree = "<group>"; };
 		04BEF82C7C51653F26B78618 /* KeyboardViewController+PersonalHostLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeyboardViewController+PersonalHostLookup.swift"; sourceTree = "<group>"; };
 		04C5EC72EF13C4448B0F3F76 /* RelayTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayTypes.swift; sourceTree = "<group>"; };
 		050357A6A7CAA601E9AABC06 /* apple-en-dark-text-return-ac1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "apple-en-dark-text-return-ac1.png"; sourceTree = "<group>"; };
@@ -560,10 +579,12 @@
 		0AF4D410EEEF18BB779292FC /* KeyboardButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardButton.swift; sourceTree = "<group>"; };
 		0B5C6533747E0DB49607C0FF /* apple-ru-light-url-return-ac1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "apple-ru-light-url-return-ac1.png"; sourceTree = "<group>"; };
 		0FA7D2C9912E2DECFB6032F4 /* MonomakhUnicode.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = MonomakhUnicode.otf; sourceTree = "<group>"; };
+		0FB1F4C0434CA67B9D642073 /* SetupProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupProgressTests.swift; sourceTree = "<group>"; };
 		0FEE00F37D14DC3576B4C7A8 /* VelikiyMoguchiy.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VelikiyMoguchiy.entitlements; sourceTree = "<group>"; };
 		100B9373C32FE73DD2558C51 /* SuggestionBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionBarView.swift; sourceTree = "<group>"; };
 		1053BE66410ACE38466EC8DD /* AudioRecoveryMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecoveryMachine.swift; sourceTree = "<group>"; };
 		128262F4EE386FEED799C0E8 /* RelayController+Dictation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RelayController+Dictation.swift"; sourceTree = "<group>"; };
+		139D00E270A5239123084FE8 /* DashScopeRegionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeRegionTests.swift; sourceTree = "<group>"; };
 		144554F4C01FBBAEC604B8FD /* VelikiyMoguchiyRelayLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VelikiyMoguchiyRelayLiveActivity.swift; sourceTree = "<group>"; };
 		158E4C61293BE00174C395C1 /* RelayResultFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayResultFallback.swift; sourceTree = "<group>"; };
 		16F0B4A946E3EAC2B2140769 /* ContentView+Setup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView+Setup.swift"; sourceTree = "<group>"; };
@@ -644,6 +665,7 @@
 		7D0046918A11D1A9F417DF29 /* ContentView+Handoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView+Handoff.swift"; sourceTree = "<group>"; };
 		7D8A62709F2E47A1BEF27085 /* TypingStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingStats.swift; sourceTree = "<group>"; };
 		7DB169B4BBAC83F0E424B446 /* apple-en-light-url-return-ac1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "apple-en-light-url-return-ac1.png"; sourceTree = "<group>"; };
+		7E67C3EE53631597A7AE8F09 /* DashScopeRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeRegion.swift; sourceTree = "<group>"; };
 		7F7F1D1D6980DA6A82D60604 /* apple-en-dark-web-go-ac0.ax.tsv */ = {isa = PBXFileReference; path = "apple-en-dark-web-go-ac0.ax.tsv"; sourceTree = "<group>"; };
 		7FAF05B42D5B007C4D7B85F0 /* RelayController+DeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RelayController+DeepLink.swift"; sourceTree = "<group>"; };
 		826C2855054B549A0EA5F474 /* OpenVelikiyMoguchiyIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenVelikiyMoguchiyIntent.swift; sourceTree = "<group>"; };
@@ -658,8 +680,10 @@
 		9039C15F7A9E8311A03EB288 /* RelayTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayTransportTests.swift; sourceTree = "<group>"; };
 		92030A8AC02DE4C40619EAE0 /* KeyboardParityCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardParityCaptureTests.swift; sourceTree = "<group>"; };
 		937E615B3CCD148B54C1C08F /* apple-ru-dark-web-go-ac1.ax.tsv */ = {isa = PBXFileReference; path = "apple-ru-dark-web-go-ac1.ax.tsv"; sourceTree = "<group>"; };
+		947E9C29AA2D5A02BA1F3551 /* DictationFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationFailure.swift; sourceTree = "<group>"; };
 		94DA664380B404C46A5F47C3 /* apple-ru-light-number-return-ac1.ax.tsv */ = {isa = PBXFileReference; path = "apple-ru-light-number-return-ac1.ax.tsv"; sourceTree = "<group>"; };
 		94EB9681E91B7C9377B055D8 /* TrackpadCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackpadCursor.swift; sourceTree = "<group>"; };
+		95A30444FB8B9E9175EDDF9D /* DashScopeKeyCheck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeKeyCheck.swift; sourceTree = "<group>"; };
 		9673102DA709FA7A570FFB5C /* TranscriptFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptFormatterTests.swift; sourceTree = "<group>"; };
 		97230467AC7E02F360C12802 /* apple-ru-light-web-go-ac1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "apple-ru-light-web-go-ac1.png"; sourceTree = "<group>"; };
 		980A349B708E128B2C93EC80 /* KeyboardInputKindResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardInputKindResolver.swift; sourceTree = "<group>"; };
@@ -696,9 +720,11 @@
 		C140421271722BE4F82E3FAF /* SuggestionRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionRules.swift; sourceTree = "<group>"; };
 		C17DFBC414B043FF55EB9024 /* DashScopeSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeSocket.swift; sourceTree = "<group>"; };
 		C248A1D04BE47B2EC21E0B09 /* OFL-ChurchSlavonic.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-ChurchSlavonic.txt"; sourceTree = "<group>"; };
+		C5198C4A47C6C32A39640375 /* DashScopeConnectionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeConnectionScreen.swift; sourceTree = "<group>"; };
 		C77B7FD483B5B88C6F1D0B64 /* iphone-393-en-dark.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "iphone-393-en-dark.jpg"; sourceTree = "<group>"; };
 		CA50553D263FB2AB30E0A08D /* DictationLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationLanguage.swift; sourceTree = "<group>"; };
 		CF5B23086407A706A0752C4E /* KeyboardTrackedRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardTrackedRequest.swift; sourceTree = "<group>"; };
+		D19CF7B8919AC25ADD0B5F00 /* NetworkPathMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPathMonitor.swift; sourceTree = "<group>"; };
 		D2C2CCE3E3D5DD6008C756B3 /* OFL-OldStandard.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-OldStandard.txt"; sourceTree = "<group>"; };
 		D412FDB97F158B90E1F8C0E0 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		D4E280AC8EF85225245E018D /* KeyboardPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardPreferences.swift; sourceTree = "<group>"; };
@@ -713,6 +739,7 @@
 		DF07BEAED5B9DE4E793A0F97 /* KeyboardViewController+ContainingAppLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeyboardViewController+ContainingAppLaunch.swift"; sourceTree = "<group>"; };
 		DFFF78CA7B1BF23DD3C1834C /* LiveWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWaveformView.swift; sourceTree = "<group>"; };
 		E08D0B1569FFC208DCD7A6C0 /* RecoverableRecordingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverableRecordingStoreTests.swift; sourceTree = "<group>"; };
+		E1D8628EF9646547CAE07F05 /* DictationFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationFailureTests.swift; sourceTree = "<group>"; };
 		E21AB7FB5E6D7A8E588A2441 /* apple-ru-dark-url-return-ac1.ax.tsv */ = {isa = PBXFileReference; path = "apple-ru-dark-url-return-ac1.ax.tsv"; sourceTree = "<group>"; };
 		E31806C7023F3AD459147C84 /* DashScopeTimeout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashScopeTimeout.swift; sourceTree = "<group>"; };
 		E502728CB3669076846A44D9 /* RelayController+BackgroundTasks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RelayController+BackgroundTasks.swift"; sourceTree = "<group>"; };
@@ -1012,6 +1039,8 @@
 				738FA54F8ADFF6ABF3D65C00 /* AudioRecoveryMachineTests.swift */,
 				8F6DC84385982174B634FC01 /* CredentialAvailabilityTests.swift */,
 				F5DA42791DE37ADDF11F7322 /* DashScopeRealtimeSessionTests.swift */,
+				139D00E270A5239123084FE8 /* DashScopeRegionTests.swift */,
+				E1D8628EF9646547CAE07F05 /* DictationFailureTests.swift */,
 				610DE4CF0C82A4699DBE1EA9 /* KeyboardInteractionStateTests.swift */,
 				38670B6B977733D2E3C9E8F8 /* KeyboardSharedStateTests.swift */,
 				8F31F6DC929786EB9AD6978B /* KeyFeedbackSettingsTests.swift */,
@@ -1021,6 +1050,7 @@
 				ECED4BACBC29EE3286A10BE1 /* RelayProtocolTests.swift */,
 				A46F7A4C9180984780A571FF /* RelaySessionPolicyTests.swift */,
 				9039C15F7A9E8311A03EB288 /* RelayTransportTests.swift */,
+				0FB1F4C0434CA67B9D642073 /* SetupProgressTests.swift */,
 				9673102DA709FA7A570FFB5C /* TranscriptFormatterTests.swift */,
 				A1A1E04EF7468381DB831C6B /* TranscriptHistoryStoreTests.swift */,
 				23DA34F2E2251F18E78C9724 /* Reference */,
@@ -1106,10 +1136,13 @@
 				6F768ED67EDA59AE08485089 /* ContentView+Overview.swift */,
 				35B5C36AF364F0A26D1DF95D /* ContentView+Settings.swift */,
 				16F0B4A946E3EAC2B2140769 /* ContentView+Setup.swift */,
+				C5198C4A47C6C32A39640375 /* DashScopeConnectionScreen.swift */,
+				006EE5FB9496CDB4C44B355E /* GettingStartedScreen.swift */,
 				00644700B85726209986043D /* HistoryRetentionSettings.swift */,
 				A800D5C11EBED3B606B3E757 /* NoteCaptureSheet.swift */,
 				F90A08FA0C3390FF6715E402 /* OldRusTheme.swift */,
 				513A56110AB4255C2F1B199B /* RelayVisualTestScenario.swift */,
+				0468E4725C8FBBF7EDE5F83A /* SetupChecklist.swift */,
 				48ECF0DB4F90B91A97E32E50 /* TypingStatsScreen.swift */,
 			);
 			path = UI;
@@ -1157,6 +1190,7 @@
 		EE32A3EEF5E1B11DC87C84A1 /* Relay */ = {
 			isa = PBXGroup;
 			children = (
+				D19CF7B8919AC25ADD0B5F00 /* NetworkPathMonitor.swift */,
 				63F115C24E0C1045324B19C2 /* RelayController.swift */,
 				E502728CB3669076846A44D9 /* RelayController+BackgroundTasks.swift */,
 				7FAF05B42D5B007C4D7B85F0 /* RelayController+DeepLink.swift */,
@@ -1190,11 +1224,14 @@
 		FD4B1380E3559C950984E195 /* DashScope */ = {
 			isa = PBXGroup;
 			children = (
+				95A30444FB8B9E9175EDDF9D /* DashScopeKeyCheck.swift */,
 				3FAA6ACB994A6C776B5F78D6 /* DashScopeProtocol.swift */,
 				EBA6A54E4F2C50E9F3DD3583 /* DashScopeRealtimeSession.swift */,
 				FB4BF7DAE28532740B328885 /* DashScopeRecordingTranscriber.swift */,
+				7E67C3EE53631597A7AE8F09 /* DashScopeRegion.swift */,
 				C17DFBC414B043FF55EB9024 /* DashScopeSocket.swift */,
 				E31806C7023F3AD459147C84 /* DashScopeTimeout.swift */,
+				947E9C29AA2D5A02BA1F3551 /* DictationFailure.swift */,
 			);
 			path = DashScope;
 			sourceTree = "<group>";
@@ -1673,13 +1710,18 @@
 				016C00AC990046E011C6D91B /* ContentView+Setup.swift in Sources */,
 				BA44177328E680FA5EC263E1 /* ContentView.swift in Sources */,
 				9DAC46122552E6D65AAB1E16 /* CredentialAvailability.swift in Sources */,
+				A4525583B3519DDF591380A7 /* DashScopeConnectionScreen.swift in Sources */,
+				7EB5CA8EAD969DB2EE36EBFE /* DashScopeKeyCheck.swift in Sources */,
 				AB84D1B06C6DFDF7B39E5F0E /* DashScopeProtocol.swift in Sources */,
 				169DFF67DE7403BF50B843B8 /* DashScopeRealtimeSession.swift in Sources */,
 				D148B71201F1970347512FD6 /* DashScopeRecordingTranscriber.swift in Sources */,
+				517541B9CCC34E0351954AE5 /* DashScopeRegion.swift in Sources */,
 				FFAE1331F632FA42FD548B01 /* DashScopeSocket.swift in Sources */,
 				2C2C2A14B25677281B1841FE /* DashScopeTimeout.swift in Sources */,
 				170DF6EABCB5E3F594F62599 /* DeleteRepeat.swift in Sources */,
+				16BC4137C2618E9E8650A635 /* DictationFailure.swift in Sources */,
 				3E689422A34CA6A2C38726B6 /* DictationLanguage.swift in Sources */,
+				C886D4B532EC7BF456ECD229 /* GettingStartedScreen.swift in Sources */,
 				941903F61FD1A5BF5A86E0D2 /* HistoryRetentionSettings.swift in Sources */,
 				E29F50C08499F5D41BB4EB6F /* KeyFeedbackPolicy.swift in Sources */,
 				D1BA93C81BE39E9B3F785667 /* KeyTouchTracker.swift in Sources */,
@@ -1688,6 +1730,7 @@
 				9E4530CB46C0E49208E251AD /* KeyboardPreferences.swift in Sources */,
 				A4D745E085BF111077BB2492 /* KeyboardStrings.swift in Sources */,
 				C0016E2548CD7F9BD52ED37C /* KeyboardTrackedRequest.swift in Sources */,
+				DD12E58A0875E375E22EDB60 /* NetworkPathMonitor.swift in Sources */,
 				FCB2811D84F52CB7821962A0 /* NoteCaptureSheet.swift in Sources */,
 				876A810101068D5536210108 /* OldRusTheme.swift in Sources */,
 				9AF5FEDE15D16D45D9416CA3 /* OpenVelikiyMoguchiyIntent.swift in Sources */,
@@ -1712,6 +1755,7 @@
 				EDE479A1D4BCB2C395F9951A /* RelayTransport.swift in Sources */,
 				88396CE73390D58C03C3C4DF /* RelayTypes.swift in Sources */,
 				BFC157690A1C5AB4FB355BB0 /* RelayVisualTestScenario.swift in Sources */,
+				08EECC10674C9EB011A63406 /* SetupChecklist.swift in Sources */,
 				371CA499C346505F06220DAD /* SharedRelayStore.swift in Sources */,
 				09C96AD32F7940C6D0B9E738 /* SmartPunctuation.swift in Sources */,
 				49DE9B45309CF65856CF3BA7 /* SuggestionRules.swift in Sources */,
@@ -1825,6 +1869,8 @@
 				12442B4390A5886FF711C0E1 /* AudioRecoveryMachineTests.swift in Sources */,
 				1709A8BEF377E1C0EB3B417F /* CredentialAvailabilityTests.swift in Sources */,
 				E25410B28B7359AAF7435A17 /* DashScopeRealtimeSessionTests.swift in Sources */,
+				4DE405C8626A738E42506FB2 /* DashScopeRegionTests.swift in Sources */,
+				98BFF6A950D3EAC7DDC6AA15 /* DictationFailureTests.swift in Sources */,
 				897E60A08C8A0020993098DA /* FakeDashScopeSocket.swift in Sources */,
 				D9F5DBA3E8EFEF55BE7869D1 /* KeyFeedbackSettingsTests.swift in Sources */,
 				FBD55CD0AC92501558D7F821 /* KeyboardInteractionStateTests.swift in Sources */,
@@ -1835,6 +1881,7 @@
 				163DB7541DCB98AF76143F62 /* RelayProtocolTests.swift in Sources */,
 				8B7BB10957EEAAF9A646A930 /* RelaySessionPolicyTests.swift in Sources */,
 				E09C30C02404AC51B5D24077 /* RelayTransportTests.swift in Sources */,
+				040376FEEDBAADD8B3CDA24C /* SetupProgressTests.swift in Sources */,
 				E4109575D612633097EFDBC0 /* TranscriptFormatterTests.swift in Sources */,
 				38CEEBABD2EEF2592273AB51 /* TranscriptHistoryStoreTests.swift in Sources */,
 			);
@@ -1973,13 +2020,18 @@
 				4C120FF6959027D3D08D2FE8 /* ContentView+Setup.swift in Sources */,
 				5461A0430C05BC45B14AC303 /* ContentView.swift in Sources */,
 				B10979F376BFD0A68FEE3B34 /* CredentialAvailability.swift in Sources */,
+				399DBAC2E8A5FE2DA2C2FC47 /* DashScopeConnectionScreen.swift in Sources */,
+				C985691AA1446312ADF699B3 /* DashScopeKeyCheck.swift in Sources */,
 				31538FCB90BDF679130F33BF /* DashScopeProtocol.swift in Sources */,
 				46C9BC553789E02BDE684B72 /* DashScopeRealtimeSession.swift in Sources */,
 				1AB80B84F3117F423A9842C3 /* DashScopeRecordingTranscriber.swift in Sources */,
+				2A82EBA6DEA8FE04019F622B /* DashScopeRegion.swift in Sources */,
 				A021ED4778B27C1B62ED5855 /* DashScopeSocket.swift in Sources */,
 				BED4BD8DFBCBAD493A6092AC /* DashScopeTimeout.swift in Sources */,
 				9BF0347C1D9256008DDF0892 /* DeleteRepeat.swift in Sources */,
+				6B51957B79FB9AA20039256E /* DictationFailure.swift in Sources */,
 				73F6E02FF2FBDF5076B3B6D3 /* DictationLanguage.swift in Sources */,
+				4FD18B6A70C3931C904AF4BE /* GettingStartedScreen.swift in Sources */,
 				82D7BC8EA3F4EC55DCF9BD78 /* HistoryRetentionSettings.swift in Sources */,
 				50862493DFF1C6D8D7E4A98B /* KeyFeedbackPolicy.swift in Sources */,
 				B2AEDC2C2E5A97ED6FA2DB9C /* KeyTouchTracker.swift in Sources */,
@@ -1988,6 +2040,7 @@
 				3B1F2E3A59864373F92BBF95 /* KeyboardPreferences.swift in Sources */,
 				08743435FFC0681B82ADB00A /* KeyboardStrings.swift in Sources */,
 				1EDA899BC0544EB33C97FD09 /* KeyboardTrackedRequest.swift in Sources */,
+				1AE4B664F216FB2AFED7A8DB /* NetworkPathMonitor.swift in Sources */,
 				1DE30D25F75E43D3554526C7 /* NoteCaptureSheet.swift in Sources */,
 				10C9FC16CC0E43BC64B4954C /* OldRusTheme.swift in Sources */,
 				F04A65E7DC6AAD293917801F /* OpenVelikiyMoguchiyIntent.swift in Sources */,
@@ -2012,6 +2065,7 @@
 				E1B6000369700CC8C9235940 /* RelayTransport.swift in Sources */,
 				D7E52EA6B976A8D5EBC72F3D /* RelayTypes.swift in Sources */,
 				3EF87FFA19A5703067403D72 /* RelayVisualTestScenario.swift in Sources */,
+				A73B5D524A46EF07EC0443BA /* SetupChecklist.swift in Sources */,
 				CBF5408C6FE87C4FB2FE53F2 /* SharedRelayStore.swift in Sources */,
 				E4499CC58710208D1CB57C9F /* SmartPunctuation.swift in Sources */,
 				EF808B8B5BE0062C5CE51E57 /* SuggestionRules.swift in Sources */,

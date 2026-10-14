@@ -1,4 +1,5 @@
 #import "SPSetupWizardWindowController.h"
+#import "SPCommunityTrainingCard.h"
 #import "SPLipCaptureManager.h"
 #import "SPLipDataPolicy.h"
 #import "SPLipsRuntime.h"
@@ -9,7 +10,9 @@
 #import "SPRustBridge.h"
 #import "SPSettingsSidebar.h"
 #import "SPSettingsViews.h"
+#import "SPErrorExplainer.h"
 #import "SPTheme.h"
+#import "SPTriggerKeyPolicy.h"
 #import <Carbon/Carbon.h>
 #import <Cocoa/Cocoa.h>
 #import <Speech/Speech.h>
@@ -922,6 +925,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSPopUpButton *repasteKeyPopup;
 @property(nonatomic, strong) NSPopUpButton *mouseButtonPopup;
 @property(nonatomic, strong) NSPopUpButton *autoStopSilencePopup;
+@property(nonatomic, strong) NSPopUpButton *recordingCapPopup;
 @property(nonatomic, strong) NSSwitch *voiceCommandsSwitch;
 @property(nonatomic, strong) NSSwitch *mediaPlayPauseSwitch;
 @property(nonatomic, strong) NSSwitch *keepLastDictationSwitch;
@@ -1057,6 +1061,11 @@ static NSString *SPCondensedProviderError(NSString *raw) {
         stringByAppendingPathComponent:[NSString stringWithFormat:@"settings-%@%@.png", pane, suffix]];
     SPWriteViewSnapshot(self.window.contentView.superview, path);
   }
+}
+
+- (void)showPane:(NSString *)pane {
+  [self switchToPane:pane];
+  [self showWindow:nil];
 }
 
 - (void)showWindow:(id)sender {
@@ -1732,6 +1741,12 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   qwenKeysScroll.documentView = self.asrQwenKeysTextView;
   qwenKeysScroll.hidden = YES;
   [pane addSubview:qwenKeysScroll];
+  NSButton *keyHelpLink = [self linkButtonWithTitle:@"Как получить ключ"
+                                             action:@selector(openDashScopeKeyHelp:)];
+  keyHelpLink.frame = NSMakeRect(formX, qwenY + 22 - qwenKeysH + 2, labelW, 18);
+  keyHelpLink.tag = 1003;
+  keyHelpLink.hidden = YES;
+  [pane addSubview:keyHelpLink];
 
   CGFloat qwenModeY = qwenY + 22 - qwenKeysH - 12 - 22;
   NSTextField *qwenModeLabel =
@@ -2873,7 +2888,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                       control:self.autoReturnSwitch],
                        [self cardRowWithLabel:@"Голосовые команды"
                                       control:self.voiceCommandsSwitch],
-                       [self cardRowWithLabel:@"Оставлять последнюю диктовку в буфере обмена"
+                       [self cardRowWithLabel:@"Оставлять диктовку в буфере обмена (скопированное раньше не вернётся)"
                                       control:self.keepLastDictationSwitch],
                        [self cardRowWithLabel:@"Вставлять сырой текст сразу, потом исправлять"
                                       control:self.pasteAsrFirstSwitch],
@@ -2906,6 +2921,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   self.keepMicWarmSwitch = [self settingsSwitchWithAction:NULL];
   self.lipflowSwitch = [self settingsSwitchWithAction:NULL];
   self.autoStopSilencePopup = [self autoStopSilencePopupButton];
+  self.recordingCapPopup = [self recordingCapPopupButton];
   NSView *recordingCard =
       [self cardWithTitle:@"Запись"
                      rows:@[
@@ -2917,6 +2933,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                       control:self.lipflowSwitch],
                        [self cardRowWithLabel:@"Автостоп по тишине (без удержания)"
                                       control:self.autoStopSilencePopup],
+                       [self cardRowWithLabel:@"Предел длины записи"
+                                      control:self.recordingCapPopup],
                      ]
                     width:cardWidth];
 
@@ -2939,6 +2957,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   NSView *lipdataCard = [self lipdataCardWithWidth:cardWidth];
   // ── «Обучить на мне» (LipTraining/SPLipTrainingCard: builds and runs itself) ──
   NSView *lipTrainingCard = [[SPLipTrainingCard alloc] initWithWidth:cardWidth];
+  // ── «Помочь обучить» (CommunityTraining/SPCommunityTrainingCard: builds and runs itself) ──
+  NSView *communityCard = [[SPCommunityTrainingCard alloc] initWithWidth:cardWidth];
 
   // ── Layout ──
   CGFloat triggerH = triggerCard.frame.size.height;
@@ -2948,10 +2968,11 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   CGFloat historyH = historyCard.frame.size.height;
   CGFloat lipdataH = lipdataCard.frame.size.height;
   CGFloat lipTrainingH = lipTrainingCard.frame.size.height;
+  CGFloat communityH = communityCard.frame.size.height;
   CGFloat contentHeight = topPad + triggerH + cardSpacing + pasteH +
                           cardSpacing + feedbackH + cardSpacing + recordingH +
                           cardSpacing + historyH + cardSpacing + lipdataH +
-                          cardSpacing + lipTrainingH + 56;
+                          cardSpacing + lipTrainingH + cardSpacing + communityH + 56;
 
   NSView *pane =
       [[NSView alloc] initWithFrame:NSMakeRect(0, 0, paneWidth, contentHeight)];
@@ -3010,6 +3031,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   y -= cardSpacing + lipTrainingH;
   lipTrainingCard.frame = NSMakeRect(24, y, cardWidth, lipTrainingH);
   [pane addSubview:lipTrainingCard];
+
+  y -= cardSpacing + communityH;
+  communityCard.frame = NSMakeRect(24, y, cardWidth, communityH);
+  [pane addSubview:communityCard];
 
   return pane;
 }
@@ -3289,6 +3314,27 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     @[ @"3 с", @"3" ],
     @[ @"5 с", @"5" ],
     @[ @"8 с", @"8" ],
+    @[ @"15 с", @"15" ],
+    @[ @"30 с", @"30" ],
+    @[ @"60 с", @"60" ],
+  ];
+  for (NSArray<NSString *> *option in options) {
+    [popup addItemWithTitle:option[0]];
+    [popup lastItem].representedObject = option[1];
+  }
+  return popup;
+}
+
+// Seconds after which any recording ends; "0" is no limit.
+- (NSPopUpButton *)recordingCapPopupButton {
+  NSPopUpButton *popup =
+      [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 168, 26)
+                                 pullsDown:NO];
+  NSArray<NSArray<NSString *> *> *options = @[
+    @[ @"Без предела", @"0" ],
+    @[ @"5 мин", @"300" ],
+    @[ @"10 мин", @"600" ],
+    @[ @"30 мин", @"1800" ],
   ];
   for (NSArray<NSString *> *option in options) {
     [popup addItemWithTitle:option[0]];
@@ -3462,6 +3508,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 }
 
 - (void)triggerHotkeyChanged:(id)sender {
+  [self warnAboutFnConflictIfNeeded];
 }
 
 - (void)updateHotkeyRecordingButtons {
@@ -3472,43 +3519,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   self.resetTriggerHotkeyButton.enabled = !recordingTrigger;
   [self.recordTriggerHotkeyButton
       setTitle:(recordingTrigger ? @"Нажмите…" : @"Записать")];
-}
-
-- (NSString *)recordedHotkeyValueFromEvent:(NSEvent *)event {
-  NSInteger keyCode = event.keyCode;
-  switch (keyCode) {
-  case 54:
-  case 55:
-  case 56:
-  case 57:
-  case 58:
-  case 59:
-  case 60:
-  case 61:
-  case 62:
-  case 63:
-    return nil;
-  default:
-    break;
-  }
-
-  NSUInteger flags = event.modifierFlags &
-                     (NSEventModifierFlagCommand | NSEventModifierFlagOption |
-                      NSEventModifierFlagControl | NSEventModifierFlagShift |
-                      NSEventModifierFlagFunction);
-  NSMutableArray<NSString *> *parts = [NSMutableArray array];
-  if ((flags & NSEventModifierFlagCommand) != 0)
-    [parts addObject:@"command"];
-  if ((flags & NSEventModifierFlagOption) != 0)
-    [parts addObject:@"option"];
-  if ((flags & NSEventModifierFlagControl) != 0)
-    [parts addObject:@"control"];
-  if ((flags & NSEventModifierFlagShift) != 0)
-    [parts addObject:@"shift"];
-  if ((flags & NSEventModifierFlagFunction) != 0)
-    [parts addObject:@"fn"];
-  [parts addObject:[NSString stringWithFormat:@"%ld", (long)keyCode]];
-  return normalizedHotkeyValue([parts componentsJoinedByString:@"+"]);
 }
 
 - (void)endHotkeyRecording {
@@ -3530,6 +3540,12 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   [self updateHotkeyRecordingButtons];
 
   __weak typeof(self) weakSelf = self;
+  // A modifier counts once it is let go with no key pressed meanwhile: -1 is
+  // none yet, -2 a chord, otherwise the keycode of the lone modifier.
+  __block NSInteger loneModifier = -1;
+  NSUInteger modifierMask = NSEventModifierFlagCommand | NSEventModifierFlagOption |
+                            NSEventModifierFlagControl | NSEventModifierFlagShift |
+                            NSEventModifierFlagFunction;
   self.hotkeyRecordingMonitor = [NSEvent
       addLocalMonitorForEventsMatchingMask:(NSEventMaskKeyDown |
                                             NSEventMaskFlagsChanged)
@@ -3539,28 +3555,74 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                        return event;
                                      }
 
-                                     if (event.type == NSEventTypeKeyDown &&
-                                         event.keyCode == 53) {
+                                     if (event.type == NSEventTypeFlagsChanged) {
+                                       if ((event.modifierFlags & modifierMask) != 0) {
+                                         loneModifier = loneModifier == -1 ? event.keyCode : -2;
+                                       } else {
+                                         NSInteger keyCode = loneModifier;
+                                         loneModifier = -1;
+                                         if (keyCode >= 0) {
+                                           [weakSelf finishHotkeyRecording:
+                                                         [SPRecordedTrigger triggerForModifierKeyCode:keyCode]
+                                                                    popup:popup];
+                                         }
+                                       }
+                                       return nil;
+                                     }
+
+                                     if (event.keyCode == 53 &&
+                                         (event.modifierFlags & modifierMask) == 0) {
                                        [weakSelf endHotkeyRecording];
                                        return nil;
                                      }
 
-                                     if (event.type != NSEventTypeKeyDown ||
-                                         [event isARepeat]) {
+                                     if ([event isARepeat]) {
                                        return nil;
                                      }
-
-                                     NSString *recordedValue = [weakSelf
-                                         recordedHotkeyValueFromEvent:event];
-                                     if (recordedValue.length == 0) {
-                                       return nil;
-                                     }
-
-                                     [weakSelf selectHotkeyValue:recordedValue
-                                                         inPopup:popup];
-                                     [weakSelf endHotkeyRecording];
+                                     loneModifier = -2;
+                                     [weakSelf finishHotkeyRecording:
+                                                   [SPRecordedTrigger triggerForKeyCode:event.keyCode
+                                                                          modifierFlags:event.modifierFlags]
+                                                              popup:popup];
                                      return nil;
                                    }];
+}
+
+- (void)finishHotkeyRecording:(SPRecordedTrigger *)trigger popup:(NSPopUpButton *)popup {
+  [self endHotkeyRecording];
+  if (trigger.value.length == 0) {
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleInformational;
+    alert.messageText = @"Эту клавишу нельзя назначить";
+    alert.informativeText = trigger.refusal ?: @"";
+    [alert addButtonWithTitle:@"Понятно"];
+    [alert beginSheetModalForWindow:self.window completionHandler:nil];
+    return;
+  }
+  [self selectHotkeyValue:trigger.value inPopup:popup];
+  [self warnAboutFnConflictIfNeeded];
+}
+
+/// Fn chosen while the 🌐 key also does something of its own.
+- (void)warnAboutFnConflictIfNeeded {
+  NSString *selected = [self.hotkeyPopup.selectedItem.representedObject description];
+  if (![selected isEqualToString:@"fn"])
+    return;
+  NSString *conflict = SPFnUsageConflict(SPFnUsageType());
+  if (!conflict)
+    return;
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.alertStyle = NSAlertStyleWarning;
+  alert.messageText = @"Клавиша Fn (🌐) занята системой";
+  alert.informativeText = SPFnConflictExplanation(conflict);
+  [alert addButtonWithTitle:@"Открыть «Клавиатуру»"];
+  [alert addButtonWithTitle:@"Оставить Fn"];
+  [alert beginSheetModalForWindow:self.window
+                completionHandler:^(NSModalResponse response) {
+                  if (response == NSAlertFirstButtonReturn) {
+                    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:SPKeyboardSettingsURL]];
+                  }
+                }];
 }
 
 - (void)recordTriggerHotkey:(id)sender {
@@ -3570,6 +3632,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 - (void)resetTriggerHotkey:(id)sender {
   [self endHotkeyRecording];
   [self selectHotkeyValue:@"fn" inPopup:self.hotkeyPopup];
+  [self warnAboutFnConflictIfNeeded];
 }
 
 - (NSView *)buildDictionaryPane {
@@ -5771,6 +5834,11 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
   }
 
   // Show/hide Qwen fields
+  self.asrTestButton.title = isQwen ? @"Проверить ключ" : @"Проверить";
+  [self.asrTestButton sizeToFit];
+  NSRect testFrame = self.asrTestButton.frame;
+  testFrame.size.height = 28;
+  self.asrTestButton.frame = testFrame;
   [self setHidden:!isQwen
       forViewsMatchingTags:[NSIndexSet indexSetWithIndex:1003]
                     inView:self.currentPaneView];
@@ -7042,6 +7110,11 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
           customTitle:^NSString *(NSString *value) {
             return [NSString stringWithFormat:@"%@ с", value];
           }];
+    [self selectValue:configGet(@"recording.max_duration_s")
+              inPopup:self.recordingCapPopup
+          customTitle:^NSString *(NSString *value) {
+            return [NSString stringWithFormat:@"%@ с", value];
+          }];
     BOOL voiceCommands = configBooleanValue(configGet(@"commands.enabled"), YES);
     self.voiceCommandsSwitch.state =
         voiceCommands ? NSControlStateValueOn : NSControlStateValueOff;
@@ -7059,6 +7132,8 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
                              forKey:@"hotkey.mouse_button"];
     [self rememberLoadedStringValue:self.autoStopSilencePopup.selectedItem.representedObject ?: @"0"
                              forKey:@"recording.auto_stop_silence_s"];
+    [self rememberLoadedStringValue:self.recordingCapPopup.selectedItem.representedObject ?: @"0"
+                             forKey:@"recording.max_duration_s"];
     [self rememberLoadedStringValue:self.hotkeyPopup.selectedItem.representedObject ?: @"fn"
                              forKey:@"hotkey.trigger_key"];
     [self rememberLoadedStringValue:self.triggerModePopup.selectedItem.representedObject ?: @"hold"
@@ -7479,6 +7554,9 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     saveOk &= [self saveStringValue:self.autoStopSilencePopup.selectedItem
                                         .representedObject ?: @"0"
                              forKey:@"recording.auto_stop_silence_s"];
+    saveOk &= [self saveStringValue:self.recordingCapPopup.selectedItem
+                                        .representedObject ?: @"0"
+                             forKey:@"recording.max_duration_s"];
   }
   if (self.voiceCommandsSwitch) {
     BOOL value = self.voiceCommandsSwitch.state == NSControlStateValueOn;
@@ -8492,7 +8570,204 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   self.asrQwenModelCustomField.hidden = !(providerShown && custom);
 }
 
+static NSString *const kDashScopeKeyHelpURL =
+    @"https://github.com/zigansh1n/velikiy-moguchiy/blob/main/docs/DASHSCOPE-KEY.md";
+// What the core reads for a config without asr.qwen.url (default_qwen_url).
+static NSString *const kDashScopeDefaultURL = @"wss://dashscope.aliyuncs.com/api-ws/v1/realtime";
+
+- (NSButton *)linkButtonWithTitle:(NSString *)title action:(SEL)action {
+  NSButton *button = [NSButton buttonWithTitle:title target:self action:action];
+  button.bordered = NO;
+  button.alignment = NSTextAlignmentLeft;
+  button.attributedTitle = [[NSAttributedString alloc]
+      initWithString:title
+          attributes:@{
+            NSFontAttributeName : [NSFont systemFontOfSize:11],
+            NSForegroundColorAttributeName : NSColor.linkColor,
+            NSUnderlineStyleAttributeName : @(NSUnderlineStyleSingle),
+          }];
+  return button;
+}
+
+- (void)openDashScopeKeyHelp:(id)sender {
+  [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:kDashScopeKeyHelpURL]];
+}
+
+static NSString *dashScopeRegionName(NSString *url) {
+  if ([url containsString:@"dashscope-intl.aliyuncs.com"])
+    return @"международный регион";
+  if ([url containsString:@"dashscope.aliyuncs.com"])
+    return @"регион Китай";
+  return @"свой адрес";
+}
+
+/// «Проверить ключ»: every key goes through the core's own connection (the
+/// session is set up and closed before any audio, so it costs nothing).
 - (void)testQwenConnection {
+  if (asrCustomHeaders(@"qwen") != nil) {
+    [self testQwenConnectionWithCustomHeaders];
+    return;
+  }
+  NSArray<NSString *> *keys = [self currentQwenKeys];
+  if (keys.count == 0) {
+    self.asrTestResultLabel.stringValue =
+        @"Сначала вставьте ключ. Где его взять — «Как получить ключ» слева.";
+    self.asrTestResultLabel.textColor = SPTheme.warning;
+    return;
+  }
+  NSString *model = [self selectedQwenModel];
+  if (model.length == 0) {
+    self.asrTestResultLabel.stringValue = @"Сначала укажите модель";
+    self.asrTestResultLabel.textColor = SPTheme.warning;
+    return;
+  }
+  NSString *url = configGet(@"asr.qwen.url");
+  if (url.length == 0)
+    url = kDashScopeDefaultURL;
+
+  self.asrTestButton.enabled = NO;
+  self.asrTestResultLabel.stringValue =
+      keys.count == 1 ? @"Проверка ключа…"
+                      : [NSString stringWithFormat:@"Проверка ключей: %lu…", (unsigned long)keys.count];
+  self.asrTestResultLabel.textColor = [NSColor secondaryLabelColor];
+
+  __weak typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    NSMutableArray<NSDictionary *> *results = [NSMutableArray array];
+    for (NSString *key in keys) {
+      char *raw = sp_dashscope_check_key(url.UTF8String, key.UTF8String, model.UTF8String);
+      NSDictionary *result = nil;
+      if (raw) {
+        NSData *data = [NSData dataWithBytes:raw length:strlen(raw)];
+        sp_core_free_string(raw);
+        result = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+      }
+      [results addObject:[result isKindOfClass:[NSDictionary class]] ? result : @{ @"ok" : @NO }];
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf showQwenKeyCheckResults:results url:url model:model];
+    });
+  });
+}
+
+- (void)showQwenKeyCheckResults:(NSArray<NSDictionary *> *)results
+                            url:(NSString *)url
+                          model:(NSString *)model {
+  self.asrTestButton.enabled = YES;
+  NSUInteger failed = 0;
+  NSInteger firstFailure = -1;
+  NSString *otherRegionURL = nil;
+  BOOL everyFailureWorksElsewhere = YES;
+  for (NSUInteger i = 0; i < results.count; i++) {
+    NSDictionary *result = results[i];
+    if ([result[@"ok"] boolValue])
+      continue;
+    failed++;
+    if (firstFailure < 0)
+      firstFailure = (NSInteger)i;
+    NSString *worksAt = [result[@"works_at"] isKindOfClass:[NSString class]] ? result[@"works_at"] : nil;
+    if (worksAt.length > 0 && (!otherRegionURL || [otherRegionURL isEqualToString:worksAt])) {
+      otherRegionURL = worksAt;
+    } else {
+      everyFailureWorksElsewhere = NO;
+    }
+    NSLog(@"[VelikiyMoguchiy] DashScope key #%lu check failed: %@", (unsigned long)i + 1,
+          result[@"message"] ?: @"no result");
+  }
+
+  NSString *region = dashScopeRegionName(url);
+  self.asrTestResultLabel.toolTip = nil;
+  if (failed == 0) {
+    self.asrTestResultLabel.stringValue =
+        results.count == 1
+            ? [NSString stringWithFormat:@"Ключ работает (%@)", region]
+            : [NSString stringWithFormat:@"Все ключи работают: %lu (%@)", (unsigned long)results.count, region];
+    self.asrTestResultLabel.textColor = SPTheme.success;
+    return;
+  }
+
+  NSDictionary *first = results[(NSUInteger)firstFailure];
+  NSString *message = [first[@"message"] isKindOfClass:[NSString class]] ? first[@"message"] : @"";
+  NSString *reason;
+  if (otherRegionURL && everyFailureWorksElsewhere) {
+    reason = [NSString stringWithFormat:@"создан для другого региона (%@)", dashScopeRegionName(otherRegionURL)];
+  } else {
+    switch ([SPErrorExplainer kindForMessage:message]) {
+      case SPErrorKindBadKey:
+        reason = @"сервис его не принял: скопируйте ключ целиком";
+        break;
+      case SPErrorKindNoBalance:
+        reason = @"закончился баланс или бесплатный лимит";
+        break;
+      case SPErrorKindRateLimit:
+        reason = @"слишком много запросов, повторите через минуту";
+        break;
+      case SPErrorKindAccessDenied:
+        reason = [NSString stringWithFormat:@"нет доступа к модели «%@»", model];
+        break;
+      case SPErrorKindTimeout:
+      case SPErrorKindNetwork:
+      case SPErrorKindService:
+        reason = @"нет связи с DashScope, проверьте интернет или VPN";
+        break;
+      default:
+        reason = [[SPErrorExplainer explanationForMessage:message recordingKept:NO].shortText lowercaseString];
+        break;
+    }
+  }
+  NSString *which = results.count == 1
+                        ? @"Ключ"
+                        : [NSString stringWithFormat:@"Ключ %ld из %lu", (long)firstFailure + 1,
+                                                     (unsigned long)results.count];
+  NSString *text = [NSString stringWithFormat:@"%@: %@", which, reason];
+  if (failed > 1)
+    text = [text stringByAppendingFormat:@" (не работают: %lu)", (unsigned long)failed];
+  self.asrTestResultLabel.stringValue = text;
+  self.asrTestResultLabel.toolTip = text;
+  self.asrTestResultLabel.textColor = SPTheme.failure;
+
+  if (otherRegionURL && everyFailureWorksElsewhere) {
+    [self offerDashScopeRegionSwitchTo:otherRegionURL from:url];
+  }
+}
+
+/// Only on the user's click: the endpoint changes, nothing else does.
+- (void)offerDashScopeRegionSwitchTo:(NSString *)otherURL from:(NSString *)currentURL {
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.alertStyle = NSAlertStyleInformational;
+  alert.messageText = @"Ключ из другого региона";
+  alert.informativeText = [NSString stringWithFormat:
+      @"Ключ работает в %@, а приложение сейчас подключается к %@ адресу. Переключить адрес?\n\n"
+      @"Остальные настройки не изменятся. Вернуть прежний адрес можно в config.yaml: asr.qwen.url.",
+      [otherURL containsString:@"dashscope-intl"] ? @"международном регионе" : @"регионе Китай",
+      [currentURL containsString:@"dashscope-intl"] ? @"международному" : @"китайскому"];
+  [alert addButtonWithTitle:@"Переключить"];
+  [alert addButtonWithTitle:@"Оставить"];
+  __weak typeof(self) weakSelf = self;
+  [alert beginSheetModalForWindow:self.window
+                completionHandler:^(NSModalResponse response) {
+                  __strong typeof(weakSelf) strongSelf = weakSelf;
+                  if (!strongSelf || response != NSAlertFirstButtonReturn)
+                    return;
+                  if (!configSet(@"asr.qwen.url", otherURL)) {
+                    strongSelf.asrTestResultLabel.stringValue = @"Не удалось сохранить адрес";
+                    strongSelf.asrTestResultLabel.textColor = SPTheme.failure;
+                    return;
+                  }
+                  NSLog(@"[VelikiyMoguchiy] asr.qwen.url switched by the user to %@", otherURL);
+                  strongSelf.asrTestResultLabel.stringValue =
+                      [NSString stringWithFormat:@"Адрес переключён, ключ работает (%@)",
+                                                 dashScopeRegionName(otherURL)];
+                  strongSelf.asrTestResultLabel.textColor = SPTheme.success;
+                  if ([strongSelf.delegate respondsToSelector:@selector(setupWizardDidSaveConfig)]) {
+                    [strongSelf.delegate setupWizardDidSaveConfig];
+                  }
+                }];
+}
+
+/// With asr.qwen.headers the core sends those headers instead of the key, so
+/// only the handshake can be checked.
+- (void)testQwenConnectionWithCustomHeaders {
   // Get current key value (account for plain/secure toggle state)
   NSString *apiKey = [self currentQwenKeys].firstObject ?: @"";
 

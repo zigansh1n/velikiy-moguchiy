@@ -74,8 +74,9 @@ extension RelayController {
     activeLiveSession = liveSession
     lastLivePreviewAt = .distantPast
     let apiKey = configuration.apiKey
+    let region = configuration.dashScopeRegion
     liveConnectionTask = Task {
-      try await liveSession.connect(apiKey: apiKey)
+      try await liveSession.connect(apiKey: apiKey, region: region)
     }
 
     let chunkHandler: @Sendable (Data) -> Void = { data in
@@ -99,9 +100,13 @@ extension RelayController {
       activeDictationAction = action
       activeStartedAt = startedAt
       let listeningMessage: String
-      listeningMessage = action == .note
-        ? "Записываю заметку…"
-        : "Слушаю… нажмите микрофон ещё раз, когда закончите"
+      if NetworkPathMonitor.shared.isOffline {
+        listeningMessage = RelayRecordingMessage.offline
+      } else {
+        listeningMessage = action == .note
+          ? "Записываю заметку…"
+          : "Слушаю… нажмите микрофон ещё раз, когда закончите"
+      }
       publish(
         .recording,
         message: listeningMessage,

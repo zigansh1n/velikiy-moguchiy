@@ -4,12 +4,30 @@ extension ContentView {
   var settingsScreen: some View {
     Form { Group {
       Section {
+        Button { isGettingStartedPresented = true } label: {
+          Label {
+            HStack {
+              Text("Начало работы").foregroundStyle(.primary)
+              Spacer()
+              Text(
+                setupProgress.isComplete
+                  ? "Всё готово" : "\(setupProgress.completedSteps) из \(SetupProgress.stepCount)"
+              )
+              .foregroundStyle(.secondary)
+              .font(.subheadline)
+            }
+          } icon: { Image(systemName: "checklist").foregroundStyle(OldRus.cinnabar) }
+        }
+        .accessibilityIdentifier("getting-started-link")
         NavigationLink { connectionScreen } label: {
           Label {
             HStack {
               Text("Ключ DashScope")
               Spacer()
-              Text(configuration.hasUsableAPIKey ? "Добавлен" : "Добавить")
+              Text(
+                !configuration.hasUsableAPIKey
+                  ? "Добавить" : configuration.isKeyVerified ? "Работает" : "Не проверен"
+              )
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
             }
@@ -135,38 +153,15 @@ extension ContentView {
   }
 
   var connectionScreen: some View {
-    Form { Group {
-      Section {
-        Label(configuration.hasUsableAPIKey ? "Ключ добавлен" : "Добавьте ключ DashScope",
-              systemImage: configuration.hasUsableAPIKey ? "checkmark.circle.fill" : "key")
-          .foregroundStyle(configuration.hasUsableAPIKey ? OldRus.cinnabar : Color.primary)
-        SecureField("Ключ API (sk-…)", text: $configuration.apiKeyOverride)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .accessibilityIdentifier("api-key-field")
-        if !configuration.apiKeyOverride.isEmpty {
-          Button("Удалить ключ", role: .destructive) { configuration.clearAPIKeyOverride() }
-        }
-      } header: {
-        OldRusHeader("Ключ API")
-      } footer: {
-        Text("Ключ хранится в Keychain этого iPhone и не передаётся клавиатурам: сетью занимается только приложение.")
-      }
-      if let warning = configuration.credentialPersistenceWarning {
-        Section { Label(warning, systemImage: "exclamationmark.triangle").foregroundStyle(OldRus.ochre) }
-      }
-    }.listRowBackground(OldRus.vellum) }
-    .oldRusPage()
-    .navigationTitle("Ключ DashScope")
-    .navigationBarTitleDisplayMode(.inline)
-    .scrollDismissesKeyboard(.interactively)
+    DashScopeConnectionScreen(configuration: configuration)
   }
 
   var modelsScreen: some View {
     Form { Group {
       Section(header: OldRusHeader("Распознавание речи")) {
         modelRow("Диктовка и заметки", model: configuration.speechModel, identifier: "active-speech-model")
-        modelRow("Адрес", model: "wss://dashscope.aliyuncs.com/api-ws/v1/realtime")
+        modelRow("Регион", model: configuration.dashScopeRegion.title)
+        modelRow("Адрес", model: configuration.dashScopeRegion.realtimeBaseURL + "/api-ws/v1/realtime")
       }
     }.listRowBackground(OldRus.vellum) }
     .oldRusPage()

@@ -65,6 +65,7 @@ extension RelayController {
     beginTranscriptionBackgroundTaskIfNeeded()
 
     let apiKey = configuration.apiKey
+    let region = configuration.dashScopeRegion
     let language = DictationLanguage.resolve(recording.languageCode)
     recoveryRetryTask = Task { [weak self] in
       guard let self else { return }
@@ -78,10 +79,12 @@ extension RelayController {
         let outputText = try await fallbackResult(
           from: audioURL,
           language: language,
-          apiKey: apiKey
+          apiKey: apiKey,
+          region: region
         )
         try Task.checkCancellation()
         try completeTranscription(outputText, requestID: retryRequestID, action: recording.action)
+        configuration.markKeyVerified()
         do {
           try recoveryStore.remove(id: recording.id)
         } catch {
@@ -111,22 +114,24 @@ extension RelayController {
         )
         refreshRecoverableRecordings()
       } catch {
-        recoveryStore.markFailed(
-          id: recording.id,
-          message: error.localizedDescription
+        let failure = DictationFailure(error)
+        NSLog(
+          "RETRY_FAILED code=%@ error=%@",
+          failure.code,
+          String(describing: error)
         )
-        refreshRecoverableRecordings()
+        let keptRecording = keepOrDiscardFailedRecording(recording.id, failure: failure)
+        let silentMessage = "В записи не слышно речи — она удалена"
         if isRelayRunning {
           publish(
             .error,
-            message: RecoverableRecordingStatus.keyboardMessage(for: error),
+            message: keptRecording ? failure.keyboardText : silentMessage,
             activeRequestID: retryRequestID,
             activeDictationAction: recording.action
           )
           markRelayActivityAndScheduleIdleShutdown()
-        } else {
-          statusMessage = RecoverableRecordingStatus.keyboardMessage(for: error)
         }
+        statusMessage = keptRecording ? failure.detail : silentMessage
       }
     }
   }

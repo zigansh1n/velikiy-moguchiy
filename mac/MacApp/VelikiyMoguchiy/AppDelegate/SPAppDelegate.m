@@ -1,5 +1,6 @@
 #import "SPAppDelegate.h"
 #import "SPPermissionManager.h"
+#import "SPAccessibilityManager.h"
 #import "SPHotkeyMonitor.h"
 #import "SPMediaKeyMonitor.h"
 #import "SPAudioCaptureManager.h"
@@ -22,6 +23,7 @@
 #import "SPLipsService.h"
 #import "SPLipsRuntime.h"
 #import "SPLocalAsrOffer.h"
+#import "SPOnboardingWindowController.h"
 #import "SPAppUpdateChecker.h"
 #import "SPProblemReportWindowController.h"
 #import "SPRecentDictationsWindowController.h"
@@ -30,6 +32,9 @@
 #import "SPOutputModes.h"
 #import "velikiy_moguchiy_core.h"
 #import "SPAppPaths.h"
+#import "SPErrorExplainer.h"
+#import "SPHotkeyNames.h"
+#import "SPTriggerKeyPolicy.h"
 #import <os/log.h>
 #import <sys/stat.h>
 #import <UserNotifications/UserNotifications.h>
@@ -57,7 +62,7 @@
 @property (nonatomic, weak) SPAppDelegate *target;
 @end
 
-@interface SPAppDelegate () <SPAudioDeviceManagerDelegate, SPOverlayPanelDelegate>
+@interface SPAppDelegate () <SPAudioDeviceManagerDelegate, SPOverlayPanelDelegate, UNUserNotificationCenterDelegate>
 @property (nonatomic, strong) SPRecentDictationsWindowController *recentDictations;
 @property (nonatomic, strong) NSPanel *designPreviewMenuPanel;
 // Recording of the session in flight, linked to its history row when the
@@ -105,6 +110,24 @@
 @property (nonatomic, strong) SPProblemReportWindowController *problemReport;
 @property (nonatomic, strong) SPHotkeyPurposeProxy *mouseHotkeyProxy;
 @property (nonatomic, strong) NSTimer *silenceStopTimer;
+// Watches the level meter while recording for a microphone that gives nothing.
+@property (nonatomic, strong) NSTimer *micSilenceTimer;
+// When each warning was last said, so a warning repeated on every dictation is said once in a while.
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSDate *> *warningShownAt;
+// A message that waits for the pill to finish the result of the session.
+@property (nonatomic, strong) SPErrorExplanation *pendingPillMessage;
+// Polls the permissions while one is missing, so granting it later needs no restart.
+@property (nonatomic, strong) NSTimer *permissionWatchTimer;
+@property (nonatomic, assign) BOOL watchedAccessibilityGranted;
+@property (nonatomic, assign) BOOL watchedInputMonitoringGranted;
+@property (nonatomic, assign) BOOL hotkeyRestartPending;
+// Ends a recording that has gone on for recording.max_duration_s.
+@property (nonatomic, strong) NSTimer *recordingCapTimer;
+// Judges the focused element before a paste (password field, no field at all).
+@property (nonatomic, strong) SPAccessibilityManager *accessibilityManager;
+@property (nonatomic, strong) SPOnboardingWindowController *onboarding;
+// A first launch: «Начало работы» takes the place of the separate prompts and offers.
+@property (nonatomic, assign) BOOL onboardingAtLaunch;
 @property (nonatomic, assign) SPSessionPurpose pendingSessionPurpose;
 @property (nonatomic, assign) SPSessionPurpose sessionPurpose;
 // Session result metadata delivered just before the final text; consumed
@@ -154,7 +177,16 @@ static BOOL sessionStateAllowsConfigReload(NSString *state) {
 @implementation SPAppDelegate
 
 static const NSTimeInterval kManualPasteResultLingerDuration = 8.0;
-static const NSTimeInterval kAskAnswerLingerDuration = 20.0;
+// Peak below this (about -80 dBFS) is a muted, unplugged or wrong input, not a quiet room.
+static const float kSilentMicPeak = 0.0001f;
+static const NSTimeInterval kMicSilenceHintDelay = 2.5;
+static const NSTimeInterval kWarningRepeatInterval = 10 * 60;
+static NSString *const kSessionStartFailure = @"Не удалось начать сессию";
+// How many times the first-use hints are shown before they stop.
+static const NSInteger kFirstUseHintLimit = 3;
+static NSString *const kHoldHintCountKey = @"SPHoldHintCount";
+static NSString *const kHandsFreeHintCountKey = @"SPHandsFreeHintCount";
+static const NSInteger kEscapeKeyCode = 53;
 static const NSTimeInterval kAbortResultLingerDuration = 0.8;
 static const NSTimeInterval kQuickBadgeLingerDuration = 1.8;
 
@@ -347,6 +379,9 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)applyDeferredConfigReloadIfNeeded {
+    if (self.hotkeyRestartPending && sessionStateAllowsConfigReload(self.sessionState)) {
+        [self checkWatchedPermissions];
+    }
     if (!self.hasPendingConfigReload) return;
     if (!sessionStateAllowsConfigReload(self.sessionState)) return;
 
@@ -479,6 +514,7 @@ static BOOL SPLabFlag(const char *name) {
     self.clipboardRestorePolicy = [[SPClipboardRestorePolicy alloc] init];
     self.clipboardRestorePolicy.clipboardManager = self.clipboardManager;
     self.pasteManager = [[SPPasteManager alloc] init];
+    self.accessibilityManager = [[SPAccessibilityManager alloc] init];
     self.instantPasteGuard = [[SPInstantPasteGuard alloc] init];
     self.audioCaptureManager = [[SPAudioCaptureManager alloc] init];
     self.audioDeviceManager = [[SPAudioDeviceManager alloc] init];
@@ -504,10 +540,16 @@ static BOOL SPLabFlag(const char *name) {
     self.overlayPanel.delegate = self;
 
     [SPLipsRuntime sharedRuntime].rustBridge = self.rustBridge;
+    self.onboardingAtLaunch = [SPOnboardingWindowController shouldShowAtLaunch];
     [self startUpdateAndSetupChecks];
 
-    // Request notification permission
-    [self.permissionManager requestNotificationPermission];
+    // Clicks on error notifications open the place that fixes the error.
+    [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+    // On a first launch «Начало работы» asks for notifications when the user
+    // wants them, instead of one more system prompt at launch.
+    if (!self.onboardingAtLaunch) {
+        [self.permissionManager requestNotificationPermission];
+    }
 
     // Request Speech Recognition permission if Apple Speech is the configured provider
     char *rawProvider = sp_config_get("asr.provider");
@@ -524,18 +566,14 @@ static BOOL SPLabFlag(const char *name) {
         sp_core_free_string(rawProvider);
     }
 
-    // Check permissions
-    [self.permissionManager checkAllPermissionsWithCompletion:^(BOOL micGranted, BOOL accessibilityGranted, BOOL inputMonitoringGranted) {
-        NSLog(@"[VelikiyMoguchiy] Permissions — mic:%d accessibility:%d inputMonitoring:%d",
-              micGranted, accessibilityGranted, inputMonitoringGranted);
-
-        if (!micGranted) {
-            NSLog(@"[VelikiyMoguchiy] ERROR: Microphone permission not granted");
-            [self.cuePlayer playError];
-            [self.permissionManager showPermissionAlertForType:SPPermissionTypeMicrophone
-                                                  settingsURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
-            return;
-        }
+    // Check permissions. Nothing below waits for them: a permission granted
+    // later is picked up by the permission watch without a restart.
+    NSArray<NSNumber *> *lostPermissions = [self.permissionManager lostPermissionTypes];
+    BOOL accessibilityLost = [lostPermissions containsObject:@(SPPermissionTypeAccessibility)];
+    [self.permissionManager checkAllPermissionsPromptingAccessibility:!accessibilityLost
+                                                           completion:^(BOOL micGranted, BOOL accessibilityGranted, BOOL inputMonitoringGranted) {
+        NSLog(@"[VelikiyMoguchiy] Permissions — mic:%d accessibility:%d inputMonitoring:%d lost:%@",
+              micGranted, accessibilityGranted, inputMonitoringGranted, lostPermissions);
 
         // No app-level alerts for Accessibility / Input Monitoring at launch:
         // macOS shows its own Input Monitoring prompt when the event tap
@@ -550,13 +588,10 @@ static BOOL SPLabFlag(const char *name) {
 
         // Build the queue after TCC confirms microphone access, but do not
         // start hardware yet. The trigger-down path starts this prepared queue.
-        if (SPLabFlag("VELIKIY_MOGUCHIY_LAB_NO_AUDIO")) {
-            NSLog(@"[VelikiyMoguchiy] LAB: audio queue preparation disabled");
+        if (micGranted) {
+            [self enableAudioPreparation];
         } else {
-            self.audioPreparationEnabled = YES;
-            if (![self prepareAudioQueueForResolvedDevice]) {
-                NSLog(@"[VelikiyMoguchiy] Initial audio queue preparation failed; trigger-down will retry");
-            }
+            NSLog(@"[VelikiyMoguchiy] Microphone permission not granted; audio waits for it");
         }
 
         // Start hotkey monitor (let it try CGEventTap directly — the probe may give false negatives)
@@ -576,8 +611,146 @@ static BOOL SPLabFlag(const char *name) {
 
         // Start watching config file for hotkey changes
         [self startConfigWatcher];
+
+        [self.permissionManager rememberGrantedPermissions];
+        self.watchedAccessibilityGranted = accessibilityGranted;
+        self.watchedInputMonitoringGranted = inputMonitoringGranted;
+        if (!micGranted || !accessibilityGranted || !inputMonitoringGranted) {
+            [self startPermissionWatch];
+        }
+
+        // Alerts are modal: shown once everything above is running.
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self.onboardingAtLaunch) {
+                // Its checklist covers the microphone, the key and the 🌐 clash.
+                [self statusBarDidSelectOnboarding];
+            } else if (lostPermissions.count > 0) {
+                [self.permissionManager showLostAccessAlertForTypes:lostPermissions];
+            } else if (!micGranted) {
+                [self.cuePlayer playError];
+                [self.permissionManager showPermissionAlertForType:SPPermissionTypeMicrophone
+                                                       settingsURL:[SPPermissionManager settingsURLForType:SPPermissionTypeMicrophone]];
+            } else {
+                [self warnAboutFnConflictIfNeeded];
+            }
+        });
     }];
 
+}
+
+- (void)enableAudioPreparation {
+    if (self.audioPreparationEnabled) return;
+    if (SPLabFlag("VELIKIY_MOGUCHIY_LAB_NO_AUDIO")) {
+        NSLog(@"[VelikiyMoguchiy] LAB: audio queue preparation disabled");
+        return;
+    }
+    self.audioPreparationEnabled = YES;
+    if (![self prepareAudioQueueForResolvedDevice]) {
+        NSLog(@"[VelikiyMoguchiy] Initial audio queue preparation failed; trigger-down will retry");
+    }
+}
+
+/// An Fn trigger on a Mac whose 🌐 key also switches the layout, opens the
+/// emoji picker or starts the system dictation: said once per such setting.
+- (void)warnAboutFnConflictIfNeeded {
+    if (![[configStringValue("hotkey.trigger_key") lowercaseString] isEqualToString:@"fn"]) return;
+    NSInteger usage = SPFnUsageType();
+    NSString *conflict = SPFnUsageConflict(usage);
+    if (!conflict) return;
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSString *warnedKey = @"SPFnConflictWarnedUsage";
+    if ([defaults objectForKey:warnedKey] && [defaults integerForKey:warnedKey] == usage) return;
+    [defaults setInteger:usage forKey:warnedKey];
+
+    [NSApp activateIgnoringOtherApps:YES];
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleWarning;
+    alert.messageText = @"Клавиша Fn (🌐) занята системой";
+    alert.informativeText = SPFnConflictExplanation(conflict);
+    [alert addButtonWithTitle:@"Открыть «Клавиатуру»"];
+    [alert addButtonWithTitle:@"Выбрать другую клавишу"];
+    [alert addButtonWithTitle:@"Оставить Fn"];
+    NSModalResponse response = [alert runModal];
+    if (response == NSAlertFirstButtonReturn) {
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:SPKeyboardSettingsURL]];
+    } else if (response == NSAlertSecondButtonReturn) {
+        [self showSettingsPane:@"hotkey"];
+    }
+}
+
+#pragma mark - Permissions granted after launch
+
+/// While a permission is missing: the microphone, once allowed, gets its audio
+/// queue; a new Accessibility or Input Monitoring grant rebuilds the hotkey
+/// monitors, whose event tap could not be created without it.
+- (void)startPermissionWatch {
+    if (self.permissionWatchTimer) return;
+    __weak typeof(self) weakSelf = self;
+    self.permissionWatchTimer = [NSTimer scheduledTimerWithTimeInterval:3.0
+                                                                repeats:YES
+                                                                  block:^(NSTimer *timer) {
+        [weakSelf checkWatchedPermissions];
+    }];
+}
+
+- (void)checkWatchedPermissions {
+    if (self.quitting) return;
+    BOOL mic = [self.permissionManager isMicrophoneGranted];
+    BOOL accessibility = [self.permissionManager isAccessibilityGranted];
+    BOOL inputMonitoring = [self.permissionManager isInputMonitoringGranted];
+    if (mic && !self.audioPreparationEnabled) {
+        NSLog(@"[VelikiyMoguchiy] Microphone access granted; preparing audio");
+        [self enableAudioPreparation];
+    }
+    if ((accessibility && !self.watchedAccessibilityGranted) ||
+        (inputMonitoring && !self.watchedInputMonitoringGranted)) {
+        NSLog(@"[VelikiyMoguchiy] Accessibility / Input Monitoring granted; restarting the hotkey monitors");
+        self.hotkeyRestartPending = YES;
+    }
+    self.watchedAccessibilityGranted = accessibility;
+    self.watchedInputMonitoringGranted = inputMonitoring;
+    if (self.hotkeyRestartPending && sessionStateAllowsConfigReload(self.sessionState)) {
+        self.hotkeyRestartPending = NO;
+        [self restartHotkeyMonitors];
+    }
+    if (mic && accessibility && inputMonitoring && !self.hotkeyRestartPending) {
+        [self.permissionManager rememberGrantedPermissions];
+        [self.permissionWatchTimer invalidate];
+        self.permissionWatchTimer = nil;
+    }
+}
+
+- (void)restartHotkeyMonitors {
+    if (!self.hotkeyMonitor) return;
+    [self.hotkeyMonitor stop];
+    [self.hotkeyMonitor start];
+    [self rebuildExtraHotkeyMonitors];
+}
+
+/// The trigger fired while the microphone is not allowed: no session starts,
+/// and the pill and a notification say where to allow it. YES when refused.
+- (BOOL)refuseTriggerWithoutMicrophone {
+    if ([self.permissionManager isMicrophoneGranted]) return NO;
+    NSLog(@"[VelikiyMoguchiy] Trigger without microphone access; no session started");
+    [self.audioCaptureManager cancelPreCapture];
+    [self discardArmedLipClip];
+    [self resetAllHotkeyMonitorsToIdle];
+    self.pendingSessionPurpose = SPSessionPurposeDictate;
+    [self.cuePlayer playError];
+    [self startPermissionWatch];
+    if ([self.permissionManager isMicrophoneUndetermined]) {
+        [self.permissionManager requestMicrophonePermissionWithCompletion:^(BOOL granted) {}];
+        return YES;
+    }
+    SPErrorExplanation *explanation =
+        [SPErrorExplainer explanationWithKind:SPErrorKindMicrophone
+                                    shortText:@"Нет доступа к микрофону"
+                                       detail:@"Разрешите его: Системные настройки → Конфиденциальность → Микрофон → "
+                                              @"«Великий & Могучий». Перезапускать приложение не нужно."
+                                       action:SPErrorActionMicrophonePrivacy];
+    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self sendErrorNotificationForExplanation:explanation];
+    return YES;
 }
 
 #pragma mark - Updates and first-run offers
@@ -593,7 +766,8 @@ static BOOL SPLabFlag(const char *name) {
     };
     // After the launch has settled, so the offer does not land on top of the permission prompts.
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (!weakSelf.quitting && sessionStateAllowsConfigReload(weakSelf.sessionState)) {
+        if (!weakSelf.quitting && !weakSelf.onboardingAtLaunch &&
+            sessionStateAllowsConfigReload(weakSelf.sessionState)) {
             [weakSelf.localAsrOffer offerIfNeeded];
         }
     });
@@ -996,6 +1170,8 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)beginTriggerForPurpose:(SPSessionPurpose)purpose {
+    // Without the microphone the hold / tap decision only explains why nothing starts.
+    if (![self.permissionManager isMicrophoneGranted]) return;
     // This callback occurs on the initial key-down, before the 180ms hold/tap
     // decision. Starting the already-prepared queue here makes the microphone
     // privacy indicator and Bluetooth route activation begin immediately.
@@ -1065,7 +1241,7 @@ static BOOL SPLabFlag(const char *name) {
     self.pendingDeliveryRemainder = nil;
     self.pendingSendRequest = NO;
     if (![self.rustBridge beginSessionWithMode:mode]) {
-        [self handleAudioCaptureError:@"Не удалось начать сессию"];
+        [self handleAudioCaptureError:kSessionStartFailure];
         return NO;
     }
     // Snapshot the effective clipboard restoration policy for this session.
@@ -1081,6 +1257,7 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)hotkeyMonitorDidDetectHoldStart {
     NSLog(@"[VelikiyMoguchiy] Hold start detected");
+    if ([self refuseTriggerWithoutMicrophone]) return;
     [self deactivateRawAsrFallbackInteraction];
     [self.audioCaptureManager logActivationMilestone:@"hold decision"];
     [self stopNumberKeyMonitoring];
@@ -1105,6 +1282,8 @@ static BOOL SPLabFlag(const char *name) {
     // Start Rust session + audio capture
     if (![self beginRustSessionWithMode:SPSessionModeHold]) return;
     [self startAudioCaptureWithRetryIncludingPreRoll:YES];
+    [self startMicSilenceWatch];
+    [self startRecordingCap];
 }
 
 - (void)hotkeyMonitorDidDetectHoldEnd {
@@ -1138,6 +1317,7 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)hotkeyMonitorDidDetectTapStart {
     NSLog(@"[VelikiyMoguchiy] Tap start detected");
+    if ([self refuseTriggerWithoutMicrophone]) return;
     [self deactivateRawAsrFallbackInteraction];
     [self.audioCaptureManager logActivationMilestone:@"tap decision"];
     [self stopNumberKeyMonitoring];
@@ -1162,6 +1342,125 @@ static BOOL SPLabFlag(const char *name) {
     if (![self beginRustSessionWithMode:SPSessionModeToggle]) return;
     [self startAudioCaptureWithRetryIncludingPreRoll:NO];
     [self startSilenceAutoStopIfConfigured];
+    [self startMicSilenceWatch];
+    [self startRecordingCap];
+    [self showHandsFreeHintIfNeeded];
+}
+
+#pragma mark - Recording limit and first-use hints
+
+/// recording.max_duration_s: a recording left running (a forgotten hands-free
+/// one, a stuck key) ends the way the user would have ended it.
+- (void)startRecordingCap {
+    [self.recordingCapTimer invalidate];
+    self.recordingCapTimer = nil;
+    float seconds = sp_core_recording_cap_seconds();
+    if (seconds <= 0) return;
+    uint64_t token = self.rustBridge.currentSessionToken;
+    __weak typeof(self) weakSelf = self;
+    self.recordingCapTimer = [NSTimer scheduledTimerWithTimeInterval:seconds
+                                                             repeats:NO
+                                                               block:^(NSTimer *timer) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf || token != strongSelf.rustBridge.currentSessionToken) return;
+        NSString *state = strongSelf.sessionState;
+        if (![state hasPrefix:@"recording"]) return;
+        NSLog(@"[VelikiyMoguchiy] Recording reached its %.0fs limit — ending it", seconds);
+        if ([state isEqualToString:@"recording_hold"]) {
+            [strongSelf hotkeyMonitorDidDetectHoldEnd];
+            [strongSelf resetAllHotkeyMonitorsToIdle];
+        } else {
+            [strongSelf stopSilenceAutoStop];
+            [strongSelf endHandsFreeRecordingLikeSecondTap];
+        }
+        [strongSelf showInfoMessage:[NSString stringWithFormat:
+            @"Запись остановлена: прошло %.0f мин. Предел меняется в Настройках → Управление → Запись.",
+            seconds / 60.0]];
+    }];
+}
+
+/// The trigger's name for a sentence, "клавишу" when it has none.
+- (NSString *)triggerKeyShortName {
+    return SPHotkeyShortName(configStringValue("hotkey.trigger_key")) ?: @"клавишу";
+}
+
+/// Shows a first-use hint while its counter is below the limit. YES when shown.
+- (BOOL)takeFirstUseHint:(NSString *)counterKey {
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSInteger shown = [defaults integerForKey:counterKey];
+    if (shown >= kFirstUseHintLimit) return NO;
+    [defaults setInteger:shown + 1 forKey:counterKey];
+    return YES;
+}
+
+/// The first hands-free recordings say how they end, next to the level bars.
+- (void)showHandsFreeHintIfNeeded {
+    if (self.hotkeyMonitor.abortKeyCode != kEscapeKeyCode) return;
+    if (![self takeFirstUseHint:kHandsFreeHintCountKey]) return;
+    [self.overlayPanel setRecordingHint:[NSString stringWithFormat:@"Ещё раз %@ — готово · Esc — отмена",
+                                                                   [self triggerKeyShortName]]];
+}
+
+- (void)hotkeyMonitorDidIgnoreShortPress {
+    if (!sessionStateAllowsConfigReload(self.sessionState)) return;
+    if (![self takeFirstUseHint:kHoldHintCountKey]) return;
+    [self.overlayPanel showMessage:[NSString stringWithFormat:@"Держите %@ и говорите", [self triggerKeyShortName]]
+                              icon:SPOverlayMessageIconNotice];
+}
+
+#pragma mark - A microphone that gives nothing
+
+/// After a couple of seconds of a recording whose input never rose above
+/// digital silence, the pill says so next to its level bars.
+- (void)startMicSilenceWatch {
+    [self.micSilenceTimer invalidate];
+    uint64_t token = self.rustBridge.currentSessionToken;
+    NSDate *started = [NSDate date];
+    __block BOOL hintShown = NO;
+    __weak typeof(self) weakSelf = self;
+    self.micSilenceTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+                                                           repeats:YES
+                                                             block:^(NSTimer *timer) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf || token != strongSelf.rustBridge.currentSessionToken ||
+            ![strongSelf.sessionState hasPrefix:@"recording"]) {
+            [timer invalidate];
+            return;
+        }
+        if (-started.timeIntervalSinceNow < kMicSilenceHintDelay) return;
+        if (sp_core_mic_peak() < kSilentMicPeak) {
+            [strongSelf.overlayPanel setRecordingHint:@"Микрофон молчит"];
+            hintShown = YES;
+            return;
+        }
+        // Another hint (the hands-free one) stays; only this one is taken back.
+        if (hintShown) [strongSelf.overlayPanel setRecordingHint:nil];
+        [timer invalidate];
+    }];
+}
+
+/// The core heard no speech: the pill says why nothing was typed, and the
+/// recording stays listed in «Последние диктовки».
+- (void)finishSessionWithoutSpeech {
+    // A short press can end before a slow (Bluetooth) microphone delivers its first sound.
+    BOOL longEnough = self.recordingStartTime && -self.recordingStartTime.timeIntervalSinceNow >= kMicSilenceHintDelay;
+    BOOL micSilent = longEnough && sp_core_mic_peak() < kSilentMicPeak;
+    [self.micSilenceTimer invalidate];
+    self.sessionState = @"idle";
+    [self disarmAbortKey];
+    [self deactivateRawAsrFallbackInteraction];
+    self.sessionPurpose = SPSessionPurposeDictate;
+    self.editAnchor = nil;
+    [self recordUnfinishedSessionWithStatus:@"empty"
+                                      error:micSilent ? @"микрофон не дал звука" : @"в записи не было речи"];
+    [self.statusBarManager updateState:@"idle"];
+    if (micSilent) {
+        [self.overlayPanel showMessage:@"Микрофон молчит — проверьте вход в меню значка"
+                                  icon:SPOverlayMessageIconNotice];
+    } else {
+        [self.overlayPanel showMessage:@"Не расслышал" icon:SPOverlayMessageIconNoSpeech];
+    }
+    [self applyDeferredConfigReloadIfNeeded];
 }
 
 #pragma mark - Silence auto-stop (hands-free recordings)
@@ -1353,11 +1652,9 @@ static BOOL SPLabFlag(const char *name) {
         NSLog(@"[VelikiyMoguchiy] Typed draft cannot be completed safely; text copied to clipboard only");
         [self.clipboardManager cancelPendingRestore];
         [self.clipboardManager writeText:text];
-        [self.overlayPanel updateDisplayText:text];
-        [self.overlayPanel updateState:@"pasting"];
-        [self.overlayPanel showResultBadge:@"Не вставилось целиком — в буфере, ⌘V"];
         [self.statusBarManager updateState:@"idle"];
-        [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
+        [self.overlayPanel showMessage:@"Не вставилось целиком — текст в буфере, ⌘V"
+                                  icon:SPOverlayMessageIconClipboard];
         [self applyDeferredConfigReloadIfNeeded];
         return;
     }
@@ -1384,11 +1681,9 @@ static BOOL SPLabFlag(const char *name) {
         self.sessionPurpose = SPSessionPurposeDictate;
         [self.clipboardManager cancelPendingRestore];
         [self.clipboardManager writeText:text];
-        [self.overlayPanel updateDisplayText:text];
-        [self.overlayPanel updateState:@"pasting"];
-        [self.overlayPanel showResultBadge:@"✓ Скопировано"];
         [self.statusBarManager updateState:@"idle"];
-        [self.overlayPanel lingerAndDismissWithDuration:kAskAnswerLingerDuration];
+        [self.overlayPanel showMessage:[@"Ответ в буфере: " stringByAppendingString:[self firstLineOfText:text]]
+                                  icon:SPOverlayMessageIconClipboard];
         [self applyDeferredConfigReloadIfNeeded];
         return;
     }
@@ -1404,6 +1699,25 @@ static BOOL SPLabFlag(const char *name) {
     BOOL canAutoPaste = shouldAutoPaste && accessOK;
     BOOL keepLastDictation = keepLastDictationEnabled();
     NSLog(@"[VelikiyMoguchiy] Accessibility granted: %@", accessOK ? @"YES" : @"NO");
+
+    SPPasteTarget target = canAutoPaste ? [self.accessibilityManager pasteTargetForFocusedElement] : SPPasteTargetPaste;
+    if (target == SPPasteTargetSecure) {
+        // Dictated text never goes into a password field, nor onto the clipboard for one.
+        NSLog(@"[VelikiyMoguchiy] Focus is a password field; the text is not pasted");
+        [self.statusBarManager updateState:@"idle"];
+        [self.overlayPanel showMessage:@"Поле пароля — текст не вставлен" icon:SPOverlayMessageIconNotice];
+        [self applyDeferredConfigReloadIfNeeded];
+        return;
+    }
+    if (target == SPPasteTargetNone) {
+        NSLog(@"[VelikiyMoguchiy] Nothing that takes text has focus; the text goes to the clipboard");
+        [self.clipboardManager cancelPendingRestore];
+        [self.clipboardManager writeText:text];
+        [self.statusBarManager updateState:@"idle"];
+        [self.overlayPanel showMessage:@"Некуда вставить — текст в буфере, ⌘V" icon:SPOverlayMessageIconClipboard];
+        [self applyDeferredConfigReloadIfNeeded];
+        return;
+    }
 
     if (canAutoPaste) {
         // Show corrected text in overlay before pasting
@@ -1443,13 +1757,15 @@ static BOOL SPLabFlag(const char *name) {
                 }
                 if (!keepLastDictation) {
                     [self.clipboardRestorePolicy scheduleRestoreForCurrentSession];
+                    [self noteClipboardThatCannotComeBack];
                 }
             } else {
                 // Nothing was injected. Leave the text on the clipboard so
                 // the user can paste manually; restoring the backup over it
                 // would throw the transcript away.
                 [self.clipboardManager cancelPendingRestore];
-                [self.overlayPanel showResultBadge:@"Не вставилось — в буфере, ⌘V"];
+                [self.overlayPanel showMessage:@"Не вставилось — текст в буфере, ⌘V"
+                                          icon:SPOverlayMessageIconClipboard];
             }
             [self.statusBarManager updateState:@"idle"];
             [self showPromptTemplateButtonsIfNeededOrDismiss];
@@ -1462,21 +1778,18 @@ static BOOL SPLabFlag(const char *name) {
             [self.clipboardManager writeText:text];
         }
 
-        NSString *badge = nil;
-        NSTimeInterval lingerDuration = kManualPasteResultLingerDuration;
+        [self.statusBarManager updateState:@"idle"];
         if (!shouldAutoPaste) {
+            // Copy-only is the user's choice: the clipboard icon says enough.
             NSLog(@"[VelikiyMoguchiy] Auto-paste disabled — processed text copied to clipboard only");
-            badge = @"✓ Скопировано";
+            [self.overlayPanel updateState:@"pasting"];
+            [self.overlayPanel showResultBadge:@"✓ Скопировано"];
+            [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
         } else {
             NSLog(@"[VelikiyMoguchiy] Accessibility not granted — text copied to clipboard only");
-            badge = @"Не вставилось — в буфере, ⌘V";
+            [self.overlayPanel showMessage:@"Нет универсального доступа — текст в буфере, ⌘V"
+                                      icon:SPOverlayMessageIconClipboard];
         }
-
-        [self.overlayPanel updateDisplayText:text];
-        [self.overlayPanel updateState:@"pasting"];
-        [self.overlayPanel showResultBadge:badge];
-        [self.statusBarManager updateState:@"idle"];
-        [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:lingerDuration];
     }
 
     [self applyDeferredConfigReloadIfNeeded];
@@ -1501,17 +1814,20 @@ static BOOL SPLabFlag(const char *name) {
     self.sessionWantsAudioCapture = NO;
     [self.audioCaptureManager stopCapture];
     [self discardArmedLipClip];
+    BOOL recordingKept = self.sessionAudioPath != nil;
     [self recordUnfinishedSessionWithStatus:@"error"
                                       error:[SPHistoryManager
                                                 errorReasonWithSummary:[SPRetranscriber summaryForProviderMessage:message]
                                                        providerMessage:message]];
     [self resetAllHotkeyMonitorsToIdle];
     [self.statusBarManager updateState:@"error"];
-    [self.overlayPanel updateState:@"error"];
 
-    // The pill only shows an xmark; the text goes to a system notification.
-    [self sendErrorNotification:[NSString stringWithFormat:@"%@\n%@",
-                                 [self localizedErrorSummary:message], message ?: @""]];
+    // The pill says what broke in a few words; the notification says what to do.
+    // The provider's own text stays in the log and the history row.
+    SPErrorExplanation *explanation = [SPErrorExplainer explanationForMessage:message recordingKept:recordingKept];
+    NSLog(@"[VelikiyMoguchiy] Error %@ shown as \"%@\"", explanation.code, explanation.shortText);
+    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self sendErrorNotificationForExplanation:explanation];
 
     // Brief error display, then back to idle.
     // Guard with session token so a new session isn't reset to idle.
@@ -1524,43 +1840,6 @@ static BOOL SPLabFlag(const char *name) {
         [self.overlayPanel updateState:@"idle"];
         [self applyDeferredConfigReloadIfNeeded];
     });
-}
-
-- (NSString *)localizedErrorSummary:(NSString *)message {
-    if (!message.length) return SPLocalizedString(@"error.asr.unknown");
-    NSString *lower = message.lowercaseString;
-    if ([lower containsString:@"timed out"] || [lower containsString:@"timeout"]) {
-        return SPLocalizedString(@"error.asr.timeout");
-    }
-    if ([lower containsString:@"starttask"] || [lower containsString:@"startsession"]) {
-        return SPLocalizedString(@"error.asr.service");
-    }
-    if ([lower containsString:@"credential"] || [lower containsString:@"token"] || [lower containsString:@"auth"]) {
-        return SPLocalizedString(@"error.asr.auth");
-    }
-    if ([lower containsString:@"microphone"] || [lower containsString:@"audio"]) {
-        return SPLocalizedString(@"error.audio");
-    }
-    return SPLocalizedString(@"error.asr.unknown");
-}
-
-- (void)sendWarningNotification:(NSString *)message {
-    UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = SPLocalizedString(@"notification.warning.title");
-    content.body = message;
-    content.sound = nil;
-
-    NSString *identifier = [NSString stringWithFormat:@"velikiy-moguchiy-warning-%f",
-                            [[NSDate date] timeIntervalSince1970]];
-    UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
-                                                                          content:content
-                                                                          trigger:nil];
-    [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:request
-                                                           withCompletionHandler:^(NSError * _Nullable error) {
-        if (error) {
-            NSLog(@"[VelikiyMoguchiy] Failed to deliver warning notification: %@", error.localizedDescription);
-        }
-    }];
 }
 
 - (void)sendRetranscribedNotification:(NSString *)message {
@@ -1582,29 +1861,65 @@ static BOOL SPLabFlag(const char *name) {
     }];
 }
 
-- (void)sendErrorNotification:(NSString *)message {
+/// One banner per kind of message: a newer error replaces the older one. The
+/// click leads to the explanation's action (userNotificationCenter:didReceive…).
+- (void)postNotificationWithIdentifier:(NSString *)identifier
+                                 title:(NSString *)title
+                           explanation:(SPErrorExplanation *)explanation {
     UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-    content.title = SPLocalizedString(@"notification.error.title");
-    content.body = message;
-    content.sound = nil; // Already playing error cue
-
-    NSString *identifier = [NSString stringWithFormat:@"velikiy-moguchiy-error-%f",
-                            [[NSDate date] timeIntervalSince1970]];
+    content.title = title;
+    content.body = [SPErrorExplainer notificationBodyForExplanation:explanation];
+    content.sound = nil;
+    content.userInfo = @{ @"action" : @(explanation.action) };
     UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:identifier
                                                                           content:content
                                                                           trigger:nil];
     [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:request
                                                            withCompletionHandler:^(NSError * _Nullable error) {
         if (error) {
-            NSLog(@"[VelikiyMoguchiy] Failed to deliver error notification: %@", error.localizedDescription);
+            NSLog(@"[VelikiyMoguchiy] Failed to deliver notification: %@", error.localizedDescription);
         }
     }];
+}
+
+- (void)sendErrorNotificationForExplanation:(SPErrorExplanation *)explanation {
+    [self postNotificationWithIdentifier:@"velikiy-moguchiy-error"
+                                   title:SPLocalizedString(@"notification.error.title")
+                             explanation:explanation];
 }
 
 - (void)rustBridgeDidReceiveWarning:(NSString *)message {
     os_log_with_type(OS_LOG_DEFAULT, OS_LOG_TYPE_DEFAULT, "[VelikiyMoguchiy] Session warning: %{public}@", message ?: @"unknown warning");
     NSLog(@"[VelikiyMoguchiy] Session warning: %@", message);
-    [self sendWarningNotification:message];
+    SPErrorExplanation *explanation = [SPErrorExplainer explanationForWarning:message];
+    if (!explanation) return;
+    // Correction switched on without a key fails the same way on every dictation.
+    if (!self.warningShownAt) self.warningShownAt = [NSMutableDictionary dictionary];
+    NSDate *shownAt = self.warningShownAt[explanation.detail];
+    if (shownAt && -shownAt.timeIntervalSinceNow < kWarningRepeatInterval) return;
+    self.warningShownAt[explanation.detail] = [NSDate date];
+
+    [self.permissionManager checkNotificationPermissionWithCompletion:^(BOOL granted) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self.quitting) return;
+            if (granted) {
+                [self postNotificationWithIdentifier:@"velikiy-moguchiy-warning"
+                                               title:SPLocalizedString(@"notification.warning.title")
+                                         explanation:explanation];
+            } else {
+                // The warning comes before the text is delivered: the pill
+                // says it once it has shown the result.
+                self.pendingPillMessage = explanation;
+            }
+        });
+    }];
+}
+
+/// The first line of `text`, short enough for the pill.
+- (NSString *)firstLineOfText:(NSString *)text {
+    NSString *line = [[text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
+        componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet].firstObject ?: @"";
+    return line.length > 80 ? [[line substringToIndex:80] stringByAppendingString:@"…"] : line;
 }
 
 - (void)rustBridgeDidReceiveInterimText:(NSString *)text {
@@ -1647,6 +1962,7 @@ static BOOL SPLabFlag(const char *name) {
     // raw paste on top would duplicate it. Decided when the session began.
     if (self.rustBridge.currentSessionTypesText) return;
     if (![self.permissionManager isAccessibilityGranted]) return;
+    if ([self.accessibilityManager pasteTargetForFocusedElement] != SPPasteTargetPaste) return;
 
     NSLog(@"[VelikiyMoguchiy] InstantPaste: pasting raw ASR text (%lu chars)", (unsigned long)text.length);
     self.instantPastedText = text;
@@ -1769,6 +2085,10 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)rustBridgeDidChangeState:(NSString *)state {
     if (self.quitting || self.showingError) return;
+    if ([state isEqualToString:@"no_speech"]) {
+        [self finishSessionWithoutSpeech];
+        return;
+    }
     self.sessionState = state;
     BOOL isCorrecting = [state isEqualToString:@"correcting"];
     if (isCorrecting) {
@@ -2060,9 +2380,8 @@ static BOOL SPLabFlag(const char *name) {
         if (granted) {
             [self sendRetranscribedNotification:@"Распознано повторно — вставь ⌘V"];
         } else if (sessionStateAllowsConfigReload(self.sessionState)) {
-            [self.overlayPanel updateState:@"pasting"];
-            [self.overlayPanel showResultBadge:@"Распознано повторно — в буфере, ⌘V"];
-            [self.overlayPanel lingerAndDismissWithDuration:kManualPasteResultLingerDuration];
+            [self.overlayPanel showMessage:@"Распознано повторно — в буфере, ⌘V"
+                                      icon:SPOverlayMessageIconClipboard];
         }
     }];
 }
@@ -2084,8 +2403,16 @@ static BOOL SPLabFlag(const char *name) {
     [self.rustBridge cancelSession];
     [self resetAllHotkeyMonitorsToIdle];
     [self.statusBarManager updateState:@"error"];
-    [self.overlayPanel updateState:@"error"];
-    [self sendErrorNotification:reason];
+    SPErrorExplanation *explanation =
+        [reason isEqualToString:kSessionStartFailure]
+            ? [SPErrorExplainer explanationWithKind:SPErrorKindUnknown
+                                          shortText:@"Запись не началась"
+                                             detail:@"Попробуйте ещё раз. Если повторяется, напишите нам: "
+                                                    @"меню значка → «Сообщить о проблеме…»."
+                                             action:SPErrorActionNone]
+            : [SPErrorExplainer microphoneExplanationWithShortText:reason];
+    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self sendErrorNotificationForExplanation:explanation];
 
     uint64_t token = self.rustBridge.currentSessionToken;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)),
@@ -2233,7 +2560,8 @@ static BOOL SPLabFlag(const char *name) {
                     if (error) NSLog(@"[VelikiyMoguchiy] Failed to deliver notification: %@", error.localizedDescription);
                 }];
             } else if (sessionStateAllowsConfigReload(self.sessionState)) {
-                [self showQuickBadge:message];
+                [self.statusBarManager updateState:@"idle"];
+                [self.overlayPanel showMessage:message icon:SPOverlayMessageIconNotice];
             }
         });
     }];
@@ -2248,9 +2576,8 @@ static BOOL SPLabFlag(const char *name) {
     [self.overlayPanel updateState:@"pasting"];
 
     if (text.length == 0) {
-        [self.overlayPanel showResultBadge:@"Правка пустая — текст не тронут"];
         [self.statusBarManager updateState:@"idle"];
-        [self.overlayPanel lingerAndDismissWithDuration:kManualPasteResultLingerDuration];
+        [self.overlayPanel showMessage:@"Правка пустая — текст не тронут" icon:SPOverlayMessageIconNotice];
         return;
     }
 
@@ -2309,9 +2636,9 @@ static BOOL SPLabFlag(const char *name) {
             } else {
                 [self.clipboardManager cancelPendingRestore];
                 [self.clipboardManager writeText:text];
-                [self.overlayPanel showResultBadge:@"📋 Правка в буфере, ⌘V"];
                 [self.statusBarManager updateState:@"idle"];
-                [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
+                [self.overlayPanel showMessage:@"Не заменилось — правка в буфере, ⌘V"
+                                          icon:SPOverlayMessageIconClipboard];
             }
         }];
         return;
@@ -2319,9 +2646,20 @@ static BOOL SPLabFlag(const char *name) {
 
     [self.clipboardManager cancelPendingRestore];
     [self.clipboardManager writeText:text];
-    [self.overlayPanel showResultBadge:@"📋 Правка в буфере, ⌘V"];
     [self.statusBarManager updateState:@"idle"];
-    [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
+    [self.overlayPanel showMessage:@"Выделение изменилось — правка в буфере, ⌘V"
+                              icon:SPOverlayMessageIconClipboard];
+}
+
+/// The paste replaced a clipboard that the backup could not keep: once the
+/// pill has shown the result, it says the old content will not come back.
+- (void)noteClipboardThatCannotComeBack {
+    if (!self.clipboardManager.lastBackupLostContent) return;
+    self.pendingPillMessage =
+        [SPErrorExplainer explanationWithKind:SPErrorKindUnknown
+                                    shortText:@"Скопированное раньше не вернётся в буфер: его не удалось сохранить"
+                                       detail:@""
+                                       action:SPErrorActionNone];
 }
 
 /// Takes back the text the app inserted last, when it is still there: within two
@@ -2419,6 +2757,11 @@ static BOOL SPLabFlag(const char *name) {
 /// Pastes `text` at the cursor outside a dictation session, through the
 /// normal paste path with its clipboard backup / restore rules.
 - (void)pasteTextAtCursor:(NSString *)text {
+    if ([self.permissionManager isAccessibilityGranted] &&
+        [self.accessibilityManager pasteTargetForFocusedElement] == SPPasteTargetSecure) {
+        [self showInfoMessage:@"Поле пароля — текст не вставлен"];
+        return;
+    }
     BOOL keepLast = keepLastDictationEnabled();
     [self.clipboardManager cancelPendingRestore];
     if (![self.permissionManager isAccessibilityGranted] || ![self shouldAutoPasteProcessedText]) {
@@ -2685,12 +3028,33 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)statusBarDidSelectSetupWizard {
+    [self showSettingsPane:nil];
+}
+
+- (void)statusBarDidSelectOnboarding {
+    if (!self.onboarding) {
+        self.onboarding = [[SPOnboardingWindowController alloc] initWithPermissionManager:self.permissionManager
+                                                                            localAsrOffer:self.localAsrOffer];
+        __weak typeof(self) weakSelf = self;
+        self.onboarding.openSettingsPane = ^(NSString *pane) {
+            [weakSelf showSettingsPane:pane];
+        };
+    }
+    [self.onboarding present];
+}
+
+/// The Settings window, on `pane` when given (asr, llm, hotkey, …).
+- (void)showSettingsPane:(NSString *)pane {
     if (!self.setupWizard) {
         self.setupWizard = [[SPSetupWizardWindowController alloc] init];
         self.setupWizard.delegate = self;
         self.setupWizard.rustBridge = self.rustBridge;
     }
-    [self.setupWizard showWindow:nil];
+    if (pane.length > 0) {
+        [self.setupWizard showPane:pane];
+    } else {
+        [self.setupWizard showWindow:nil];
+    }
 }
 
 - (void)statusBarDidSelectRecentDictations {
@@ -2724,6 +3088,50 @@ static BOOL SPLabFlag(const char *name) {
     [self deactivateRawAsrFallbackInteraction];
     [self stopNumberKeyMonitoring];
     [self stopAnyKeyDismissMonitoring];
+    SPErrorExplanation *pending = self.pendingPillMessage;
+    self.pendingPillMessage = nil;
+    if (pending && sessionStateAllowsConfigReload(self.sessionState)) {
+        [self.overlayPanel showMessage:pending.shortText icon:SPOverlayMessageIconNotice];
+    }
+}
+
+#pragma mark - UNUserNotificationCenterDelegate
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+       willPresentNotification:(UNNotification *)notification
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+    // Shown while the Settings window is in front too: that is when a key gets fixed.
+    completionHandler(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList);
+}
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+    didReceiveNotificationResponse:(UNNotificationResponse *)response
+             withCompletionHandler:(void (^)(void))completionHandler {
+    NSNumber *action = response.notification.request.content.userInfo[@"action"];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self performErrorAction:(SPErrorAction)action.integerValue];
+    });
+    completionHandler();
+}
+
+- (void)performErrorAction:(SPErrorAction)action {
+    switch (action) {
+        case SPErrorActionAsrSettings:
+            [self showSettingsPane:@"asr"];
+            break;
+        case SPErrorActionLlmSettings:
+            [self showSettingsPane:@"llm"];
+            break;
+        case SPErrorActionMicrophonePrivacy:
+            [[NSWorkspace sharedWorkspace]
+                openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
+            break;
+        case SPErrorActionRecentDictations:
+            [self statusBarDidSelectRecentDictations];
+            break;
+        case SPErrorActionNone:
+            break;
+    }
 }
 
 - (void)overlayPanelDidRequestRawAsrFallback:(id)panel {

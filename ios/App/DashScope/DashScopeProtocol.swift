@@ -6,8 +6,16 @@ enum DashScopeSpeechError: LocalizedError {
   case invalidMessage
   case alreadyConnected
   case connectionClosed(String)
+  /// A local reason the stream was abandoned (backpressure, slow setup).
   case service(String)
+  /// An `error` event from DashScope, with its code when it sent one.
+  case provider(code: String?, message: String)
+  /// The WebSocket handshake was answered with this HTTP status.
+  case rejected(httpStatus: Int)
+  /// The model answered, but with no text.
   case emptyResult
+  /// Nothing loud enough to be speech was recorded; nothing was sent.
+  case noSpeech
 
   var errorDescription: String? {
     switch self {
@@ -25,8 +33,14 @@ enum DashScopeSpeechError: LocalizedError {
         : "Соединение с DashScope закрыто: \(reason)"
     case .service(let message):
       return message
+    case .provider(let code, let message):
+      return code.map { "DashScope: \(message) (\($0))" } ?? "DashScope: \(message)"
+    case .rejected(let httpStatus):
+      return "DashScope отклонил подключение (HTTP \(httpStatus))."
     case .emptyResult:
       return "Речь не распознана."
+    case .noSpeech:
+      return "Речь не слышна."
     }
   }
 }
@@ -67,9 +81,8 @@ enum DashScopeProtocol {
     }
   }
 
-  static func endpoint(apiKey: String, baseURL: String = "wss://dashscope.aliyuncs.com") throws
-    -> DashScopeEndpoint
-  {
+  static func endpoint(apiKey: String, region: DashScopeRegion) throws -> DashScopeEndpoint {
+    let baseURL = region.realtimeBaseURL
     let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
     guard CredentialAvailability.isUsable(key) else {
       throw DashScopeSpeechError.missingCredential
@@ -127,7 +140,7 @@ enum DashScopeProtocol {
     case responseTextDelta(String)
     case responseTextDone(String)
     case responseDone
-    case serviceError(String)
+    case serviceError(code: String?, message: String)
   }
 
   static func events(from data: Data) throws -> [ServerEvent] {
@@ -160,7 +173,8 @@ enum DashScopeProtocol {
         (error?["message"] as? String)
         ?? (root["message"] as? String)
         ?? "DashScope вернул неизвестную ошибку."
-      return [.serviceError(message)]
+      let code = (error?["code"] as? String) ?? (root["code"] as? String)
+      return [.serviceError(code: code, message: message)]
     default:
       return []
     }

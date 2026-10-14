@@ -3,6 +3,7 @@ pub mod asr_factory;
 pub mod audio_buffer;
 pub mod commands;
 pub mod config;
+pub mod dashscope_check;
 pub mod dictionary;
 pub mod errors;
 pub mod ffi;
@@ -41,7 +42,7 @@ use velikiy_moguchiy_asr::{AsrConfig, AsrEvent, AsrProvider, TranscriptAggregato
 
 use std::collections::HashSet;
 use std::ffi::c_char;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::runtime::Runtime;
@@ -527,6 +528,8 @@ static MIC_VISUALISER: Mutex<Option<visualizer::AudioVisualiser>> = Mutex::new(N
 static MIC_LEVELS: Mutex<[f32; MIC_LEVEL_BUCKETS]> = Mutex::new([0.0; MIC_LEVEL_BUCKETS]);
 static SILENCE_DETECTOR: Mutex<Option<silence::SilenceDetector>> = Mutex::new(None);
 static SILENCE_STOP_FIRED: AtomicBool = AtomicBool::new(false);
+/// Loudest sample (0..1) since the level meter was last reset, as f32 bits.
+static MIC_PEAK: AtomicU32 = AtomicU32::new(0);
 
 /// Feed raw 16 kHz mono PCM16 samples into the overlay level meter.
 ///
@@ -538,6 +541,9 @@ pub unsafe extern "C" fn sp_core_feed_mic_levels(samples: *const i16, count: u32
         return;
     }
     let pcm = unsafe { std::slice::from_raw_parts(samples, count as usize) };
+    let peak = pcm.iter().map(|&s| s.unsigned_abs()).max().unwrap_or(0) as f32 / 32768.0;
+    // Bit patterns of non-negative floats order like the floats themselves.
+    MIC_PEAK.fetch_max(peak.to_bits(), Ordering::SeqCst);
     if let Some(detector) = SILENCE_DETECTOR.lock().unwrap().as_mut() {
         if detector.feed(pcm) {
             SILENCE_STOP_FIRED.store(true, Ordering::SeqCst);
@@ -563,6 +569,14 @@ pub unsafe extern "C" fn sp_core_feed_mic_levels(samples: *const i16, count: u32
 pub extern "C" fn sp_core_silence_stop_seconds() -> f32 {
     config::load_config()
         .map(|cfg| cfg.recording.silence_timeout_s())
+        .unwrap_or(0.0)
+}
+
+/// Seconds after which any recording ends (`recording.max_duration_s`); 0 when off.
+#[no_mangle]
+pub extern "C" fn sp_core_recording_cap_seconds() -> f32 {
+    config::load_config()
+        .map(|cfg| cfg.recording.max_duration())
         .unwrap_or(0.0)
 }
 
@@ -607,6 +621,14 @@ pub extern "C" fn sp_core_reset_mic_levels() {
         vis.reset();
     }
     *MIC_LEVELS.lock().unwrap() = [0.0; MIC_LEVEL_BUCKETS];
+    MIC_PEAK.store(0, Ordering::SeqCst);
+}
+
+/// Loudest sample (0..1) fed to the level meter since `sp_core_reset_mic_levels`.
+/// Stays at 0 when the microphone delivers nothing or digital silence.
+#[no_mangle]
+pub extern "C" fn sp_core_mic_peak() -> f32 {
+    f32::from_bits(MIC_PEAK.load(Ordering::SeqCst))
 }
 
 /// Set what the next session is for: 0 = dictation, 1 = translation, 2 = question
@@ -1302,6 +1324,8 @@ async fn run_session(
         );
         live_insert::abort(session_token);
         cleanup_session(&session_arc);
+        // Tells the app why nothing arrives; "idle" follows for clients that ignore it.
+        invoke_state_changed(session_token, "no_speech");
         invoke_state_changed(session_token, "idle");
         return;
     }
@@ -2011,6 +2035,37 @@ pub unsafe extern "C" fn sp_llm_test(
         .into_raw()
 }
 
+/// Checks one DashScope key (see `dashscope_check`): blocks for up to about
+/// half a minute, so call it off the main thread.
+///
+/// Returns a heap-allocated JSON string:
+///   `{"ok": true,  "message": "", "works_at": null}`
+///   `{"ok": false, "message": "<provider error>", "works_at": "<other region URL>" | null}`
+///
+/// # Safety
+/// Pointer parameters must be valid null-terminated C strings (or null).
+/// Caller must free the returned pointer with `sp_core_free_string()`.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dashscope_check_key(
+    url: *const c_char,
+    key: *const c_char,
+    model: *const c_char,
+) -> *mut c_char {
+    let url = unsafe { cstr_to_str(url) }.unwrap_or_default().to_string();
+    let key = unsafe { cstr_to_str(key) }.unwrap_or_default().trim().to_string();
+    let model = unsafe { cstr_to_str(model) }.unwrap_or_default().to_string();
+    let check = match Runtime::new() {
+        Ok(rt) => rt.block_on(dashscope_check::check_key_and_region(&url, &key, &model)),
+        Err(e) => dashscope_check::KeyCheck {
+            ok: false,
+            message: format!("Failed to create async runtime: {e}"),
+            works_at: None,
+        },
+    };
+    let json = serde_json::to_string(&check).unwrap_or_else(|_| "{\"ok\":false}".into());
+    CString::new(json).unwrap_or_default().into_raw()
+}
+
 /// List remote models from OpenAI-compatible `{base_url}/models`.
 ///
 /// Returns a heap-allocated JSON string:
@@ -2585,6 +2640,20 @@ mod tests {
         assert_eq!(hotkey_trigger_mode_code("double_tap"), 2);
         assert_eq!(hotkey_trigger_mode_code("auto"), 3);
         assert_eq!(hotkey_trigger_mode_code("unknown"), 0);
+    }
+
+    #[test]
+    fn mic_peak_follows_the_loudest_sample_until_reset() {
+        sp_core_reset_mic_levels();
+        assert_eq!(sp_core_mic_peak(), 0.0);
+        let quiet = [0i16, 120, -80];
+        let loud = [16384i16, -20000, 3];
+        unsafe { sp_core_feed_mic_levels(quiet.as_ptr(), quiet.len() as u32) };
+        unsafe { sp_core_feed_mic_levels(loud.as_ptr(), loud.len() as u32) };
+        unsafe { sp_core_feed_mic_levels(quiet.as_ptr(), quiet.len() as u32) };
+        assert!((sp_core_mic_peak() - 20000.0 / 32768.0).abs() < 1e-6);
+        sp_core_reset_mic_levels();
+        assert_eq!(sp_core_mic_peak(), 0.0);
     }
 
     /// Mock ASR provider that yields a pre-configured sequence of events.
