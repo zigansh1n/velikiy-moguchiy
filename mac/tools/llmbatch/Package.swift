@@ -11,7 +11,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/ml-explore/mlx-swift.git", from: "0.30.6"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "2.30.6"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", from: "3.31.3"),
     ],
     targets: [
         .executableTarget(
