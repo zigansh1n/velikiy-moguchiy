@@ -16,7 +16,7 @@ let package = Package(
         // Transitive dependency of swift-transformers, constrained here because
         // Jinja 2.4.0 changed its Value.object key type and no released
         // swift-transformers version compiles against it yet.
-        .package(url: "https://github.com/huggingface/swift-jinja.git", "2.0.0"..<"2.4.0"),
+        .package(url: "https://github.com/huggingface/swift-jinja.git", "2.0.0"..<"3.0.0"),
     ],
     targets: [
         .target(
