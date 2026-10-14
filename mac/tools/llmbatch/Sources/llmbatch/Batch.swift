@@ -2,6 +2,7 @@
 
 import Foundation
 import MLX
+import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 
@@ -38,7 +39,8 @@ struct Batch {
         let container: ModelContainer
         do {
             container = try await LLMModelFactory.shared.loadContainer(
-                configuration: ModelConfiguration(directory: URL(fileURLWithPath: modelPath))
+                from: URL(fileURLWithPath: modelPath),
+                using: #huggingFaceTokenizerLoader()
             )
         } catch {
             FileHandle.standardError.write("load failed for \(modelPath): \(error)\n".data(using: .utf8)!)
