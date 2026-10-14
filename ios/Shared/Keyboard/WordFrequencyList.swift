@@ -6,7 +6,8 @@ import Foundation
 final class WordFrequencyList {
   /// Lowercased and sorted, for prefix search; `words` and `frequencies` follow the same order.
   private let keys: [String]
-  private let words: [String]
+  /// The spelling with capitals (Москва), nil for the many words that are their key.
+  private let words: [String?]
   private let frequencies: [UInt8]
   /// е-spelling -> ё-spelling where the е-spelling is not a word itself (еще -> ещё).
   private let yoSpellings: [String: String]
@@ -26,9 +27,12 @@ final class WordFrequencyList {
         yoWords[key.replacingOccurrences(of: "ё", with: "е"), default: []].append(key)
       }
     }
-    entries.sort { $0.key < $1.key }
+    // The build script writes the list sorted; sort only if it was edited by hand.
+    if zip(entries, entries.dropFirst()).contains(where: { $0.key > $1.key }) {
+      entries.sort { $0.key < $1.key }
+    }
     keys = entries.map(\.key)
-    words = entries.map(\.word)
+    words = entries.map { $0.word == $0.key ? nil : $0.word }
     frequencies = entries.map(\.frequency)
     self.yoWords = yoWords
 
@@ -67,7 +71,7 @@ final class WordFrequencyList {
     var index = lowerBound(of: key)
     while index < keys.count, keys[index].hasPrefix(key) {
       if keys[index].count > key.count {
-        best.append((words[index], frequencies[index]))
+        best.append((words[index] ?? keys[index], frequencies[index]))
       }
       index += 1
     }

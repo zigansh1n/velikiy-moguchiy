@@ -6,7 +6,7 @@ usage: build_keyboard_words.py   (run from anywhere; reads and writes inside the
 Input:  android/app/src/main/assets/dictionary/ru.tsv (AOSP LatinIME words and
         frequencies, already stripped of personal names; see android/THIRD_PARTY.md).
 Output: ios/Resources/Keyboard/ru-words.tsv  word<TAB>frequency, the words common
-        enough for completions;
+        enough for completions, sorted by the lowercased word;
         ios/Resources/Keyboard/ru-yo.tsv     е-spelling<TAB>ё-spelling, only where the
         е-spelling is not a word of its own anywhere in the full list (еще -> ещё,
         but never все -> всё).
@@ -45,7 +45,8 @@ frequency_of = {w: f for w, f in rows if f >= MIN_FREQUENCY}
 for word in CONVERSATIONAL:
     frequency_of[word] = CONVERSATIONAL_FREQUENCY
     known.add(word)
-common = sorted(frequency_of.items(), key=lambda r: (-r[1], r[0]))
+# Sorted the way the keyboard searches it (lowercase, code points), so it loads without sorting.
+common = sorted(frequency_of.items(), key=lambda r: (r[0].lower(), r[0]))
 
 yo = {}
 for word, _ in rows:

@@ -53,11 +53,21 @@ final class SuggestionEngine {
   }
 
   private let language: KeyboardLayoutLanguage
-  /// Loaded on `queue`; read only there.
-  private var wordList: WordFrequencyList?
+  private let loadWordList: () -> WordFrequencyList?
+  private var loadedWordList: WordFrequencyList??
+
+  /// Read and written only on `queue`; loads on first use.
+  private var wordList: WordFrequencyList? {
+    if let loadedWordList { return loadedWordList }
+    let list = loadWordList()
+    loadedWordList = .some(list)
+    return list
+  }
 
   /// Kept for the life of the extension process, which iOS reuses when the
-  /// globe switches back to this keyboard.
+  /// globe switches back. Two keyboard instances (and their queues) can be
+  /// alive at once, hence the lock.
+  private static let russianWordsLock = NSLock()
   private static var cachedRussianWords: WordFrequencyList?
 
   init(
@@ -68,18 +78,19 @@ final class SuggestionEngine {
     self.language = language
     self.checker =
       checker ?? SystemTextChecker(language: Self.languageIdentifier(for: language))
+    loadWordList = wordList ?? { language == .russian ? Self.bundledRussianWords() : nil }
     // The first call loads the lexicon (slow, and its completions can come back
     // empty); do it off the main thread before the first keystroke needs it.
     let warmUp = self.checker
-    let loadWords: () -> WordFrequencyList? =
-      wordList ?? { language == .russian ? Self.bundledRussianWords() : nil }
-    queue.async { [weak self] in
-      self?.wordList = loadWords()
-      _ = warmUp?.completions(for: "a")
-    }
+    queue.async { _ = warmUp?.completions(for: "a") }
+    // The word list waits until the keyboard is on screen: a launching
+    // extension that is starved of CPU is replaced by the system keyboard.
+    queue.asyncAfter(deadline: .now() + 1) { [weak self] in _ = self?.wordList }
   }
 
   private static func bundledRussianWords() -> WordFrequencyList? {
+    russianWordsLock.lock()
+    defer { russianWordsLock.unlock() }
     if let cachedRussianWords { return cachedRussianWords }
     cachedRussianWords = WordFrequencyList.russian()
     return cachedRussianWords
