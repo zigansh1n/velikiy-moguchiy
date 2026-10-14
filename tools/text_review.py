@@ -201,6 +201,8 @@ def ask(system: str, user: str, token: str) -> str:
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise Unavailable(type(e).__name__) from e
         try:
+            if VERBOSE:
+                print("text review: RAW " + raw[:3000].decode("utf-8", "replace"))
             message = json.loads(raw)["choices"][0]["message"]
             if VERBOSE:
                 print(f"text review: reply of {len(raw)} bytes, message keys {sorted(message)}, "

@@ -41,6 +41,7 @@ jobs:
           TEXT_REVIEW_ENDPOINT: ${{ vars.TEXT_REVIEW_ENDPOINT }}
           TEXT_REVIEW_MODEL: ${{ vars.TEXT_REVIEW_MODEL }}
           TEXT_REVIEW_TOKEN: ${{ secrets.TEXT_REVIEW_TOKEN }}
+          TEXT_REVIEW_VERBOSE: "1"
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: python3 tools/text_review.py --base "$BASE" --head "$HEAD" --comment
