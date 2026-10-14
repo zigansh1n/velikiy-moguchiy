@@ -11,7 +11,8 @@ in tools/text_review/prompt.md; known false positives are dropped by tools/text_
 
 The model is configured by TEXT_REVIEW_ENDPOINT (chat completions URL), TEXT_REVIEW_MODEL and TEXT_REVIEW_TOKEN;
 the free tier of Cloudflare Workers AI is enough (docs/AUTOMATION.md). Without any of them the review says so and
-exits 0.
+exits 0. TEXT_REVIEW_MAX_TOKENS (default 4096) is the answer limit sent with every request: a reasoning model spends
+tokens on thinking first, and the endpoint's own default cuts the JSON off.
 When the API is unreachable, refuses or is rate limited, the review warns and exits 0: the hard rules live in
 privacy_guard.py, this check must never block the project for good.
 With --comment (GITHUB_TOKEN, GITHUB_REPOSITORY, PR_NUMBER) the result goes to one PR comment updated in place.
@@ -233,8 +234,6 @@ def post(body: bytes, token: str):
             raise Unavailable(f"HTTP {e.code}") from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise Unavailable(type(e).__name__) from e
-        if VERBOSE:
-            print("text review: RAW " + raw[:6000].decode("utf-8", "replace"))
         try:
             text, finish = reply_text(raw)
         except (ValueError, KeyError, IndexError, TypeError, AttributeError) as e:
