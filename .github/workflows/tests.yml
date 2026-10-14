@@ -28,8 +28,8 @@ jobs:
       lipread: ${{ steps.filter.outputs.lipread }}
       windows: ${{ steps.filter.outputs.windows }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -62,7 +62,7 @@ jobs:
       run:
         working-directory: mac
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install libopus
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopus-dev
       - uses: dtolnay/rust-toolchain@stable
@@ -83,7 +83,7 @@ jobs:
         shell: bash
         working-directory: windows
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -111,8 +111,8 @@ jobs:
       run:
         working-directory: federated
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install
@@ -131,8 +131,8 @@ jobs:
       run:
         working-directory: lipread
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install

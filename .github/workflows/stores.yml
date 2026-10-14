@@ -34,7 +34,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: python3 tools/altstore/source.py selftest
       - run: python3 tools/homebrew/bump.py selftest
       - run: ruby -c tools/homebrew/Casks/velikiy-moguchiy.rb
@@ -48,7 +48,7 @@ jobs:
       CASK: tools/homebrew/Casks/velikiy-moguchiy.rb
       TAP: zigansh1n/homebrew-tap
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           ssh-key: ${{ secrets.BOT_PUSH_KEY }}

@@ -30,7 +30,7 @@ jobs:
         shell: bash
         working-directory: windows
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -72,7 +72,7 @@ jobs:
           7z a -tzip "$GITHUB_WORKSPACE/VelikiyMoguchiy-Windows-x64.zip" VelikiyMoguchiy >/dev/null
           ls -l "$GITHUB_WORKSPACE/VelikiyMoguchiy-Windows-x64.zip"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: VelikiyMoguchiy-Windows-x64
           path: VelikiyMoguchiy-Windows-x64.zip

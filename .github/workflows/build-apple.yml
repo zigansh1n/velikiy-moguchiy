@@ -62,7 +62,7 @@ jobs:
       run:
         working-directory: mac
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -159,7 +159,7 @@ jobs:
             "vendor/mic-warm/.build/release/mic-warm"
           ls -la VelikiyMoguchiy-macOS-arm64.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: VelikiyMoguchiy-macOS-arm64
           path: mac/VelikiyMoguchiy-macOS-arm64.zip
@@ -177,7 +177,7 @@ jobs:
       run:
         working-directory: ios
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -200,7 +200,7 @@ jobs:
           fi
           Scripts/build-unsigned-ipa.sh dist/VelikiyMoguchiy-iOS-unsigned.ipa
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: VelikiyMoguchiy-iOS-unsigned
           path: ios/dist/VelikiyMoguchiy-iOS-unsigned.ipa
