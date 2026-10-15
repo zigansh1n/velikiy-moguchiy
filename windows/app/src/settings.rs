@@ -135,8 +135,9 @@ impl Settings {
     }
 }
 
-/// First start on Windows (no `windows.trigger_key` yet): the dictation key
-/// and Russian as the recognition language instead of the core's `zh`.
+/// First start on Windows (no `windows.trigger_key` yet): the dictation key,
+/// and Russian as the recognition language where a config from an older build
+/// still says `zh`.
 pub fn apply_windows_defaults() -> Result<(), String> {
     if !config::config_get(KEY_TRIGGER)
         .unwrap_or_default()
@@ -217,7 +218,9 @@ pub(crate) mod tests {
     #[test]
     fn first_start_on_windows_switches_the_language_to_russian_once() {
         let _home = TempHome::new("defaults");
-        assert_eq!(config::config_get(KEY_QWEN_LANGUAGE).unwrap(), "zh");
+        // New configs already say ru; one written by an older build says zh.
+        assert_eq!(config::config_get(KEY_QWEN_LANGUAGE).unwrap(), "ru");
+        config::config_set(KEY_QWEN_LANGUAGE, "zh").unwrap();
         apply_windows_defaults().unwrap();
         assert_eq!(Settings::load(&VAULT).qwen_language, "ru");
         assert_eq!(config::config_get(KEY_TRIGGER).unwrap(), "right_ctrl");
