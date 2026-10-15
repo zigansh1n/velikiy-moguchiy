@@ -2583,114 +2583,115 @@ fn yaml_value_from_str(s: &str) -> serde_yaml::Value {
     }
 }
 
-const DEFAULT_CONFIG_YAML: &str = r#"# Velikiy Moguchiy (Великий & Могучий) - Voice Input Tool Configuration
+const DEFAULT_CONFIG_YAML: &str = r#"# Великий & Могучий — настройки голосового ввода
 # ~/.velikiy-moguchiy/config.yaml
+# Большую часть можно поменять в «Настройках»; здесь всё, включая то, чего там нет.
 
 asr:
-  # ASR provider: "qwen" (default; DashScope, your own key), "doubao", "glm", "mimo", "chatgpt", "apple-speech", "mlx", "sherpa-onnx"
+  # Провайдер распознавания: "qwen" (по умолчанию; DashScope, ваш ключ), "chatgpt", "apple-speech", "mlx",
+  # "sherpa-onnx", а также "doubao", "glm", "mimo" (они рассчитаны на китайский и английский, русский не поддерживают)
   provider: "qwen"
 
-  # Doubao (豆包) Streaming ASR 2.0 (优化版双向流式)
+  # Doubao (ByteDance), потоковое распознавание 2.0. Русский не поддерживает.
   doubao:
     url: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
-    api_key: ""          # X-Api-Key (新版控制台, 优先使用)
-    app_key: ""          # X-Api-App-Key (旧版控制台 App ID)
-    access_key: ""       # X-Api-Access-Key (旧版控制台 Access Token)
+    api_key: ""          # X-Api-Key (новая консоль, используется в первую очередь)
+    app_key: ""          # X-Api-App-Key (App ID из старой консоли)
+    access_key: ""       # X-Api-Access-Key (Access Token из старой консоли)
     resource_id: "volc.seedasr.sauc.duration"
     connect_timeout_ms: 3000
     final_wait_timeout_ms: 5000
-    enable_ddc: true     # 语义顺滑 (去除口语重复/语气词)
-    enable_itn: true     # 文本规范化 (数字、日期等)
-    enable_punc: true    # 自动标点
-    enable_nonstream: true  # 二遍识别 (流式+非流式, 提升准确率)
-    # language: ""       # 语言代码: zh-CN, en-US, ja-JP 等, 空=自动(中英文+方言)
-    # end_window_size: 800       # 强制判停时间(ms), 最小200
-    # force_to_speech_time: 1000 # 音频超过该时长才判停(ms)
-    # vad_segment_duration: 3000 # 语义切句最大静音阈值(ms)
-    # output_zh_variant: ""      # 繁体输出: traditional/tw/hk
-    # enable_accelerate_text: false  # 首字返回加速
-    # accelerate_score: 0        # 加速程度 0-20
-    # headers:           # custom HTTP headers for WebSocket connection
+    enable_ddc: true     # убирать повторы и слова-паразиты
+    enable_itn: true     # писать числа и даты цифрами
+    enable_punc: true    # расставлять знаки препинания
+    enable_nonstream: true  # второй проход по всей записи (точнее, чуть дольше)
+    # language: ""       # код языка: zh-CN, en-US, ja-JP и т. п.; пусто = автоматически (китайский, английский, диалекты)
+    # end_window_size: 800       # сколько мс тишины считать концом фразы, не меньше 200
+    # force_to_speech_time: 1000 # конец фразы ищется, только если звук длиннее этого (мс)
+    # vad_segment_duration: 3000 # самая длинная пауза внутри фразы (мс)
+    # output_zh_variant: ""      # традиционные иероглифы: traditional / tw / hk
+    # enable_accelerate_text: false  # быстрее отдавать первые слова
+    # accelerate_score: 0        # насколько ускорять, 0–20
+    # headers:           # свои HTTP-заголовки для WebSocket-соединения
     #   X-Custom-Header: "value"
 
-  # Qwen (Aliyun DashScope) Realtime ASR
+  # Qwen (Alibaba Cloud DashScope), распознавание в реальном времени
   qwen:
-    # International (Singapore) endpoint; keys made in the China console work
-    # at wss://dashscope.aliyuncs.com/api-ws/v1/realtime instead
+    # Международная точка (Сингапур). Ключи из китайской консоли работают
+    # по адресу wss://dashscope.aliyuncs.com/api-ws/v1/realtime
     url: "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime"
     api_key: ""
-    # api_keys: []       # several DashScope keys: the next one is used when a key is rejected or out of quota
-    model: "qwen3.8-omni-flash-realtime"  # or qwen3-asr-flash-realtime: verbatim, no rewording
-    language: "zh"
+    # api_keys: []       # несколько ключей DashScope: если ключ отклонён или кончилась квота, берётся следующий
+    model: "qwen3.8-omni-flash-realtime"  # или qwen3-asr-flash-realtime: дословно, без правки текста
+    language: "ru"
     connect_timeout_ms: 3000
     final_wait_timeout_ms: 5000
-    # app_modes:         # output mode (raw | light | structured | formal) per app bundle id or prefix
+    # app_modes:         # режим текста (raw | light | structured | formal) для приложения по bundle id или его началу
     #   com.apple.Notes: light
-    # use_field_context: true  # Omni: give the model the window title and the text before the caret
-    # omni_model: ""     # translate / ask / edit model; empty = model above if Omni, else qwen3.8-omni-flash-realtime
-    # headers:           # custom HTTP headers for WebSocket connection
+    # use_field_context: true  # Omni: передавать модели заголовок окна и текст перед курсором
+    # omni_model: ""     # модель для перевода, вопроса и правки; пусто = модель выше, если это Omni, иначе qwen3.8-omni-flash-realtime
+    # headers:           # свои HTTP-заголовки для WebSocket-соединения
     #   X-Custom-Header: "value"
 
-  # GLM (Zhipu/智谱) ASR — HTTP POST + SSE streaming
+  # GLM (Zhipu): HTTP POST и потоковый ответ (SSE). Русский не поддерживает.
   glm:
     url: "https://open.bigmodel.cn/api/paas/v4/audio/transcriptions"
-    api_key: ""          # 从 https://bigmodel.cn/usercenter/proj-mgmt/apikeys 获取
+    api_key: ""          # ключ: https://bigmodel.cn/usercenter/proj-mgmt/apikeys
     model: "glm-asr-2512"  # glm-asr-2512 | glm-asr-1
 
-  # MiMo (Xiaomi/小米) ASR — OpenAI-compatible HTTP POST + SSE streaming
+  # MiMo (Xiaomi): HTTP POST в формате OpenAI и потоковый ответ (SSE). Русский не поддерживает.
   mimo:
     url: "https://api.xiaomimimo.com/v1/chat/completions"
-    api_key: ""          # 从 https://platform.xiaomimimo.com 获取
+    api_key: ""          # ключ: https://platform.xiaomimimo.com
     model: "mimo-v2.5-asr"
-    language: "auto"     # auto | zh-CN | en-US | ja-JP 等
+    language: "auto"     # auto | zh-CN | en-US | ja-JP и т. п.
 
-  # ChatGPT (your own subscription) — unofficial: the endpoint of the ChatGPT
-  # apps' voice input. Sign in from Settings; tokens stay in the Keychain
-  # (DPAPI on Windows), never in this file. Audio goes to OpenAI.
+  # ChatGPT (ваша подписка) — неофициально: адрес голосового ввода приложений
+  # ChatGPT. Вход — из «Настроек»; токены хранятся в связке ключей (в Windows —
+  # в DPAPI), а не в этом файле. Звук уходит в OpenAI.
   # chatgpt:
-  #   language: "ru"     # empty = detect
+  #   language: "ru"     # пусто = определять самому
 
-  # Apple Speech local ASR (macOS 26+, zero-config, no model download)
+  # Apple Speech, распознавание на устройстве (macOS 26+, без скачивания модели)
   apple-speech:
-    locale: "zh_CN"                 # zh_CN | en_US | en_GB | ja_JP | ko_KR
+    locale: "ru_RU"                 # ru_RU | en_US | en_GB | zh_CN | ja_JP | ko_KR
 
-  # MLX local ASR (Apple Silicon only)
+  # MLX, распознавание на устройстве (только Apple Silicon)
   mlx:
-    model: "mlx/Qwen3-ASR-0.6B-4bit"       # relative to ~/.velikiy-moguchiy/models/, or absolute path
+    model: "mlx/Qwen3-ASR-0.6B-4bit"       # путь от ~/.velikiy-moguchiy/models/ или полный путь
     delay_preset: "realtime"    # realtime | agent | subtitle
     language: "auto"            # auto | zh | en
 
-  # Sherpa-ONNX local ASR (CPU)
+  # Sherpa-ONNX, распознавание на устройстве (процессор)
   sherpa-onnx:
-    model: "sherpa-onnx/bilingual-zh-en"    # relative to ~/.velikiy-moguchiy/models/, or absolute path
+    model: "sherpa-onnx/bilingual-zh-en"    # путь от ~/.velikiy-moguchiy/models/ или полный путь
     num_threads: 2
-    hotwords_score: 1.5         # dictionary term boost
-    endpoint_silence: 1.2       # trailing silence for sentence boundary (seconds)
+    hotwords_score: 1.5         # насколько выделять слова из словаря
+    endpoint_silence: 1.2       # сколько секунд тишины считать концом предложения
 
 llm:
-  # Off by default: a fresh install has no api_key below, so leaving this on
-  # would fail every dictation until the user configures a profile. Turn it on
-  # from Settings → LLM once a profile has credentials.
+  # Выключено по умолчанию: у новой установки ниже нет api_key, и включённая
+  # обработка ломала бы каждую диктовку, пока профиль не настроен. Включите
+  # в «Настройки → LLM», когда у профиля будет ключ.
   enabled: false
-  prompt_templates_enabled: false  # show rewrite template buttons above the overlay after transcription
-  auto_paste_processed_text: true  # paste the first LLM-processed result into the active input immediately
+  auto_paste_processed_text: true  # сразу вставлять первый обработанный LLM результат в активное поле
   active_profile: "openai"
   temperature: 0
   top_p: 1
   timeout_ms: 8000
   max_output_tokens: 1024
-  dictionary_max_candidates: 0             # 0 = send all entries to LLM
-  system_prompt_path: "system_prompt.txt"  # relative to ~/.velikiy-moguchiy/
-  user_prompt_path: "user_prompt.txt"      # relative to ~/.velikiy-moguchiy/
+  dictionary_max_candidates: 0             # 0 = отправлять LLM весь словарь
+  system_prompt_path: "system_prompt.txt"  # путь от ~/.velikiy-moguchiy/
+  user_prompt_path: "user_prompt.txt"      # путь от ~/.velikiy-moguchiy/
   profiles:
     openai:
       name: "OpenAI Chat Completions"
       provider: "openai"
       api_protocol: "openai_chat"
       base_url: "https://api.openai.com/v1"
-      api_key: ""          # or use ${LLM_API_KEY}
+      api_key: ""          # или ${LLM_API_KEY}
       model: "gpt-5.4-nano"
-      endpoint_path: "/chat/completions"  # relative path appended to base_url
+      endpoint_path: "/chat/completions"  # путь, который дописывается к base_url
       max_token_parameter: "max_completion_tokens"
       no_reasoning_control: "none"
     openai-responses:
@@ -2698,7 +2699,7 @@ llm:
       provider: "openai"
       api_protocol: "openai_responses"
       base_url: "https://api.openai.com/v1"
-      api_key: ""          # or use ${LLM_API_KEY}
+      api_key: ""          # или ${LLM_API_KEY}
       model: "gpt-5.4-nano"
       endpoint_path: "/responses"
       max_token_parameter: "max_completion_tokens"
@@ -2708,8 +2709,8 @@ llm:
       provider: "anthropic"
       api_protocol: "anthropic_messages"
       base_url: "https://api.anthropic.com/v1"
-      api_key: ""          # or use ${ANTHROPIC_API_KEY}
-      model: ""            # choose any text-capable model from /models
+      api_key: ""          # или ${ANTHROPIC_API_KEY}
+      model: ""            # любая текстовая модель из /models
       endpoint_path: "/messages"
       max_token_parameter: "max_tokens"
       no_reasoning_control: "none"
@@ -2718,145 +2719,131 @@ llm:
       provider: "apfel"
       api_protocol: "openai_chat"
       base_url: "http://127.0.0.1:11434/v1"
-      api_key: ""           # optional; leave blank to send no Authorization header
+      api_key: ""           # необязательно; пусто = без заголовка Authorization
       model: "apple-foundationmodel"
-      endpoint_path: "/chat/completions"  # customize for non-standard OpenAI-compatible endpoints
+      endpoint_path: "/chat/completions"  # поменяйте для нестандартных OpenAI-совместимых адресов
       max_token_parameter: "max_tokens"
       no_reasoning_control: "none"
     mlx:
       name: "MLX (Apple Silicon)"
       provider: "mlx"
       mlx:
-        model: "mlx/Qwen3-0.6B-4bit"      # relative to ~/.velikiy-moguchiy/models/, or absolute path
+        model: "mlx/Qwen3-0.6B-4bit"      # путь от ~/.velikiy-moguchiy/models/ или полный путь
 
 feedback:
-  start_sound: true                    # a short sound when recording starts, a softer one when it stops
+  start_sound: true                    # короткий звук в начале записи и тише — в конце
   stop_sound: false
   error_sound: false
   mute_system_output: false
 
 dictionary:
-  path: "dictionary.txt"  # relative to ~/.velikiy-moguchiy/
+  path: "dictionary.txt"  # путь от ~/.velikiy-moguchiy/
 
 clipboard:
-  # 自动粘贴完成后，恢复原剪贴板内容前的等待时间（毫秒）。
-  # 取值范围 0-60000；0 表示粘贴完成后立即恢复（并非禁用恢复）。
-  # 值太小可能导致慢速应用还没读取剪贴板就被恢复；值太大则旧剪贴板内容回来得更晚。
-  # 仅影响自动粘贴流程；主动保留在剪贴板中的结果（如模板改写、无辅助功能权限时）不会被恢复。
-  # 无效值会回退到 1500 并记录警告，不影响其他配置项。
+  # Сколько миллисекунд ждать после автовставки, прежде чем вернуть прежнее
+  # содержимое буфера обмена. От 0 до 60000; 0 — вернуть сразу (а не «не возвращать»).
+  # Слишком мало — медленное приложение не успеет прочитать буфер; слишком много —
+  # прежний буфер вернётся позже. Касается только автовставки: то, что намеренно
+  # оставлено в буфере (например, когда нет доступа к управлению), не возвращается.
+  # Неверное значение заменяется на 1500 с предупреждением в журнале.
   restore_delay_ms: 1500
-  # 为 true 时，最近一次听写的文本会留在剪贴板（标记为临时内容，剪贴板历史工具会忽略），
-  # 不再恢复之前的剪贴板内容。
+  # true — текст последней диктовки остаётся в буфере (помечен как временный, и
+  # программы истории буфера его не сохраняют), а прежний буфер не возвращается.
   keep_last_dictation: true
 
 history:
-  # Save an AAC (.m4a) recording of every dictation to ~/.velikiy-moguchiy/recordings/,
-  # including cancelled and failed ones.
+  # Сохранять запись каждой диктовки (AAC, .m4a) в ~/.velikiy-moguchiy/recordings/,
+  # в том числе отменённых и неудачных.
   save_recordings: true
-  # Delete recordings older than this many days (minimum 1).
+  # Удалять записи старше стольких дней (не меньше 1).
   recordings_retention_days: 30
-  # When a dictation ends with an error, re-transcribe its recording once in the
-  # background and put the text on the clipboard (never pasted automatically).
+  # Если диктовка закончилась ошибкой, один раз распознать её запись заново
+  # в фоне и положить текст в буфер обмена (сам он не вставляется).
   auto_retry_on_error: true
 
-# Opt-in collection of lip-reading training data: the webcam is recorded during
-# each dictation (H.264 MP4, 25 fps, no audio) and saved together with the
-# recognized text. Everything stays on this Mac; with capture_video off the
-# camera is never touched.
+# Сбор данных для обучения чтению по губам, только по вашему согласию: во время
+# каждой диктовки пишется видео с камеры (H.264 MP4, 25 к/с, без звука) вместе
+# с распознанным текстом. Всё остаётся на этом Mac; при capture_video: false
+# камера не включается.
 lipdata:
   capture_video: false
-  # <unix-ms>.mp4 + .txt + .json are written here for every kept dictation.
-  # Empty: lipdata/voiced inside the app's data folder. Point it at
-  # lipread/data/voiced of your lipread checkout to train on the clips.
+  # Сюда пишутся <unix-ms>.mp4 + .txt + .json для каждой сохранённой диктовки.
+  # Пусто: lipdata/voiced в папке данных приложения. Укажите lipread/data/voiced
+  # своей копии lipread, чтобы обучать модель на этих клипах.
   dir: ""
 
-# Contributing to the shared lip-reading model (federated training): a separate
-# opt-in consent, off by default, independent of lipdata above. Only adapter
-# weight deltas would ever be sent, never video, audio or text. Community
-# training is not built into the app yet; this records your decision
-# (Settings > Controls > Lips > «Участвовать в общем обучении»).
+# Участие в общем обучении модели губ (федеративное обучение): отдельное
+# согласие, по умолчанию выключено и не зависит от lipdata выше. Отправлялись бы
+# только изменения весов адаптера, никогда не видео, звук или текст. Этот ключ
+# только записывает ваш ответ («Настройки → Управление → Губы»).
 training:
   contribute: false
 
 hotkey:
-  # 触发键：fn | left_option | right_option | left_command | right_command | left_control | right_control
-  # 也可以填 macOS keycode 数字来使用非修饰键，例如 122 (F1)、120 (F2)、99 (F3) 等
+  # Клавиша диктовки: fn | left_option | right_option | left_command | right_command | left_control | right_control
+  # Можно указать код клавиши macOS для обычной клавиши, например 122 (F1), 120 (F2), 99 (F3)
   trigger_key: "fn"
   trigger_mode: "hold"                 # hold | toggle | double_tap | auto
-  # 取消当前听写（不粘贴）的按键：escape | 按键名 / keycode 数字 | ""（关闭）
+  # Отменить текущую диктовку без вставки: escape | название клавиши или её код | "" (выключено)
   abort_key: "escape"
-  # 切换文字模式的按键（raw → light → structured → formal），写法同 translate_key；"" 为关闭
+  # Переключать режим текста (raw → light → structured → formal); пишется как trigger_key; "" — выключено
   mode_key: ""
-  # 语音改写选中文字（原地替换）的按键，写法同 translate_key；"" 为关闭
+  # Править голосом выделенный текст (замена на месте); пишется как trigger_key; "" — выключено
   edit_key: ""
-  # 撤销上一次插入（2 分钟内、同一输入框）的按键；"" 为关闭
+  # Отменить последнюю вставку (в течение 2 минут, в том же поле); "" — выключено
   undo_key: ""
-  # 在光标处再次粘贴上一次听写的按键；"" 为关闭
+  # Ещё раз вставить последнюю диктовку у курсора; "" — выключено
   repaste_key: ""
-  # Experimental lip reading: hold this key and mouth the phrase silently
-  # (needs experimental.lips: true); same syntax as translate_key, "" is off
+  # Чтение по губам, эксперимент: держите клавишу и беззвучно проговорите фразу
+  # (нужно experimental.lips: true); пишется как trigger_key; "" — выключено
   lips_key: ""
-  # 鼠标按键当作录音键：3 = 中键，4 / 5 = 侧键；0 为关闭
+  # Кнопка мыши как клавиша записи: 3 — средняя, 4 / 5 — боковые; 0 — выключено
   mouse_button: 0
 
-# 听写中的语音命令（"новая строка"、"отправь" 等）
+# Голосовые команды во время диктовки («новая строка», «отправь» и другие)
 commands:
   enabled: true
 
-# 语音片段：说出 trigger，插入 text（整句等于 trigger，或说 "вставь <trigger>"）
+# Фрагменты: произнесите trigger — вставится text (вся фраза равна trigger или «вставь <trigger>»)
 snippets: []
 
 recording:
-  # 免提录音在说话之后静音这么多秒自动结束；0 为关闭（按住模式不受影响）
+  # Запись без удержания заканчивается после стольких секунд тишины после речи;
+  # 0 — выключено (на режим удержания не влияет)
   auto_stop_silence_s: 30
-  # Any recording ends after this many seconds (a forgotten hands-free
-  # recording keeps the microphone open); 0 is no limit
+  # Любая запись заканчивается через столько секунд (забытая запись без
+  # удержания держит микрофон открытым); 0 — без ограничения
   max_duration_s: 600
 
 overlay:
-  font_family: "system"
-  font_size: 13
-  bottom_margin: 10
-  limit_visible_lines: true
-  max_visible_lines: 3
+  bottom_margin: 10    # отступ плашки от низа экрана, пт
 
-prompt_templates:
-  - name: "Перевести на английский"
-    enabled: true
-    shortcut: 1
-    system_prompt: "Переведи голосовой ввод пользователя на английский язык, сохранив смысл и тон. Ничего не добавляй. Выведи только перевод."
-  - name: "Короче"
-    enabled: true
-    shortcut: 2
-    system_prompt: "Сократи голосовой ввод пользователя, сохранив смысл: убери повторы, воду и слова-паразиты. Ничего не добавляй. Выведи только результат."
-  - name: "Деловой стиль"
-    enabled: true
-    shortcut: 3
-    system_prompt: "Перепиши голосовой ввод пользователя в сдержанном деловом стиле: нейтральные письменные формулировки, без разговорных оборотов. Сохрани смысл и примерно ту же длину, ничего не добавляй. Выведи только результат."
-
-# 实验性功能（默认全部关闭）
+# Экспериментальные функции (по умолчанию всё выключено)
 experimental:
-  # ASR 识别完成后立即粘贴原始文本，LLM 修正返回后再原位替换。
-  # 仅在焦点、光标和已粘贴文本均未变化、且目标应用支持辅助功能文本替换时
-  # 才会替换；无法安全替换时保留原文，修正版进入剪贴板。
+  # Сразу вставить сырой текст распознавания, а когда LLM вернёт исправление,
+  # заменить его на месте. Замена делается, только если фокус, курсор и
+  # вставленный текст не менялись и приложение поддерживает замену текста через
+  # универсальный доступ; иначе остаётся исходный текст, а исправленный — в буфере.
   paste_asr_first: false
-  # 说话时直接在焦点输入框里实时输入识别文本（类似系统听写），
-  # 最终文本到达后原位修正；焦点切换到其他应用则停止。仅普通听写，需要辅助功能权限。
+  # Печатать распознанный текст прямо в поле по ходу речи (как системная
+  # диктовка) и исправить его на месте, когда придёт итоговый текст; если фокус
+  # уйдёт в другое приложение, печать остановится. Только обычная диктовка,
+  # нужен доступ к управлению.
   live_insert: false
-  # Silent dictation by the lips (hotkey.lips_key, settings in the lips section).
-  # Russian only, experimental; expect a rough transcript.
+  # Беззвучная диктовка по губам (hotkey.lips_key, настройки в разделе lips).
+  # Только русский, эксперимент; текст будет приблизительным.
   lips: false
-  # Keep the microphone open between dictations: recording starts at once,
-  # but the orange microphone indicator in the menu bar stays on.
+  # Держать микрофон открытым между диктовками: запись начинается сразу,
+  # но оранжевый значок микрофона в строке меню горит всё время.
   keep_mic_warm: false
 
-# Lip-reading service for experimental.lips: a Python process from lipread/
-# that keeps the model loaded and exits after idle_minutes without clips.
+# Служба чтения по губам для experimental.lips: процесс Python из lipread/,
+# который держит модель загруженной и завершается после idle_minutes без клипов.
 lips:
-  service_dir: "~/velikiy-moguchiy/lipread"   # your lipread checkout (.venv + lips_service.py)
+  service_dir: "~/velikiy-moguchiy/lipread"   # ваша копия lipread (.venv + lips_service.py)
   port: 8766
   idle_minutes: 10
-  # Let Qwen pick the most likely phrase from the model's 20 best guesses.
+  # Дать Qwen выбрать самую вероятную фразу из 20 лучших догадок модели.
   rescore: true
 "#;
 
@@ -3910,5 +3897,65 @@ clipboard:
             "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime"
         );
         assert_eq!(asr_config.app_key, "qwen3.8-omni-flash-realtime");
+    }
+
+    /// A config written by an earlier version: Omni with field context, the
+    /// right ⌘ trigger, translate and ask keys, no comments.
+    const EXISTING_CONFIG: &str = include_str!("testdata/existing_config.yaml");
+
+    #[test]
+    fn new_config_template_is_russian() {
+        let has_cjk = DEFAULT_CONFIG_YAML.chars().any(|c| {
+            ('\u{4E00}'..='\u{9FFF}').contains(&c) || ('\u{3000}'..='\u{303F}').contains(&c)
+        });
+        assert!(
+            !has_cjk,
+            "the config.yaml template must not contain Chinese"
+        );
+        let cfg: Config = serde_yaml::from_str(DEFAULT_CONFIG_YAML).unwrap();
+        assert_eq!(cfg.asr.qwen.language, "ru");
+        assert_eq!(cfg.asr.apple_speech.locale, "ru_RU");
+    }
+
+    #[test]
+    fn a_config_without_the_language_keys_keeps_the_old_defaults() {
+        // Only new configs say ru; a file that never had these keys must keep
+        // behaving exactly as before.
+        let cfg: Config = serde_yaml::from_str("asr:\n  provider: qwen\n").unwrap();
+        assert_eq!(cfg.asr.qwen.language, "zh");
+        assert_eq!(cfg.asr.apple_speech.locale, "zh_CN");
+    }
+
+    #[test]
+    fn loading_an_existing_config_changes_nothing_in_it() {
+        let _env_lock = PROCESS_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let home = EnvVarGuard::new("HOME");
+        let tmp = std::env::temp_dir().join(format!(
+            "velikiy-moguchiy-test-existing-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let app_dir = tmp.join(velikiy_moguchiy_asr::app_dir::DIR_NAME);
+        fs::create_dir_all(&app_dir).unwrap();
+        fs::write(app_dir.join("config.yaml"), EXISTING_CONFIG).unwrap();
+        home.set(&tmp);
+
+        ensure_defaults().unwrap();
+        let cfg = load_config().unwrap();
+        let after = fs::read_to_string(app_dir.join("config.yaml")).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+
+        assert_eq!(after, EXISTING_CONFIG);
+        assert_eq!(cfg.asr.provider, "qwen");
+        assert_eq!(cfg.asr.qwen.model, "qwen3.8-omni-flash-realtime");
+        assert_eq!(cfg.asr.qwen.language, "ru");
+        assert!(cfg.asr.qwen.use_field_context);
+        assert_eq!(cfg.asr.apple_speech.locale, "zh_CN");
+        assert_eq!(cfg.hotkey.trigger_key, "right_command");
+        assert_eq!(cfg.hotkey.trigger_mode, "toggle");
+        assert_eq!(cfg.hotkey.translate_key, "right_option");
+        assert_eq!(cfg.hotkey.ask_key, "left_control");
     }
 }

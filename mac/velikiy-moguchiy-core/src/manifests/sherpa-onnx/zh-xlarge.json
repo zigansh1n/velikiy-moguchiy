@@ -1,6 +1,6 @@
 {
     "provider": "sherpa-onnx",
-    "description": "Chinese extra-large (2025, best accuracy)",
+    "description": "Китайская, очень большая (2025, самая точная)",
     "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30",
     "files": [
         {

@@ -1,6 +1,6 @@
 {
     "provider": "sherpa-onnx",
-    "description": "Multilingual 8-language (2025)",
+    "description": "8 языков, включая русский (2025)",
     "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-ar_en_id_ja_ru_th_vi_zh-2025-02-10",
     "files": [
         {

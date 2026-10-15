@@ -1,7 +1,7 @@
 {
     "provider": "mlx",
     "mode": "llm",
-    "description": "Qwen3 0.6B 4-bit LLM (fast, lightweight)",
+    "description": "Языковая модель Qwen3 0.6B, 4 бита (быстрая, лёгкая)",
     "repo": "mlx-community/Qwen3-0.6B-4bit",
     "files": [
         {

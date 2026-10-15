@@ -1,7 +1,7 @@
 {
     "provider": "mlx",
     "mode": "asr",
-    "description": "Qwen3 ASR 1.7B 4-bit (higher accuracy)",
+    "description": "Распознавание Qwen3 ASR 1.7B, 4 бита (точнее)",
     "repo": "mlx-community/Qwen3-ASR-1.7B-4bit",
     "files": [
         {

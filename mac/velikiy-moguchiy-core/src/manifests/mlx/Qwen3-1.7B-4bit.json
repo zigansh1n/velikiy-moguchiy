@@ -1,7 +1,7 @@
 {
     "provider": "mlx",
     "mode": "llm",
-    "description": "Qwen3 1.7B 4-bit LLM (higher accuracy)",
+    "description": "Языковая модель Qwen3 1.7B, 4 бита (точнее)",
     "repo": "mlx-community/Qwen3-1.7B-4bit",
     "files": [
         {

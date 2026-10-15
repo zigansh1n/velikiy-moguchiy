@@ -1,0 +1,112 @@
+asr:
+  provider: qwen
+  doubao:
+    url: wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async
+    api_key: ''
+    app_key: ''
+    access_key: ''
+    resource_id: volc.seedasr.sauc.duration
+    connect_timeout_ms: 3000
+    final_wait_timeout_ms: 5000
+    enable_ddc: true
+    enable_itn: true
+    enable_punc: true
+    enable_nonstream: true
+  qwen:
+    url: wss://dashscope.aliyuncs.com/api-ws/v1/realtime
+    api_key: sk-existing-0
+    api_keys:
+    - sk-existing-1
+    - sk-existing-2
+    model: qwen3.8-omni-flash-realtime
+    language: ru
+    output_mode: raw
+    translate_to: английский
+    connect_timeout_ms: 3000
+    final_wait_timeout_ms: 5000
+    use_field_context: true
+    app_modes: {}
+  glm:
+    url: https://open.bigmodel.cn/api/paas/v4/audio/transcriptions
+    api_key: ''
+    model: glm-asr-2512
+  mimo:
+    url: https://api.xiaomimimo.com/v1/chat/completions
+    api_key: ''
+    model: mimo-v2.5-asr
+    language: auto
+  apple-speech:
+    locale: zh_CN
+  mlx:
+    model: mlx/Qwen3-ASR-0.6B-4bit
+    delay_preset: realtime
+    language: auto
+  sherpa-onnx:
+    model: sherpa-onnx/bilingual-zh-en
+    num_threads: 2
+    hotwords_score: 1.5
+    endpoint_silence: 1.2
+llm:
+  enabled: false
+  prompt_templates_enabled: false
+  auto_paste_processed_text: true
+  active_profile: dashscope
+  temperature: 0
+  top_p: 1
+  timeout_ms: 8000
+  max_output_tokens: 1024
+  dictionary_max_candidates: 0
+  system_prompt_path: system_prompt.txt
+  user_prompt_path: user_prompt.txt
+  profiles:
+    dashscope:
+      name: DashScope Qwen
+      provider: openai
+      api_protocol: openai_chat
+      base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      api_key: sk-existing-llm
+      model: qwen3.5-flash
+      endpoint_path: /chat/completions
+      max_token_parameter: max_tokens
+      no_reasoning_control: enable_thinking
+feedback:
+  start_sound: false
+  stop_sound: false
+  error_sound: false
+  mute_system_output: true
+dictionary:
+  path: dictionary.txt
+clipboard:
+  restore_delay_ms: 1500
+  keep_last_dictation: true
+history:
+  save_recordings: true
+  recordings_retention_days: 30
+  auto_retry_on_error: true
+hotkey:
+  abort_key: escape
+  trigger_key: right_command
+  trigger_mode: toggle
+  translate_key: right_option
+  ask_key: left_control
+  media_play_pause: true
+overlay:
+  font_family: system
+  font_size: 13
+  bottom_margin: 10
+  limit_visible_lines: true
+  max_visible_lines: 3
+prompt_templates:
+- name: Перевести на английский
+  enabled: true
+  shortcut: 1
+  system_prompt: Переведи голосовой ввод пользователя на английский язык, сохранив смысл и тон. Ничего не добавляй. Выведи только перевод.
+experimental:
+  paste_asr_first: false
+  keep_mic_warm: false
+  streaming_insert: true
+  live_insert: true
+  lipflow: false
+lipdata:
+  capture_video: true
+  dir: /tmp/lipdata

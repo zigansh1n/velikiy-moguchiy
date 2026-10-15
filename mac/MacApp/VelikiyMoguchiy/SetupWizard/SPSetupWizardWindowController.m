@@ -299,17 +299,17 @@ static NSString *displayNameForKeycodeValue(NSString *value) {
   case 49:
     return @"Пробел";
   case 53:
-    return @"Escape";
+    return @"Esc";
   case 48:
     return @"Tab";
   case 57:
     return @"Caps Lock";
   case 36:
-    return @"Return";
+    return @"Ввод (↩)";
   case 51:
-    return @"Delete";
+    return @"Удаление (⌫)";
   case 117:
-    return @"Forward Delete";
+    return @"Удаление вперёд (⌦)";
   case 115:
     return @"Home";
   case 119:
@@ -457,7 +457,7 @@ static NSString *displayNameForHotkeyValue(NSString *value) {
   if ([normalizedValue isEqualToString:@"right_control"])
     return @"Правый Control (⌃)";
   if ([normalizedValue isEqualToString:@"fn"])
-    return @"Fn (Globe)";
+    return @"Fn (🌐)";
   NSString *normalizedCombo = normalizedHotkeyComboValue(normalizedValue);
   if (normalizedCombo.length > 0) {
     NSMutableArray<NSString *> *parts = [NSMutableArray array];
@@ -1352,14 +1352,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   self.asrProviderPopup =
       [[NSPopUpButton alloc] initWithFrame:NSMakeRect(fieldX, y - 2, 200, 26)
                                  pullsDown:NO];
+  // The group header below is a disabled item, so enabling is manual.
+  self.asrProviderPopup.autoenablesItems = NO;
   [self.asrProviderPopup addItemWithTitle:@"Qwen (Alibaba Cloud)"];
   [self.asrProviderPopup lastItem].representedObject = @"qwen";
-  [self.asrProviderPopup addItemWithTitle:@"Doubao (ByteDance)"];
-  [self.asrProviderPopup lastItem].representedObject = @"doubao";
-  [self.asrProviderPopup addItemWithTitle:@"GLM (Zhipu)"];
-  [self.asrProviderPopup lastItem].representedObject = @"glm";
-  [self.asrProviderPopup addItemWithTitle:@"MiMo (Xiaomi)"];
-  [self.asrProviderPopup lastItem].representedObject = @"mimo";
   [self.asrProviderPopup addItemWithTitle:kChatgptProviderTitle];
   [self.asrProviderPopup lastItem].representedObject = @"chatgpt";
   NSArray<NSString *> *supportedLocalProviders =
@@ -1375,16 +1371,32 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   }
   // Add local providers supported by this build (model-based)
   NSDictionary *localProviderLabels = @{
-    @"mlx" : @"MLX (Apple Silicon)",
-    @"sherpa-onnx" : @"Sherpa-ONNX",
-    @"wetype" : @"WeType (на устройстве)",
+    @"mlx" : @"MLX (на устройстве, Apple Silicon)",
+    @"sherpa-onnx" : @"Sherpa-ONNX (на устройстве)",
   };
   for (NSString *provider in supportedLocalProviders) {
     NSString *label = localProviderLabels[provider];
     if (!label)
-      continue; // apple-speech handled above
+      continue; // apple-speech handled above, wetype below
     [self.asrProviderPopup addItemWithTitle:label];
     [self.asrProviderPopup lastItem].representedObject = provider;
+  }
+  // Providers built for Chinese and English: kept for those who already use
+  // them, out of the way of a Russian speaker choosing a provider.
+  [self.asrProviderPopup.menu addItem:[NSMenuItem separatorItem]];
+  [self.asrProviderPopup addItemWithTitle:@"Дополнительно — без русского языка"];
+  [self.asrProviderPopup lastItem].enabled = NO;
+  NSMutableArray<NSArray<NSString *> *> *extraProviders = [@[
+    @[ @"Doubao (ByteDance)", @"doubao" ],
+    @[ @"GLM (Zhipu)", @"glm" ],
+    @[ @"MiMo (Xiaomi)", @"mimo" ],
+  ] mutableCopy];
+  if ([supportedLocalProviders containsObject:@"wetype"])
+    [extraProviders addObject:@[ @"WeType (на устройстве)", @"wetype" ]];
+  for (NSArray<NSString *> *extra in extraProviders) {
+    [self.asrProviderPopup addItemWithTitle:extra[0]];
+    [self.asrProviderPopup lastItem].representedObject = extra[1];
+    [self.asrProviderPopup lastItem].indentationLevel = 1;
   }
   [self.asrProviderPopup setTarget:self];
   [self.asrProviderPopup setAction:@selector(asrProviderPicked:)];
@@ -2105,7 +2117,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   // Detail form geometry (right of sidebar). The label column is measured
   // from the actual strings so no label ever clips.
   CGFloat labelW = [self formLabelColumnWidthForTitles:@[
-    @"Название", @"Тип", @"Base URL", @"API-ключ", @"Модель", @"Список моделей",
+    @"Название", @"Тип", @"Адрес API", @"API-ключ", @"Модель", @"Список моделей",
     @"Путь API", @"Параметр токенов"
   ]];
   CGFloat detailLabelX = detailCardX + cardPad;
@@ -2269,7 +2281,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
   // Base URL
   NSTextField *baseUrlLabel =
-      [self formLabel:@"Base URL"
+      [self formLabel:@"Адрес API"
                 frame:NSMakeRect(detailLabelX, detailY, labelW, 22)];
   baseUrlLabel.tag = 2001;
   [pane addSubview:baseUrlLabel];
@@ -3204,15 +3216,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   NSPopUpButton *popup =
       [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 168, 26)
                                  pullsDown:NO];
-  NSArray<NSString *> *titles = @[
-    @"Fn (Globe)",
-    @"Left Option (\u2325)",
-    @"Right Option (\u2325)",
-    @"Left Command (\u2318)",
-    @"Right Command (\u2318)",
-    @"Left Control (\u2303)",
-    @"Right Control (\u2303)",
-  ];
   NSArray<NSString *> *values = @[
     @"fn",
     @"left_option",
@@ -3222,7 +3225,9 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     @"left_control",
     @"right_control",
   ];
-  [popup addItemsWithTitles:titles];
+  for (NSString *value in values) {
+    [popup addItemWithTitle:displayNameForHotkeyValue(value)];
+  }
   for (NSInteger idx = 0; idx < (NSInteger)values.count; idx++) {
     [popup itemAtIndex:idx].representedObject = values[idx];
   }
@@ -3912,7 +3917,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                  @"подпись, почта, ссылка. Срабатывает, когда "
                                  @"вся диктовка — эта фраза, или когда в ней "
                                  @"есть «вставь <фраза>». Текст вставляется "
-                                 @"ровно как записан. Перенос строки в тексте — ⌥Return."
+                                 @"ровно как записан. Перенос строки в тексте — ⌥↩."
                           toPane:pane
                             topY:contentHeight - 30.0
                                x:contentX
@@ -7209,7 +7214,7 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   NSString *currentModel = [self.llmModelField.stringValue copy] ?: @"";
   if (baseURL.length == 0) {
     [self.llmRemoteModelPopup removeAllItems];
-    [self.llmRemoteModelPopup addItemWithTitle:@"Сначала укажите Base URL"];
+    [self.llmRemoteModelPopup addItemWithTitle:@"Сначала укажите адрес API"];
     self.llmRemoteModelPopup.enabled = NO;
     return;
   }
@@ -7590,7 +7595,7 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   if (![provider isEqualToString:@"mlx"] &&
       (baseUrl.length == 0 || model.length == 0)) {
     self.llmTestResultLabel.stringValue =
-        @"Сначала заполните Base URL и модель.";
+        @"Сначала заполните адрес API и модель.";
     self.llmTestResultLabel.textColor = SPTheme.warning;
     return;
   }

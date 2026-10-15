@@ -1,6 +1,6 @@
 {
     "provider": "sherpa-onnx",
-    "description": "Bilingual Chinese-English model",
+    "description": "Китайский и английский",
     "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20",
     "files": [
         {

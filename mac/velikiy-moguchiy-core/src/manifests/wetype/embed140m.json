@@ -1,7 +1,7 @@
 {
     "provider": "wetype",
     "mode": "asr",
-    "description": "WeType Offline Model",
+    "description": "Офлайн-модель WeType (только китайский)",
     "repo": "model.koe.li",
     "files": [
         {
