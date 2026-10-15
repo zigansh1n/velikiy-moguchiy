@@ -87,4 +87,31 @@
     XCTAssertNil([SPErrorExplainer explanationForWarning:@"something else"]);
 }
 
+- (void)testChatGPTErrorsUseTheCoresOwnWords {
+    NSString *message = @"ASR connection failed: ChatGPT [not-signed-in]: вы не вошли в ChatGPT. Войдите.";
+    XCTAssertEqualObjects([SPErrorExplainer chatGPTCodeForMessage:message], @"not-signed-in");
+    XCTAssertEqualObjects([SPErrorExplainer chatGPTTextForMessage:message], @"Вы не вошли в ChatGPT. Войдите.");
+    XCTAssertEqualObjects([SPErrorExplainer explanationForMessage:message recordingKept:NO].shortText,
+                          @"Нет входа в ChatGPT");
+    XCTAssertNil([SPErrorExplainer chatGPTCodeForMessage:@"ChatGPT [half"]);
+
+    message = @"ChatGPT [rejected]: ChatGPT отклонил запрос (HTTP 403). Выберите другого провайдера.";
+    XCTAssertEqual([SPErrorExplainer kindForMessage:message], SPErrorKindChatGPT);
+    XCTAssertEqualObjects([SPErrorExplainer chatGPTCodeForMessage:message], @"rejected");
+    SPErrorExplanation *explanation = [SPErrorExplainer explanationForMessage:message recordingKept:YES];
+    XCTAssertEqualObjects(explanation.shortText, @"ChatGPT отклонил запрос");
+    XCTAssertEqualObjects(explanation.detail, @"ChatGPT отклонил запрос (HTTP 403). Выберите другого провайдера.");
+    XCTAssertEqual(explanation.action, SPErrorActionAsrSettings);
+
+    message = @"ChatGPT [rate-limited]: ChatGPT временно ограничил расшифровку. Подождите.";
+    explanation = [SPErrorExplainer explanationForMessage:message recordingKept:YES];
+    XCTAssertEqualObjects(explanation.shortText, @"Лимит ChatGPT");
+    XCTAssertTrue([explanation.detail hasSuffix:@"«Последних диктовках»."]);
+    XCTAssertEqual(explanation.action, SPErrorActionRecentDictations);
+
+    XCTAssertEqualObjects([SPErrorExplainer chatGPTTextForMessage:@"ChatGPT [not-signed-in]: вы не вошли."],
+                          @"Вы не вошли.");
+    XCTAssertNil([SPErrorExplainer chatGPTTextForMessage:@"HTTP 403 Forbidden"]);
+}
+
 @end

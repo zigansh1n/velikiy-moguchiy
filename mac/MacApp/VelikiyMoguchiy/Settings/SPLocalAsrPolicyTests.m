@@ -39,7 +39,8 @@
 }
 
 - (void)testLocalOrUnknownProvidersAreLeftAlone {
-    for (NSString *provider in @[ @"apple-speech", @"mlx", @"sherpa-onnx", @"wetype", @"something-new" ]) {
+    // chatgpt signs in through the browser and has no key in config.yaml.
+    for (NSString *provider in @[ @"apple-speech", @"mlx", @"sherpa-onnx", @"wetype", @"chatgpt", @"something-new" ]) {
         [self expectOffer:NO asr:@{@"provider" : provider} supported:@[ @"sherpa-onnx" ]];
     }
 }

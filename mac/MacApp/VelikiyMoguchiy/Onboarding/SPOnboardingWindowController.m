@@ -289,6 +289,9 @@ static BOOL recognitionReady(void) {
         self.recognitionRow.title.stringValue = @"Распознавание на этом Mac";
         self.recognitionRow.hint.stringValue = @"Звук никуда не уходит. Облачное распознавание точнее: ключ "
                                                @"можно указать в настройках в любой момент.";
+    } else if ([provider isEqualToString:@"chatgpt"]) {
+        self.recognitionRow.title.stringValue = @"Распознавание через ChatGPT";
+        self.recognitionRow.hint.stringValue = @"Вход и «Проверить» — в настройках распознавания.";
     } else if (ready) {
         self.recognitionRow.title.stringValue =
             [provider isEqualToString:@"qwen"] ? @"Ключ DashScope указан" : @"Ключ распознавания указан";

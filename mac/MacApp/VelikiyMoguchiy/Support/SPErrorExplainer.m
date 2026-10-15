@@ -45,9 +45,38 @@ static SPErrorExplanation *makeExplanation(SPErrorKind kind, NSString *shortText
 
 @implementation SPErrorExplainer
 
+/// The core may prefix it ("ASR connection failed: ChatGPT [...]"), so it is
+/// looked for anywhere in the message.
+static NSRange chatGPTMarker(NSString *message, NSRange *close) {
+    NSRange open = [message rangeOfString:@"ChatGPT ["];
+    if (open.location == NSNotFound) return open;
+    NSRange rest = NSMakeRange(NSMaxRange(open), message.length - NSMaxRange(open));
+    *close = [message rangeOfString:@"]: " options:0 range:rest];
+    return close->location == NSNotFound ? *close : open;
+}
+
++ (NSString *)chatGPTCodeForMessage:(NSString *)message {
+    if (message.length == 0) return nil;
+    NSRange close = NSMakeRange(NSNotFound, 0);
+    NSRange open = chatGPTMarker(message, &close);
+    if (open.location == NSNotFound) return nil;
+    return [message substringWithRange:NSMakeRange(NSMaxRange(open), close.location - NSMaxRange(open))];
+}
+
++ (NSString *)chatGPTTextForMessage:(NSString *)message {
+    if (![self chatGPTCodeForMessage:message]) return nil;
+    NSRange close = NSMakeRange(NSNotFound, 0);
+    chatGPTMarker(message, &close);
+    NSString *text = [message substringFromIndex:NSMaxRange(close)];
+    if (text.length == 0) return text;
+    return [[[text substringToIndex:1] uppercaseString] stringByAppendingString:[text substringFromIndex:1]];
+}
+
 + (SPErrorKind)kindForMessage:(NSString *)message {
     NSString *lower = message.lowercaseString;
     if (lower.length == 0) return SPErrorKindUnknown;
+    // Before every marker below: these messages carry HTTP codes and the word "ChatGPT".
+    if ([self chatGPTCodeForMessage:message]) return SPErrorKindChatGPT;
     // Checked before the network markers: "ASR connection failed: HTTP error: 401" is about the key.
     if (containsAny(lower, @[ @"api_key is required", @"api key is required", @"no api key", @"missing api key" ])) {
         return SPErrorKindNoKey;
@@ -91,12 +120,37 @@ static SPErrorExplanation *makeExplanation(SPErrorKind kind, NSString *shortText
     return SPErrorKindUnknown;
 }
 
++ (SPErrorExplanation *)chatGPTExplanationForMessage:(NSString *)message
+                                         recordingKept:(BOOL)recordingKept {
+    NSString *code = [self chatGPTCodeForMessage:message];
+    NSString *text = [self chatGPTTextForMessage:message];
+    NSDictionary<NSString *, NSString *> *shortTexts = @{
+        @"not-signed-in" : @"Нет входа в ChatGPT",
+        @"session-expired" : @"Вход в ChatGPT истёк",
+        @"rejected" : @"ChatGPT отклонил запрос",
+        @"rate-limited" : @"Лимит ChatGPT",
+        @"too-large" : @"Запись слишком длинная",
+        @"service" : @"Сбой ChatGPT",
+        @"network" : @"Нет связи с ChatGPT",
+    };
+    BOOL needsSettings = [@[ @"not-signed-in", @"session-expired", @"rejected", @"storage" ] containsObject:code];
+    NSString *detail = text;
+    SPErrorAction action = SPErrorActionAsrSettings;
+    if (!needsSettings) {
+        if (recordingKept) detail = [text stringByAppendingString:@" Запись сохранена в «Последних диктовках»."];
+        action = recordingKept ? SPErrorActionRecentDictations : SPErrorActionNone;
+    }
+    return makeExplanation(SPErrorKindChatGPT, shortTexts[code] ?: @"Ошибка ChatGPT", detail, action, message);
+}
+
 + (SPErrorExplanation *)explanationForMessage:(NSString *)message recordingKept:(BOOL)recordingKept {
     SPErrorKind kind = [self kindForMessage:message];
     // What is left to do after a passing failure: the recording waits for another try.
     NSString *saved = recordingKept ? @" Запись сохранена в «Последних диктовках»." : @"";
     SPErrorAction later = recordingKept ? SPErrorActionRecentDictations : SPErrorActionNone;
     switch (kind) {
+        case SPErrorKindChatGPT:
+            return [self chatGPTExplanationForMessage:message recordingKept:recordingKept];
         case SPErrorKindNoKey:
             return makeExplanation(kind, @"Нет ключа DashScope",
                                    @"Вставьте ключ: Настройки → Распознавание. Без ключа там же можно "

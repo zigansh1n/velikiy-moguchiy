@@ -228,6 +228,8 @@ static NSString *const kNoSpeechReason = @"в записи не было реч�
             return @"нет локальной модели распознавания";
         case SPErrorKindMicrophone:
             return @"проблема с аудио";
+        case SPErrorKindChatGPT:
+            return [SPErrorExplainer explanationForMessage:message recordingKept:NO].shortText.lowercaseString;
         case SPErrorKindUnknown:
             break;
     }

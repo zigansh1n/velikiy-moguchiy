@@ -15,6 +15,8 @@ typedef NS_ENUM(NSInteger, SPErrorKind) {
     SPErrorKindTimeout,
     SPErrorKindService,
     SPErrorKindNetwork,
+    /// Any failure of the ChatGPT provider: the core words those itself.
+    SPErrorKindChatGPT,
 };
 
 /// Where a click on the error notification leads.
@@ -46,6 +48,13 @@ typedef NS_ENUM(NSInteger, SPErrorAction) {
 @interface SPErrorExplainer : NSObject
 
 + (SPErrorKind)kindForMessage:(nullable NSString *)message;
+
+/// The core's ChatGPT errors read "ChatGPT [code]: text". The code
+/// (`not-signed-in`, `session-expired`, `rejected`, ...), or nil for any other message.
++ (nullable NSString *)chatGPTCodeForMessage:(nullable NSString *)message;
+
+/// The Russian text of a ChatGPT error, as a sentence; nil for any other message.
++ (nullable NSString *)chatGPTTextForMessage:(nullable NSString *)message;
 
 /// A dictation that failed with the core's error `message`. `recordingKept`:
 /// its recording is in «Последние диктовки», so the text may point there.

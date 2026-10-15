@@ -139,6 +139,34 @@ static id configGetJSON(NSString *keyPath) {
   return parsed;
 }
 
+static NSString *const kChatgptProviderTitle =
+    @"ChatGPT (ваша подписка) — неофициально";
+static NSString *const kChatgptRiskAcceptedKey = @"SPChatGPTRiskAccepted";
+static NSString *const kChatgptRiskNotice =
+    @"Неофициально: распознавание идёт через внутренний адрес голосового ввода "
+    @"ChatGPT и вход, как у Codex. OpenAI может изменить его в любой момент, и "
+    @"тогда способ перестанет работать. Голос отправляется в OpenAI. "
+    @"Используйте на свой риск и в рамках условий OpenAI.";
+
+// Parses and frees a JSON object returned by one of the sp_chatgpt_* calls.
+static NSDictionary *chatgptJSON(char *raw) {
+  if (!raw)
+    return @{};
+  NSData *data = [NSData dataWithBytes:raw length:strlen(raw)];
+  sp_core_free_string(raw);
+  id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [json isKindOfClass:[NSDictionary class]] ? json : @{};
+}
+
+// The Russian sentence of a ChatGPT failure from the core.
+static NSString *chatgptFailureText(NSDictionary *result) {
+  NSString *message = [result[@"message"] isKindOfClass:[NSString class]]
+                          ? result[@"message"]
+                          : @"";
+  return [SPErrorExplainer chatGPTTextForMessage:message]
+             ?: (message.length > 0 ? message : @"Неизвестная ошибка");
+}
+
 static BOOL configSetJSON(NSString *keyPath, id object) {
   NSData *data = [NSJSONSerialization dataWithJSONObject:object
                                                  options:0
@@ -832,6 +860,13 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSSecureTextField *asrMimoApiKeySecureField;
 @property(nonatomic, strong) NSTextField *asrMimoApiKeyField;
 @property(nonatomic, strong) NSButton *asrMimoApiKeyToggle;
+@property(nonatomic, strong) NSButton *asrChatgptLoginButton;
+@property(nonatomic, strong) NSTextField *asrChatgptStatusLabel;
+@property(nonatomic, assign) BOOL asrChatgptSignedIn;
+@property(nonatomic, assign) BOOL asrChatgptLoginInProgress;
+@property(nonatomic, assign) CGFloat asrChatgptRequiredPaneHeight;
+// The provider the form shows, to go back to when the ChatGPT warning is declined.
+@property(nonatomic, copy) NSString *asrShownProvider;
 @property(nonatomic, strong) NSButton *asrTestButton;
 @property(nonatomic, strong) NSTextField *asrTestResultLabel;
 // Doubao auth mode + new console API key
@@ -1441,6 +1476,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   [self.asrProviderPopup lastItem].representedObject = @"glm";
   [self.asrProviderPopup addItemWithTitle:@"MiMo (Xiaomi)"];
   [self.asrProviderPopup lastItem].representedObject = @"mimo";
+  [self.asrProviderPopup addItemWithTitle:kChatgptProviderTitle];
+  [self.asrProviderPopup lastItem].representedObject = @"chatgpt";
   NSArray<NSString *> *supportedLocalProviders =
       [self.rustBridge supportedLocalProviders];
   // Add Apple Speech (macOS 26+, no model download required; also requires the
@@ -1466,7 +1503,12 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     [self.asrProviderPopup lastItem].representedObject = provider;
   }
   [self.asrProviderPopup setTarget:self];
-  [self.asrProviderPopup setAction:@selector(asrProviderChanged:)];
+  [self.asrProviderPopup setAction:@selector(asrProviderPicked:)];
+  // Wide enough for the longest title, «ChatGPT (ваша подписка) — неофициально».
+  CGFloat providerPopupW = MAX(200.0, MIN(310.0, fieldW - 110.0));
+  NSRect providerFrame = self.asrProviderPopup.frame;
+  providerFrame.size.width = providerPopupW;
+  self.asrProviderPopup.frame = providerFrame;
   [pane addSubview:self.asrProviderPopup];
 
   // Test button next to Provider
@@ -1474,7 +1516,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                           target:self
                                           action:@selector(testAsrConnection:)];
   self.asrTestButton.bezelStyle = NSBezelStyleRounded;
-  self.asrTestButton.frame = NSMakeRect(fieldX + 208, y - 2, 70, 28);
+  self.asrTestButton.frame =
+      NSMakeRect(fieldX + providerPopupW + 8, y - 2, 70, 28);
   [pane addSubview:self.asrTestButton];
   y -= rowH;
 
@@ -1939,6 +1982,46 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   // Pane height needed to show the whole notice (56pt bottom button area).
   self.asrMimoRequiredPaneHeight =
       ceil(contentHeight - NSMinY(mimoPrivacyNotice.frame)) + 56.0;
+
+  // ChatGPT account — row 1, where the other providers ask for their key.
+  CGFloat chatgptY = formStartY - rowH - rowH;
+  NSTextField *chatgptLabel =
+      [self formLabel:@"Аккаунт" frame:NSMakeRect(formX, chatgptY, labelW, 22)];
+  chatgptLabel.tag = 1018;
+  chatgptLabel.hidden = YES;
+  [pane addSubview:chatgptLabel];
+  self.asrChatgptLoginButton =
+      [NSButton buttonWithTitle:@"Войти через ChatGPT"
+                         target:self
+                         action:@selector(chatgptLoginButtonClicked:)];
+  self.asrChatgptLoginButton.bezelStyle = NSBezelStyleRounded;
+  self.asrChatgptLoginButton.frame = NSMakeRect(fieldX, chatgptY - 3, 170, 28);
+  self.asrChatgptLoginButton.tag = 1018;
+  self.asrChatgptLoginButton.hidden = YES;
+  [pane addSubview:self.asrChatgptLoginButton];
+  self.asrChatgptStatusLabel = [NSTextField labelWithString:@""];
+  self.asrChatgptStatusLabel.font = [NSFont systemFontOfSize:12];
+  self.asrChatgptStatusLabel.textColor = [NSColor secondaryLabelColor];
+  self.asrChatgptStatusLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  self.asrChatgptStatusLabel.frame =
+      NSMakeRect(fieldX + 178, chatgptY + 1, MAX(80.0, fieldW - 178), 18);
+  self.asrChatgptStatusLabel.tag = 1018;
+  self.asrChatgptStatusLabel.hidden = YES;
+  [pane addSubview:self.asrChatgptStatusLabel];
+  NSTextField *chatgptNotice =
+      [NSTextField wrappingLabelWithString:kChatgptRiskNotice];
+  chatgptNotice.font = [NSFont systemFontOfSize:11];
+  CGFloat chatgptNoticeH =
+      [self fittingHeightForWrappingLabel:chatgptNotice width:noteW];
+  CGFloat chatgptNoticeTop = chatgptY - rowH * 2 - 6;
+  chatgptNotice.frame = NSMakeRect(noteX, chatgptNoticeTop - chatgptNoticeH,
+                                   noteW, chatgptNoticeH);
+  chatgptNotice.textColor = SPTheme.warning;
+  chatgptNotice.tag = 1018;
+  chatgptNotice.hidden = YES;
+  [pane addSubview:chatgptNotice];
+  self.asrChatgptRequiredPaneHeight =
+      ceil(contentHeight - NSMinY(chatgptNotice.frame)) + 56.0;
 
   // WeType language note — in testing the on-device model only reliably
   // recognizes Chinese; say so under its model rows.
@@ -5734,6 +5817,8 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
                          advancedExpanded:(BOOL)expanded {
   CGFloat height = 460.0 + kAsrStatusStripHeight;
   height = MAX(height, self.asrMimoRequiredPaneHeight + kAsrStatusStripHeight);
+  height =
+      MAX(height, self.asrChatgptRequiredPaneHeight + kAsrStatusStripHeight);
   height = MAX(height,
                self.asrWetypeRequiredPaneHeight + kAsrStatusStripHeight);
   if ([provider isEqualToString:@"qwen"]) {
@@ -5772,9 +5857,11 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
   BOOL isQwen = [selectedProvider isEqualToString:@"qwen"];
   BOOL isGlm = [selectedProvider isEqualToString:@"glm"];
   BOOL isMimo = [selectedProvider isEqualToString:@"mimo"];
+  BOOL isChatgpt = [selectedProvider isEqualToString:@"chatgpt"];
   BOOL isAppleSpeech = [selectedProvider isEqualToString:@"apple-speech"];
-  BOOL isModelBasedLocal =
-      !isDoubao && !isQwen && !isGlm && !isMimo && !isAppleSpeech;
+  BOOL isModelBasedLocal = !isDoubao && !isQwen && !isGlm && !isMimo &&
+                           !isChatgpt && !isAppleSpeech;
+  self.asrShownProvider = selectedProvider;
 
   // Show/hide Doubao auth mode control and credential fields
   [self setHidden:!isDoubao
@@ -5876,6 +5963,11 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
   self.asrMimoApiKeySecureField.hidden = !isMimo;
   self.asrMimoApiKeyToggle.hidden = !isMimo;
 
+  [self setHidden:!isChatgpt
+      forViewsMatchingTags:[NSIndexSet indexSetWithIndex:1018]
+                    inView:self.currentPaneView];
+  if (isChatgpt) [self refreshChatgptAccountStatus];
+
   // Show/hide Apple Speech locale popup and asset status
   self.appleSpeechLocalePopup.hidden = !isAppleSpeech;
   [self setHidden:!isAppleSpeech
@@ -5922,7 +6014,7 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
                     inView:self.currentPaneView];
 
   // Hide test button for local providers (no remote connection to test)
-  BOOL isLocal = !isDoubao && !isQwen && !isGlm && !isMimo;
+  BOOL isLocal = !isDoubao && !isQwen && !isGlm && !isMimo && !isChatgpt;
   self.asrTestButton.hidden = isLocal;
   self.asrTestResultLabel.hidden = isLocal;
 
@@ -8336,7 +8428,171 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     [self testGlmConnection];
   } else if ([provider isEqualToString:@"mimo"]) {
     [self testMimoConnection];
+  } else if ([provider isEqualToString:@"chatgpt"]) {
+    [self testChatgptConnection];
   }
+}
+
+#pragma mark - ChatGPT account
+
+// The one-time warning before the unofficial provider is first chosen.
+- (BOOL)confirmChatgptRiskIfNeeded {
+  NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+  if ([defaults boolForKey:kChatgptRiskAcceptedKey])
+    return YES;
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.alertStyle = NSAlertStyleWarning;
+  alert.messageText = @"ChatGPT через вашу подписку — неофициально";
+  alert.informativeText =
+      @"Этот способ использует внутренний адрес, через который работает голосовой "
+      @"ввод в приложениях ChatGPT, и вход, как у Codex от OpenAI. OpenAI не "
+      @"документирует его и не поддерживает для сторонних приложений: он может "
+      @"перестать работать в любой момент.\n\n"
+      @"Используйте его на свой риск и в рамках условий использования OpenAI.\n\n"
+      @"Ваш голос отправляется в OpenAI и обрабатывается по их правилам. "
+      @"«Великий & Могучий» его не получает и не хранит; вход хранится только в "
+      @"связке ключей этого Mac.";
+  [alert addButtonWithTitle:@"Понимаю, продолжить"];
+  [alert addButtonWithTitle:@"Отмена"];
+  if ([alert runModal] != NSAlertFirstButtonReturn)
+    return NO;
+  [defaults setBool:YES forKey:kChatgptRiskAcceptedKey];
+  return YES;
+}
+
+- (void)asrProviderPicked:(NSPopUpButton *)sender {
+  NSString *picked = sender.selectedItem.representedObject;
+  if ([picked isEqualToString:@"chatgpt"] &&
+      ![self confirmChatgptRiskIfNeeded]) {
+    NSString *previous = self.asrShownProvider ?: @"qwen";
+    for (NSInteger i = 0; i < sender.numberOfItems; i++) {
+      if ([[sender itemAtIndex:i].representedObject isEqualToString:previous]) {
+        [sender selectItemAtIndex:i];
+        break;
+      }
+    }
+  }
+  [self asrProviderChanged:sender];
+}
+
+- (void)showChatgptStatus:(NSString *)text color:(NSColor *)color {
+  self.asrChatgptStatusLabel.stringValue = text;
+  self.asrChatgptStatusLabel.textColor = color;
+  self.asrChatgptStatusLabel.toolTip = text;
+}
+
+- (void)layoutChatgptAccountRow {
+  [self.asrChatgptLoginButton sizeToFit];
+  NSRect button = self.asrChatgptLoginButton.frame;
+  button.size.height = 28;
+  self.asrChatgptLoginButton.frame = button;
+  NSRect label = self.asrChatgptStatusLabel.frame;
+  CGFloat right = NSMaxX(label);
+  label.origin.x = NSMaxX(button) + 8;
+  label.size.width = MAX(60.0, right - label.origin.x);
+  self.asrChatgptStatusLabel.frame = label;
+}
+
+- (void)refreshChatgptAccountStatus {
+  if (self.asrChatgptLoginInProgress)
+    return;
+  NSDictionary *status = chatgptJSON(sp_chatgpt_status_json());
+  self.asrChatgptSignedIn = [status[@"signed_in"] boolValue];
+  self.asrChatgptLoginButton.title =
+      self.asrChatgptSignedIn ? @"Выйти" : @"Войти через ChatGPT";
+  [self layoutChatgptAccountRow];
+  NSString *email =
+      [status[@"email"] isKindOfClass:[NSString class]] ? status[@"email"] : nil;
+  NSString *error =
+      [status[@"error"] isKindOfClass:[NSString class]] ? status[@"error"] : nil;
+  if (self.asrChatgptSignedIn) {
+    [self showChatgptStatus:email.length > 0
+                                ? [NSString stringWithFormat:@"Вход выполнен: %@", email]
+                                : @"Вход выполнен"
+                      color:SPTheme.success];
+  } else if (error.length > 0) {
+    [self showChatgptStatus:[SPErrorExplainer chatGPTTextForMessage:error] ?: error
+                      color:SPTheme.failure];
+  } else {
+    [self showChatgptStatus:@"Вход не выполнен"
+                      color:[NSColor secondaryLabelColor]];
+  }
+}
+
+- (void)chatgptLoginButtonClicked:(id)sender {
+  if (self.asrChatgptLoginInProgress) {
+    sp_chatgpt_login_cancel();
+    return;
+  }
+  if (self.asrChatgptSignedIn) {
+    if (sp_chatgpt_logout() != 0) {
+      [self showChatgptStatus:@"Не удалось удалить вход из связки ключей"
+                        color:SPTheme.failure];
+      return;
+    }
+    [self refreshChatgptAccountStatus];
+    return;
+  }
+  if (![self confirmChatgptRiskIfNeeded])
+    return;
+  NSDictionary *start = chatgptJSON(sp_chatgpt_login_start_json());
+  NSURL *url = [start[@"url"] isKindOfClass:[NSString class]]
+                   ? [NSURL URLWithString:start[@"url"]]
+                   : nil;
+  if (![start[@"ok"] boolValue] || !url) {
+    [self showChatgptStatus:chatgptFailureText(start) color:SPTheme.failure];
+    return;
+  }
+  self.asrChatgptLoginInProgress = YES;
+  self.asrChatgptLoginButton.title = @"Отменить вход";
+  [self layoutChatgptAccountRow];
+  [self showChatgptStatus:@"Завершите вход в браузере…"
+                    color:[NSColor secondaryLabelColor]];
+  [[NSWorkspace sharedWorkspace] openURL:url];
+
+  __weak typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    NSDictionary *result = chatgptJSON(sp_chatgpt_login_wait_json());
+    dispatch_async(dispatch_get_main_queue(), ^{
+      __strong typeof(weakSelf) strongSelf = weakSelf;
+      if (!strongSelf)
+        return;
+      strongSelf.asrChatgptLoginInProgress = NO;
+      [strongSelf refreshChatgptAccountStatus];
+      if ([result[@"ok"] boolValue]) {
+        [NSApp activateIgnoringOtherApps:YES];
+        [strongSelf.window makeKeyAndOrderFront:nil];
+      } else if (![result[@"code"] isEqual:@"login-cancelled"]) {
+        [strongSelf showChatgptStatus:chatgptFailureText(result)
+                                color:SPTheme.failure];
+      }
+    });
+  });
+}
+
+- (void)testChatgptConnection {
+  self.asrTestButton.enabled = NO;
+  self.asrTestResultLabel.stringValue = @"Проверка…";
+  self.asrTestResultLabel.textColor = [NSColor secondaryLabelColor];
+  __weak typeof(self) weakSelf = self;
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    NSDictionary *result = chatgptJSON(sp_chatgpt_check_json());
+    dispatch_async(dispatch_get_main_queue(), ^{
+      __strong typeof(weakSelf) strongSelf = weakSelf;
+      if (!strongSelf)
+        return;
+      strongSelf.asrTestButton.enabled = YES;
+      if ([result[@"ok"] boolValue]) {
+        strongSelf.asrTestResultLabel.stringValue =
+            @"Работает: ChatGPT принял тестовую запись";
+        strongSelf.asrTestResultLabel.textColor = SPTheme.success;
+      } else {
+        strongSelf.asrTestResultLabel.stringValue = chatgptFailureText(result);
+        strongSelf.asrTestResultLabel.textColor = SPTheme.failure;
+      }
+      [strongSelf refreshChatgptAccountStatus];
+    });
+  });
 }
 
 - (void)testDoubaoConnection {
