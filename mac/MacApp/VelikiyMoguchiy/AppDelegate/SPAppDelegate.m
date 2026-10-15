@@ -3129,9 +3129,26 @@ static BOOL SPLabFlag(const char *name) {
         case SPErrorActionRecentDictations:
             [self statusBarDidSelectRecentDictations];
             break;
+        case SPErrorActionLeaveChatGPT:
+            [self switchBackFromChatGPT];
+            break;
         case SPErrorActionNone:
             break;
     }
+}
+
+/// The click on «лимит голосового ввода»: back to the provider chosen before
+/// ChatGPT, said on screen. Without a remembered one, the settings decide.
+- (void)switchBackFromChatGPT {
+    NSString *previous = [[NSUserDefaults standardUserDefaults] stringForKey:SPChatGPTPreviousProviderKey];
+    if (previous.length == 0 || [previous isEqualToString:@"chatgpt"] ||
+        sp_config_set("asr.provider", previous.UTF8String) != 0) {
+        [self showSettingsPane:@"asr"];
+        return;
+    }
+    NSLog(@"[VelikiyMoguchiy] ChatGPT limit: switched back to %@", previous);
+    [self reloadConfigAndApplyHotkeyIfSafe];
+    [self.overlayPanel showMessage:@"Распознавание: снова прежняя модель" icon:SPOverlayMessageIconSuccess];
 }
 
 - (void)overlayPanelDidRequestRawAsrFallback:(id)panel {

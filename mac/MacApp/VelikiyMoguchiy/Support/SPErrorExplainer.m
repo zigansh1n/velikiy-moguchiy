@@ -11,6 +11,8 @@
 @implementation SPErrorExplanation
 @end
 
+NSString *const SPChatGPTPreviousProviderKey = @"SPChatGPTPreviousProvider";
+
 static BOOL containsAny(NSString *text, NSArray<NSString *> *markers) {
     for (NSString *marker in markers) {
         if ([text containsString:marker]) return YES;
@@ -128,7 +130,7 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
         @"not-signed-in" : @"Нет входа в ChatGPT",
         @"session-expired" : @"Вход в ChatGPT истёк",
         @"rejected" : @"ChatGPT отклонил запрос",
-        @"rate-limited" : @"Лимит ChatGPT",
+        @"rate-limited" : @"Лимит голосового ввода",
         @"too-large" : @"Запись слишком длинная",
         @"service" : @"Сбой ChatGPT",
         @"network" : @"Нет связи с ChatGPT",
@@ -136,7 +138,11 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
     BOOL needsSettings = [@[ @"not-signed-in", @"session-expired", @"rejected", @"storage" ] containsObject:code];
     NSString *detail = text;
     SPErrorAction action = SPErrorActionAsrSettings;
-    if (!needsSettings) {
+    if ([code isEqualToString:@"rate-limited"]) {
+        detail = [text stringByAppendingString:@" Нажмите, чтобы вернуться к прежней модели."];
+        if (recordingKept) detail = [detail stringByAppendingString:@" Запись сохранена в «Последних диктовках»."];
+        action = SPErrorActionLeaveChatGPT;
+    } else if (!needsSettings) {
         if (recordingKept) detail = [text stringByAppendingString:@" Запись сохранена в «Последних диктовках»."];
         action = recordingKept ? SPErrorActionRecentDictations : SPErrorActionNone;
     }

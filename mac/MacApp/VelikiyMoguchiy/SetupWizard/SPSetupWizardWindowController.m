@@ -146,7 +146,10 @@ static NSString *const kChatgptRiskNotice =
     @"Неофициально: распознавание идёт через внутренний адрес голосового ввода "
     @"ChatGPT и вход, как у Codex. OpenAI может изменить его в любой момент, и "
     @"тогда способ перестанет работать. Голос отправляется в OpenAI. "
-    @"Используйте на свой риск и в рамках условий OpenAI.";
+    @"Используйте на свой риск и в рамках условий OpenAI. Подходит и бесплатный "
+    @"аккаунт. Расшифровка не тратит сообщения чата, но у голосового ввода OpenAI "
+    @"есть свой лимит, размер которого не публикуется. Если он закончится, "
+    @"приложение скажет об этом и предложит другую модель.";
 
 // Parses and frees a JSON object returned by one of the sp_chatgpt_* calls.
 static NSDictionary *chatgptJSON(char *raw) {
@@ -7471,6 +7474,14 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   if (self.asrAppKeyField) {
     NSString *selectedProvider =
         self.asrProviderPopup.selectedItem.representedObject ?: @"qwen";
+    NSString *savedProvider = configGet(@"asr.provider");
+    if ([selectedProvider isEqualToString:@"chatgpt"] &&
+        ![savedProvider isEqualToString:@"chatgpt"]) {
+      // Where «лимит голосового ввода» offers to go back to.
+      [[NSUserDefaults standardUserDefaults]
+          setObject:savedProvider.length > 0 ? savedProvider : @"qwen"
+             forKey:SPChatGPTPreviousProviderKey];
+    }
     saveOk &= configSet(@"asr.provider", selectedProvider);
     // Save Doubao fields based on auth mode
     BOOL isNewConsoleMode = (self.asrAuthModeControl.selectedSegment == 0);
@@ -8449,6 +8460,10 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       @"документирует его и не поддерживает для сторонних приложений: он может "
       @"перестать работать в любой момент.\n\n"
       @"Используйте его на свой риск и в рамках условий использования OpenAI.\n\n"
+      @"Подходит и бесплатный аккаунт ChatGPT. Расшифровка не тратит сообщения "
+      @"чата, но у голосового ввода OpenAI есть свой лимит, размер которого не "
+      @"публикуется. Если он закончится, приложение скажет об этом и предложит "
+      @"другую модель.\n\n"
       @"Ваш голос отправляется в OpenAI и обрабатывается по их правилам. "
       @"«Великий & Могучий» его не получает и не хранит; вход хранится только в "
       @"связке ключей этого Mac.";

@@ -617,7 +617,7 @@ impl App {
         fields.push(Field::Button("Проверить ChatGPT".into()));
         fields.push(Field::Note(
             "ChatGPT — неофициально: может перестать работать в любой момент, \
-             голос уходит в OpenAI. Используйте на свой риск."
+             голос уходит в OpenAI. Подходит и бесплатный аккаунт; у голосового ввода свой лимит."
                 .into(),
         ));
         fields.push(Field::Note(

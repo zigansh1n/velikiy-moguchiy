@@ -96,7 +96,9 @@ impl ChatGptError {
                 "ChatGPT отклонил запрос (HTTP {status}). Похоже, OpenAI что-то изменил в неофициальном \
                  способе входа. Выберите другого провайдера в Настройках → Распознавание."
             ),
-            Self::RateLimited => "ChatGPT временно ограничил расшифровку для вашего аккаунта. Подождите и повторите.".into(),
+            Self::RateLimited => "закончился лимит голосового ввода OpenAI для вашего аккаунта. Его размер OpenAI \
+                 не публикует, сообщения чата он не тратит. Подождите или переключитесь на другую модель."
+                .into(),
             Self::TooLarge => "запись слишком длинная для ChatGPT. Продиктуйте короче.".into(),
             Self::Service(status) => format!("сервис ChatGPT сейчас не работает (HTTP {status}). Повторите позже."),
             Self::Network(detail) => format!("{detail}. Проверьте интернет или VPN."),
@@ -281,7 +283,19 @@ impl ChatGptClient {
     }
 }
 
+/// Codex reports its dictation quota as "Codex dictation usage limit reached";
+/// the status that carries it is not documented, so the body decides.
+fn is_usage_limit(body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    ["usage limit", "usage_limit", "rate limit", "rate_limit"]
+        .iter()
+        .any(|marker| body.contains(marker))
+}
+
 fn parse_transcribe_response(status: u16, body: &str) -> std::result::Result<String, ChatGptError> {
+    if !(200..300).contains(&status) && is_usage_limit(body) {
+        return Err(ChatGptError::RateLimited);
+    }
     match status {
         200..=299 => {
             let json: serde_json::Value = serde_json::from_str(body)

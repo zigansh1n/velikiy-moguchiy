@@ -30,7 +30,12 @@ typedef NS_ENUM(NSInteger, SPErrorAction) {
     SPErrorActionMicrophonePrivacy,
     /// «Последние диктовки», where the recording waits.
     SPErrorActionRecentDictations,
+    /// Back to the provider chosen before ChatGPT (its limit ran out).
+    SPErrorActionLeaveChatGPT,
 };
+
+/// NSUserDefaults key: the provider that was selected when ChatGPT was chosen.
+extern NSString *const SPChatGPTPreviousProviderKey;
 
 /// One error put in words for the user: a few words for the pill, a sentence
 /// with what to do for the notification, and a code that ties it to the log.

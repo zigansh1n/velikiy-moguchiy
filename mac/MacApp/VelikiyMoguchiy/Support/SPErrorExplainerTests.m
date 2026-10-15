@@ -103,11 +103,12 @@
     XCTAssertEqualObjects(explanation.detail, @"ChatGPT отклонил запрос (HTTP 403). Выберите другого провайдера.");
     XCTAssertEqual(explanation.action, SPErrorActionAsrSettings);
 
-    message = @"ChatGPT [rate-limited]: ChatGPT временно ограничил расшифровку. Подождите.";
+    message = @"ChatGPT [rate-limited]: закончился лимит голосового ввода OpenAI. Подождите.";
     explanation = [SPErrorExplainer explanationForMessage:message recordingKept:YES];
-    XCTAssertEqualObjects(explanation.shortText, @"Лимит ChatGPT");
+    XCTAssertEqualObjects(explanation.shortText, @"Лимит голосового ввода");
+    XCTAssertTrue([explanation.detail containsString:@"вернуться к прежней модели"]);
     XCTAssertTrue([explanation.detail hasSuffix:@"«Последних диктовках»."]);
-    XCTAssertEqual(explanation.action, SPErrorActionRecentDictations);
+    XCTAssertEqual(explanation.action, SPErrorActionLeaveChatGPT);
 
     XCTAssertEqualObjects([SPErrorExplainer chatGPTTextForMessage:@"ChatGPT [not-signed-in]: вы не вошли."],
                           @"Вы не вошли.");

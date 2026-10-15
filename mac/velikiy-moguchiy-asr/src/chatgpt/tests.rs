@@ -405,6 +405,32 @@ async fn a_residency_claim_is_sent_as_the_codex_header() {
 }
 
 #[tokio::test]
+async fn a_usage_limit_body_is_the_limit_whatever_the_status() {
+    for status in [400, 403, 429] {
+        let server = FakeServer::start(vec![(
+            TRANSCRIBE,
+            vec![(
+                status,
+                r#"{"detail":"Codex dictation usage limit reached"}"#.into(),
+            )],
+        )])
+        .await;
+        let mut client =
+            ChatGptClient::signed_in(signed_in_store(fresh_access("a")), server.endpoints())
+                .unwrap();
+        let err = client
+            .transcribe(&AudioFile::wav_from_pcm16(&[0u8; 320]), None)
+            .await
+            .unwrap_err();
+        assert_eq!(err, ChatGptError::RateLimited, "HTTP {status}");
+        assert_eq!(server.seen(TRANSCRIBE).len(), 1, "a limit is not retried");
+    }
+    let shown = ChatGptError::RateLimited.to_string();
+    assert!(shown.contains("лимит голосового ввода OpenAI"), "{shown}");
+    assert!(shown.contains("другую модель"), "{shown}");
+}
+
+#[tokio::test]
 async fn statuses_map_to_their_errors() {
     for (status, expected) in [
         (403, ChatGptError::Rejected(403)),
