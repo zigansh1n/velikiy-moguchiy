@@ -2,6 +2,7 @@
 #import "SPOverlayCard.h"
 #import "SPOverlayLayout.h"
 #import "SPOverlayPalette.h"
+#import "SPWorkScreen.h"
 #import "SPTheme.h"
 #import "velikiy_moguchiy_core.h"
 #import <QuartzCore/QuartzCore.h>
@@ -433,6 +434,7 @@ static NSAttributedString *SPOverlayCaptionString(NSString *text) {
 /// A result caption ("Скопировано", "Отменено") lingers with its icon, not like a message.
 @property (nonatomic, assign) BOOL captionIsBadge;
 @property (nonatomic, strong) SPOverlayCard *card;
+@property (nonatomic, strong) NSScreen *workScreen;
 
 @end
 
@@ -783,6 +785,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 
 - (void)showCardWithTitle:(NSString *)title text:(NSString *)text copyable:(BOOL)copyable {
     if (text.length == 0) return;
+    [self refreshWorkScreenUnlessShown];
     NSRect pill = [self pillFrame];
     NSRect visible = [self pillScreen].visibleFrame;
     BOOL captionAbove = self.caption.length > 0 && ![SPOverlayLayout captionGoesBelowPill:pill visibleFrame:visible];
@@ -1078,8 +1081,18 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 
 #pragma mark - Layout
 
+/// Taken when the pill appears and kept while it is up, so the pill does not
+/// jump between displays in the middle of a dictation.
+- (void)refreshWorkScreenUnlessShown {
+    if (self.screenOverride || (self.panel.isVisible && self.panel.alphaValue > 0.01)) return;
+    self.workScreen = [SPWorkScreen currentScreen];
+}
+
 - (NSScreen *)pillScreen {
-    return self.screenOverride ?: [NSScreen mainScreen];
+    if (self.screenOverride) return self.screenOverride;
+    // A display unplugged since leaves a stale NSScreen behind.
+    if (self.workScreen && [NSScreen.screens containsObject:self.workScreen]) return self.workScreen;
+    return NSScreen.mainScreen;
 }
 
 /// Where the pill sits when shown, whether or not it is on screen now.
@@ -1092,6 +1105,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 }
 
 - (void)positionPanel {
+    [self refreshWorkScreenUnlessShown];
     [self.panel setFrame:[self pillFrame] display:YES];
     [self positionCaption];
 }

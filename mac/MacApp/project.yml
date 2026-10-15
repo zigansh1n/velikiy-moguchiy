@@ -171,6 +171,8 @@ targets:
       - path: VelikiyMoguchiy/Overlay/SPDictationProgressTests.m
       - path: VelikiyMoguchiy/Overlay/SPOverlayLayout.m
       - path: VelikiyMoguchiy/Overlay/SPOverlayLayoutTests.m
+      - path: VelikiyMoguchiy/Overlay/SPWorkScreen.m
+      - path: VelikiyMoguchiy/Overlay/SPWorkScreenTests.m
       - path: VelikiyMoguchiy/Permissions/SPAccessRepairPolicy.m
       - path: VelikiyMoguchiy/Permissions/SPAccessRepairPolicyTests.m
       - path: VelikiyMoguchiy/StatusBar/SPRecentDictationsMenuPolicy.m

@@ -25,7 +25,8 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
     SPOverlayMessageIconNotice,
 };
 
-/// Small status pill displayed at bottom-center of screen, above the Dock:
+/// Small status pill displayed at bottom-center of the display the user works
+/// on (SPWorkScreen, taken each time the pill appears), above the Dock:
 /// mic bars while recording, pulsing lozenges while processing, then a checkmark
 /// (delivered), a clipboard (copied only), an xmark (cancelled) or a red xmark
 /// (error) before it hides. The pill never widens: a short line ("Скопировано",
@@ -34,7 +35,7 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
 @interface SPOverlayPanel : NSObject
 
 @property (nonatomic, weak) id<SPOverlayPanelDelegate> delegate;
-/// The screen the pill sits on; nil means the main screen.
+/// The screen the pill always sits on; nil follows the work screen.
 @property (nonatomic, strong) NSScreen *screenOverride;
 
 - (instancetype)init;
