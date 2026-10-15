@@ -2790,14 +2790,23 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                        [self cardRowWithLabel:@"Режим запуска"
                                       control:self.triggerModePopup],
                        [self cardRowWithLabel:@"Клавиша перевода"
+                                       detail:@"Как клавиша диктовки, но текст переводится. "
+                                              @"Нужен ключ DashScope."
                                       control:self.translateKeyPopup],
                        [self cardRowWithLabel:@"Клавиша вопроса по выделенному"
+                                       detail:@"Вопрос голосом о выделенном тексте. Нужен ключ "
+                                              @"DashScope."
                                       control:self.askKeyPopup],
                        [self cardRowWithLabel:@"Клавиша правки выделенного"
+                                       detail:@"Скажите, как изменить выделенное, — текст "
+                                              @"заменится. Нужен ключ DashScope."
                                       control:self.editKeyPopup],
                        [self cardRowWithLabel:@"Клавиша «отменить вставку»"
+                                       detail:@"Срабатывает от двойного нажатия, чтобы случайное "
+                                              @"касание ничего не стёрло."
                                       control:self.undoKeyPopup],
                        [self cardRowWithLabel:@"Клавиша «вставить последнюю диктовку»"
+                                       detail:@"Срабатывает от двойного нажатия."
                                       control:self.repasteKeyPopup],
                        [self cardRowWithLabel:@"Клавиша режима текста"
                                       control:self.modeKeyPopup],
