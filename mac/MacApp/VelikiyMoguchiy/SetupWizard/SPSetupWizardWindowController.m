@@ -67,6 +67,8 @@ static NSToolbarItemIdentifier const kToolbarAbout = @"about";
 // ─── Config helpers (backed by sp_config_get / sp_config_set) ───────
 #import "velikiy_moguchiy_core.h"
 #import "SPAppPaths.h"
+#import "SPAddWordDialog.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 static NSString *configDirPath(void) {
   return SPAppDataDirectory();
@@ -903,6 +905,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSTextField *dictionaryCountLabel;
 @property(nonatomic, strong) NSTextField *dictionaryWarningLabel;
 @property(nonatomic, strong) NSSwitch *starterDictionarySwitch;
+@property(nonatomic, strong) NSSwitch *suggestCorrectionsSwitch;
 
 // Snippets
 @property(nonatomic, strong) SPFlippedDocumentView *snippetRows;
@@ -3627,8 +3630,28 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   NSTextField *sectionTitle = [self
       sectionTitleLabel:@"Мой словарь"
                   frame:NSMakeRect(contentX, floor(NSMinY(desc.frame) - 36.0),
-                                   contentW - 160.0, 20)];
+                                   120.0, 20)];
   [pane addSubview:sectionTitle];
+
+  CGFloat buttonX = contentX + 124.0;
+  for (NSArray *spec in @[
+         @[ @"Импорт CSV…", NSStringFromSelector(@selector(importDictionaryCSV:)),
+            @"Добавить записи из CSV: первая колонка — как писать, дальше — как произносят" ],
+         @[ @"Экспорт CSV…", NSStringFromSelector(@selector(exportDictionaryCSV:)),
+            @"Сохранить словарь в CSV для Excel или Numbers" ],
+       ]) {
+    NSButton *button = [NSButton buttonWithTitle:spec[0]
+                                          target:self
+                                          action:NSSelectorFromString(spec[1])];
+    button.controlSize = NSControlSizeSmall;
+    button.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
+    button.toolTip = spec[2];
+    [button sizeToFit];
+    button.frame = NSMakeRect(buttonX, NSMinY(sectionTitle.frame) - 2.0,
+                              NSWidth(button.frame), NSHeight(button.frame));
+    buttonX = NSMaxX(button.frame) + 6.0;
+    [pane addSubview:button];
+  }
 
   self.dictionaryCountLabel = [NSTextField labelWithString:@""];
   self.dictionaryCountLabel.font = SPTheme.bodyFont;
@@ -3669,11 +3692,22 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   [starterCard addSubview:showStarter];
   [pane addSubview:starterCard];
 
+  self.suggestCorrectionsSwitch = [self settingsSwitchWithAction:NULL];
+  self.suggestCorrectionsSwitch.accessibilityIdentifier = @"dictionary.suggest";
+  NSView *suggestCard = [self
+      settingsToggleCardWithFrame:NSMakeRect(contentX, NSMaxY(starterCard.frame) + 8.0,
+                                             contentW, starterCardH)
+                            title:@"Предлагать запомнить слово, исправленное после вставки"
+                           toggle:self.suggestCorrectionsSwitch];
+  suggestCard.toolTip = @"Исправили слово в только что вставленной диктовке — над плашкой "
+                        @"появится «Запомнить „…“?»";
+  [pane addSubview:suggestCard];
+
   self.dictionaryWarningLabel = [NSTextField wrappingLabelWithString:@""];
   self.dictionaryWarningLabel.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
   self.dictionaryWarningLabel.textColor = NSColor.systemOrangeColor;
   self.dictionaryWarningLabel.frame =
-      NSMakeRect(contentX + 2.0, NSMaxY(starterCard.frame) + 6.0, contentW - 4.0, 30.0);
+      NSMakeRect(contentX + 2.0, NSMaxY(suggestCard.frame) + 6.0, contentW - 4.0, 30.0);
   self.dictionaryWarningLabel.hidden = YES;
   [pane addSubview:self.dictionaryWarningLabel];
 
@@ -3715,6 +3749,13 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                            selector:@selector(dictionaryTextDidChange:)
                                                name:NSTextDidChangeNotification
                                              object:self.dictionaryTextView];
+  [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                  name:SPDictionaryDidChangeNotification
+                                                object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(dictionaryFileDidChange:)
+                                               name:SPDictionaryDidChangeNotification
+                                             object:nil];
 
   return pane;
 }
@@ -3728,6 +3769,86 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
 - (void)dictionaryTextDidChange:(NSNotification *)notification {
   [self updateDictionaryCount];
+}
+
+/// A word was added from the history, the menu or the offer: show it unless
+/// the editor holds unsaved changes.
+- (void)dictionaryFileDidChange:(NSNotification *)notification {
+  if (!self.dictionaryTextView ||
+      ![self.dictionaryTextView.string isEqualToString:self.loadedDictionaryContent ?: @""]) {
+    return;
+  }
+  NSString *path = [configDirPath() stringByAppendingPathComponent:kDictionaryFile];
+  NSString *content =
+      [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil] ?: @"";
+  [self.dictionaryTextView setString:content];
+  self.loadedDictionaryContent = content;
+  [self updateDictionaryCount];
+}
+
+/// Replaces the editor's text as one undoable edit.
+- (void)replaceDictionaryText:(NSString *)text {
+  NSTextView *textView = self.dictionaryTextView;
+  NSRange all = NSMakeRange(0, textView.string.length);
+  if ([textView shouldChangeTextInRange:all replacementString:text]) {
+    [textView.textStorage replaceCharactersInRange:all withString:text];
+    [textView didChangeText];
+  }
+}
+
+- (void)importDictionaryCSV:(id)sender {
+  NSOpenPanel *panel = [NSOpenPanel openPanel];
+  panel.allowedContentTypes = @[ UTTypeCommaSeparatedText, UTTypePlainText ];
+  panel.allowsMultipleSelection = NO;
+  [panel beginSheetModalForWindow:self.window
+                completionHandler:^(NSModalResponse response) {
+                  if (response != NSModalResponseOK || !panel.URL) return;
+                  [self importDictionaryFromURL:panel.URL];
+                }];
+}
+
+- (void)importDictionaryFromURL:(NSURL *)url {
+  NSData *data = [NSData dataWithContentsOfURL:url];
+  // Excel in a Russian locale saves CSV in Windows-1251 unless told otherwise.
+  NSString *csv = data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
+  if (!csv && data) csv = [[NSString alloc] initWithData:data encoding:NSWindowsCP1251StringEncoding];
+  if (!csv) {
+    [self showAlert:@"Не удалось прочитать файл" info:url.path.lastPathComponent ?: @""];
+    return;
+  }
+  char *raw = sp_dictionary_import_csv(self.dictionaryTextView.string.UTF8String, csv.UTF8String);
+  NSData *json = raw ? [NSData dataWithBytes:raw length:strlen(raw)] : nil;
+  sp_core_free_string(raw);
+  NSDictionary *result = json ? [NSJSONSerialization JSONObjectWithData:json options:0 error:nil] : nil;
+  if (![result isKindOfClass:[NSDictionary class]] || ![result[@"content"] isKindOfClass:[NSString class]]) {
+    [self showAlert:@"Не удалось разобрать CSV" info:@""];
+    return;
+  }
+  [self replaceDictionaryText:result[@"content"]];
+  [self updateDictionaryCount];
+  [self showAlert:@"Записи добавлены в редактор"
+             info:[NSString stringWithFormat:
+                       @"Новых: %@, дополнено: %@, пропущено: %@. Нажмите «Сохранить», "
+                       @"чтобы записать словарь.",
+                       result[@"added"], result[@"updated"], result[@"skipped"]]];
+}
+
+- (void)exportDictionaryCSV:(id)sender {
+  NSSavePanel *panel = [NSSavePanel savePanel];
+  panel.allowedContentTypes = @[ UTTypeCommaSeparatedText ];
+  panel.nameFieldStringValue = @"velikiy-moguchiy-dictionary.csv";
+  NSString *text = self.dictionaryTextView.string ?: @"";
+  [panel beginSheetModalForWindow:self.window
+                completionHandler:^(NSModalResponse response) {
+                  if (response != NSModalResponseOK || !panel.URL) return;
+                  char *raw = sp_dictionary_export_csv(text.UTF8String);
+                  NSString *csv = raw ? [NSString stringWithUTF8String:raw] : @"";
+                  sp_core_free_string(raw);
+                  NSError *error = nil;
+                  if (![csv writeToURL:panel.URL atomically:YES encoding:NSUTF8StringEncoding error:&error]) {
+                    [self showAlert:@"Не удалось сохранить CSV" info:error.localizedDescription ?: @""];
+                  }
+                }];
 }
 
 /// «N из 120» and, when the user's entries do not all fit the Omni block, a
@@ -6509,6 +6630,10 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     [self.dictionaryTextView setString:dictContent];
     self.loadedDictionaryContent = dictContent;
     [self updateDictionaryCount];
+    BOOL suggest = configBooleanValue(configGet(@"dictionary.suggest_corrections"), YES);
+    self.suggestCorrectionsSwitch.state =
+        suggest ? NSControlStateValueOn : NSControlStateValueOff;
+    [self rememberLoadedBooleanValue:suggest forKey:@"dictionary.suggest_corrections"];
     BOOL starter = configBooleanValue(configGet(@"dictionary.starter_enabled"), YES);
     self.starterDictionarySwitch.state =
         starter ? NSControlStateValueOn : NSControlStateValueOff;
@@ -6845,6 +6970,10 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     BOOL starter = self.starterDictionarySwitch.state == NSControlStateValueOn;
     if ([self shouldPersistBooleanValue:starter forKey:@"dictionary.starter_enabled"]) {
       saveOk &= configSet(@"dictionary.starter_enabled", starter ? @"true" : @"false");
+    }
+    BOOL suggest = self.suggestCorrectionsSwitch.state == NSControlStateValueOn;
+    if ([self shouldPersistBooleanValue:suggest forKey:@"dictionary.suggest_corrections"]) {
+      saveOk &= configSet(@"dictionary.suggest_corrections", suggest ? @"true" : @"false");
     }
   }
   if (self.saveRecordingsSwitch) {

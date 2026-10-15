@@ -18,6 +18,9 @@
 /// A dictation picked in «Последние диктовки»: copy it, or paste it at the
 /// cursor when ⌥ was held.
 - (void)statusBarDidSelectRecentDictationText:(nonnull NSString *)text paste:(BOOL)paste;
+/// «Добавить слово в словарь…» for a dictation of the list (⇧-click on it, or
+/// the item under the list for the newest one).
+- (void)statusBarDidRequestAddWordFromText:(nonnull NSString *)text;
 - (void)statusBarMenuDidOpen;
 - (void)statusBarMenuDidClose;
 - (void)statusBarDidSelectAudioDeviceWithUID:(nullable NSString *)uid;

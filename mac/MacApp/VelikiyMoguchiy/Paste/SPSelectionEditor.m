@@ -177,6 +177,26 @@ static BOOL documentHasTextAt(AXUIElementRef element, NSString *text, NSUInteger
     return record;
 }
 
+- (NSString *)fieldTextWithMaxLength:(NSUInteger)maxLength {
+    if (!_element) return nil;
+    AXUIElementSetMessagingTimeout(_element, kAXTimeoutSeconds);
+    NSString *role = copyStringAttribute(_element, kAXRoleAttribute);
+    NSString *subrole = copyStringAttribute(_element, kAXSubroleAttribute);
+    if ([role isEqualToString:@"AXSecureTextField"] || [subrole isEqualToString:@"AXSecureTextField"]) {
+        return nil;
+    }
+    CFTypeRef count = NULL;
+    if (AXUIElementCopyAttributeValue(_element, kAXNumberOfCharactersAttribute, &count) == kAXErrorSuccess &&
+        count) {
+        BOOL tooLong = CFGetTypeID(count) == CFNumberGetTypeID() &&
+                       [(__bridge NSNumber *)count integerValue] > (NSInteger)maxLength;
+        CFRelease(count);
+        if (tooLong) return nil;
+    }
+    NSString *value = copyStringAttribute(_element, kAXValueAttribute);
+    return value.length <= maxLength ? value : nil;
+}
+
 + (instancetype)recordInsertedText:(NSString *)text originalText:(NSString *)originalText {
     return [self recordWithText:text original:originalText element:copyFocusedElement()];
 }

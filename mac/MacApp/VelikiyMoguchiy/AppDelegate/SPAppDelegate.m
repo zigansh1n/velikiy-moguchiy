@@ -38,6 +38,9 @@
 #import "SPFileTranscriptionWindowController.h"
 #import "SPHotkeyNames.h"
 #import "SPTriggerKeyPolicy.h"
+#import "SPCorrectionWatcher.h"
+#import "SPDictionaryOfferPanel.h"
+#import "SPAddWordDialog.h"
 #import <os/log.h>
 #import <sys/stat.h>
 #import <UserNotifications/UserNotifications.h>
@@ -98,6 +101,11 @@
 // The last text the app put into a field (undo), and the last dictation text
 // of this run (re-paste).
 @property (nonatomic, strong) SPInsertionRecord *lastInsertion;
+// A dictation's text until its paste is recorded: that insertion is watched
+// for a corrected word (dictionary.suggest_corrections).
+@property (nonatomic, copy) NSString *correctionWatchText;
+@property (nonatomic, strong) SPCorrectionWatcher *correctionWatcher;
+@property (nonatomic, strong) SPDictionaryOfferPanel *dictionaryOffer;
 @property (nonatomic, copy) NSString *lastDictationText;
 @property (nonatomic, strong) SPHotkeyMonitor *modeHotkeyMonitor;
 @property (nonatomic, strong) SPModeHotkeyProxy *modeHotkeyProxy;
@@ -235,6 +243,10 @@ static BOOL configFlagEnabledDefaultingTo(const char *keyPath, BOOL defaultValue
 
 static BOOL autoRetryOnErrorEnabled(void) {
     return configFlagEnabledDefaultingTo("history.auto_retry_on_error", YES);
+}
+
+static BOOL correctionOffersEnabled(void) {
+    return configFlagEnabledDefaultingTo("dictionary.suggest_corrections", YES);
 }
 
 static BOOL keepLastDictationEnabled(void) {
@@ -1756,6 +1768,7 @@ static BOOL SPLabFlag(const char *name) {
     if (text.length > 0 && [SPTextEditPolicy purposeCountsAsDictation:purpose]) {
         self.lastDictationText = text;
     }
+    self.correctionWatchText = purpose == SPSessionPurposeDictate && text.length > 0 ? text : nil;
     // The camera clip is judged on the raw recognized text (before the LLM and
     // snippets): that is what was actually spoken.
     [self resolveSessionLipClipWithStatus:text.length > 0 ? @"ok" : @"empty"
@@ -2700,6 +2713,26 @@ static BOOL SPLabFlag(const char *name) {
 - (void)recordInsertionOfText:(NSString *)text originalText:(NSString *)originalText {
     if (text.length == 0) return;
     self.lastInsertion = [SPInsertionRecord recordInsertedText:text originalText:originalText];
+    if (originalText == nil && self.lastInsertion && [text isEqualToString:self.correctionWatchText] &&
+        correctionOffersEnabled()) {
+        [self watchInsertionForCorrection:self.lastInsertion];
+    }
+    self.correctionWatchText = nil;
+}
+
+/// Offers «Запомнить „…“?» when the user corrects a word of the pasted
+/// dictation within about half a minute.
+- (void)watchInsertionForCorrection:(SPInsertionRecord *)record {
+    if (!self.correctionWatcher) {
+        self.correctionWatcher = [[SPCorrectionWatcher alloc] init];
+        self.dictionaryOffer = [[SPDictionaryOfferPanel alloc] init];
+        __weak typeof(self) weakSelf = self;
+        self.correctionWatcher.onCorrection = ^(NSString *term, NSString *heard) {
+            if (weakSelf.quitting || !sessionStateAllowsConfigReload(weakSelf.sessionState)) return;
+            [weakSelf.dictionaryOffer offerTerm:term heard:heard];
+        };
+    }
+    [self.correctionWatcher watchInsertion:record];
 }
 
 /// A short result pill: "↩︎ Отменено", "✓ Заменено".
@@ -3128,6 +3161,15 @@ static BOOL SPLabFlag(const char *name) {
     [self.clipboardManager cancelPendingRestore];
     [self.clipboardManager writeText:text];
     if (idle) [self showQuickBadge:@"✓ Скопировано"];
+}
+
+- (void)statusBarDidRequestAddWordFromText:(NSString *)text {
+    if (self.quitting || text.length == 0) return;
+    [SPAddWordDialog runWithText:text word:nil window:nil completion:^(NSString *term, NSString *message) {
+        if (message.length > 0 && sessionStateAllowsConfigReload(self.sessionState)) {
+            [self showQuickBadge:message];
+        }
+    }];
 }
 
 #pragma mark - Output mode (hotkey.mode_key, menu)

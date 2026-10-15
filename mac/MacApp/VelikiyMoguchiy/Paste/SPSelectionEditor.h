@@ -33,6 +33,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, readonly, nullable) NSString *originalText;
 @property (nonatomic, strong, readonly) NSDate *insertedAt;
 
+/// The whole text of the field the insertion went into, read through
+/// Accessibility; nil for a password field, a field that does not expose its
+/// value or one longer than `maxLength` characters. May block up to the AX
+/// timeout, so call it off the main thread.
+- (nullable NSString *)fieldTextWithMaxLength:(NSUInteger)maxLength;
+
 /// Records `text` as inserted into the element focused right now; nil when
 /// nothing is focused.
 + (nullable instancetype)recordInsertedText:(NSString *)text originalText:(nullable NSString *)originalText;

@@ -518,6 +518,25 @@ static const NSInteger kHeaderItemTag = 1001;
         [self.menu insertItem:item atIndex:index++];
         [self.recentItems addObject:item];
     }
+    if (rows.count > 0) {
+        NSMenuItem *addWord = [[NSMenuItem alloc] initWithTitle:@"Добавить слово в словарь…"
+                                                         action:@selector(addWordFromRecentDictation:)
+                                                  keyEquivalent:@""];
+        addWord.target = self;
+        addWord.representedObject = rows.firstObject[@"text"];
+        addWord.image = [self menuSymbol:@"character.book.closed"];
+        addWord.toolTip = @"Из последней диктовки; ⇧-щелчок по диктовке выше — из неё";
+        [self.menu insertItem:addWord atIndex:index++];
+        [self.recentItems addObject:addWord];
+    }
+}
+
+- (void)addWordFromRecentDictation:(NSMenuItem *)sender {
+    NSString *text = sender.representedObject;
+    if (![text isKindOfClass:[NSString class]] || text.length == 0) return;
+    if ([self.delegate respondsToSelector:@selector(statusBarDidRequestAddWordFromText:)]) {
+        [self.delegate statusBarDidRequestAddWordFromText:text];
+    }
 }
 
 - (NSMenuItem *)recentDictationItemWithText:(NSString *)text date:(NSDate *)date now:(NSDate *)now {
@@ -530,7 +549,7 @@ static const NSInteger kHeaderItemTag = 1001;
                                            keyEquivalent:@""];
     item.target = self;
     item.representedObject = text;
-    item.toolTip = @"Скопировать; с ⌥ — вставить";
+    item.toolTip = @"Скопировать; с ⌥ — вставить; с ⇧ — добавить слово в словарь";
     if (time.length > 0) {
         NSMutableAttributedString *title = [[NSMutableAttributedString alloc]
             initWithString:preview
@@ -549,6 +568,10 @@ static const NSInteger kHeaderItemTag = 1001;
 - (void)selectRecentDictation:(NSMenuItem *)sender {
     NSString *text = sender.representedObject;
     if (![text isKindOfClass:[NSString class]] || text.length == 0) return;
+    if (NSApp.currentEvent.modifierFlags & NSEventModifierFlagShift) {
+        [self addWordFromRecentDictation:sender];
+        return;
+    }
     BOOL paste = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0;
     if ([self.delegate respondsToSelector:@selector(statusBarDidSelectRecentDictationText:paste:)]) {
         [self.delegate statusBarDidSelectRecentDictationText:text paste:paste];

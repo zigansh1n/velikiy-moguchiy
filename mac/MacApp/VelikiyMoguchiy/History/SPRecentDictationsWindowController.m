@@ -4,6 +4,7 @@
 #import "SPClipboardManager.h"
 #import "SPRecordingManager.h"
 #import "SPDictationsCSV.h"
+#import "SPAddWordDialog.h"
 #import <AVFoundation/AVFoundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
@@ -108,6 +109,8 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
 @property (nonatomic, strong) NSButton *clearButton;
 @property (nonatomic, strong) NSProgressIndicator *spinner;
 @property (nonatomic, strong) NSWindow *textSheet;
+@property (nonatomic, strong) NSTextView *sheetTextView;
+@property (nonatomic, copy) NSDictionary *sheetRow;
 @property (nonatomic, copy) NSArray<NSDictionary *> *allRows;
 @property (nonatomic, copy) NSArray<NSDictionary *> *rows;
 @property (nonatomic, strong) AVAudioPlayer *player;
@@ -643,6 +646,10 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
     textView.textContainerInset = NSMakeSize(6, 8);
     textView.string = [SPRecentDictationsWindowController sheetBodyForRow:row];
 
+    NSButton *addWord = [NSButton buttonWithTitle:@"В словарь…" target:self action:@selector(sheetAddWord:)];
+    addWord.toolTip = @"Добавить выделенное слово в словарь";
+    addWord.enabled = hasText;
+    addWord.translatesAutoresizingMaskIntoConstraints = NO;
     NSButton *copy = [NSButton buttonWithTitle:@"Копировать" target:self action:@selector(sheetCopy:)];
     copy.enabled = hasText;
     copy.translatesAutoresizingMaskIntoConstraints = NO;
@@ -651,7 +658,7 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
     close.keyEquivalent = @"\e";
     close.translatesAutoresizingMaskIntoConstraints = NO;
 
-    for (NSView *view in @[ header, scroll, copy, close ]) [content addSubview:view];
+    for (NSView *view in @[ header, scroll, addWord, copy, close ]) [content addSubview:view];
     [NSLayoutConstraint activateConstraints:@[
         [header.topAnchor constraintEqualToAnchor:content.topAnchor constant:14],
         [header.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
@@ -663,11 +670,16 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
         [close.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-14],
         [copy.trailingAnchor constraintEqualToAnchor:close.leadingAnchor constant:-8],
         [copy.centerYAnchor constraintEqualToAnchor:close.centerYAnchor],
+        [addWord.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [addWord.centerYAnchor constraintEqualToAnchor:close.centerYAnchor],
     ]];
 
     self.textSheet = sheet;
+    self.sheetTextView = textView;
+    self.sheetRow = row;
     [self.window beginSheet:sheet completionHandler:^(NSModalResponse response) {
         self.textSheet = nil;
+        self.sheetTextView = nil;
     }];
 }
 
@@ -707,6 +719,29 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
                    dispatch_get_main_queue(), ^{
         sender.title = @"Копировать";
     });
+}
+
+- (void)sheetAddWord:(id)sender {
+    NSDictionary *row = self.sheetRow;
+    NSString *word = nil;
+    NSRange selection = self.sheetTextView.selectedRange;
+    if (selection.length > 0 && NSMaxRange(selection) <= [row[@"text"] length]) {
+        word = [[self.sheetTextView.string substringWithRange:selection]
+            stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    }
+    [self sheetClose:nil];
+    // The dialog is a sheet too; it waits for this one to finish closing.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self addWordFromRow:row word:word.length > 0 ? word : nil];
+    });
+}
+
+- (void)addWordFromRow:(NSDictionary *)row word:(NSString *)word {
+    if ([row[@"text"] length] == 0) return;
+    [SPAddWordDialog runWithText:row[@"text"] word:word window:self.window
+                      completion:^(NSString *term, NSString *message) {
+        if (message.length > 0) [self showStatus:message duration:kToastDuration * 2];
+    }];
 }
 
 - (void)sheetClose:(id)sender {
@@ -782,6 +817,9 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
                                 keyEquivalent:@"\r"];
     open.keyEquivalentModifierMask = 0;
     open.enabled = hasText || [row[@"error"] length] > 0;
+    NSMenuItem *addWord = [menu addItemWithTitle:@"Добавить слово в словарь…" action:@selector(menuAddWord:)
+                                   keyEquivalent:@""];
+    addWord.enabled = hasText;
     NSMenuItem *play = [menu addItemWithTitle:playing ? @"Остановить" : @"Воспроизвести"
                                        action:@selector(menuPlay:) keyEquivalent:@""];
     play.enabled = hasAudio;
@@ -804,6 +842,10 @@ static NSString *snippet(NSString *text, NSUInteger limit) {
 
 - (void)menuCopy:(NSMenuItem *)item {
     [self copyRow:item.representedObject];
+}
+
+- (void)menuAddWord:(NSMenuItem *)item {
+    [self addWordFromRow:item.representedObject word:nil];
 }
 
 - (void)menuShowFull:(NSMenuItem *)item {

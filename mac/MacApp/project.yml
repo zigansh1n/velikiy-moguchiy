@@ -142,6 +142,8 @@ targets:
       - path: VelikiyMoguchiy/History/SPRetranscriberTests.m
       - path: VelikiyMoguchiy/History/SPDictationsCSV.m
       - path: VelikiyMoguchiy/History/SPDictationsCSVTests.m
+      - path: VelikiyMoguchiy/Dictionary/SPCorrectionTracker.m
+      - path: VelikiyMoguchiy/Dictionary/SPCorrectionTrackerTests.m
       - path: VelikiyMoguchiy/Paste/SPTextEditPolicy.m
       - path: VelikiyMoguchiy/Settings/SPQwenModelChoice.m
       - path: VelikiyMoguchiy/Settings/SPQwenModelChoiceTests.m

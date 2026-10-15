@@ -354,6 +354,341 @@ pub fn ensure_starter_file(dir: &Path) -> Result<bool> {
     Ok(true)
 }
 
+/// How [`add_entry`] changed a dictionary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AddOutcome {
+    /// A new line was appended.
+    Added,
+    /// An existing entry got new variants or a new spelling of its term.
+    Updated,
+    /// The entry and all the variants were already there.
+    Unchanged,
+}
+
+/// Lowercased Cyrillic-only form of `heard`, or None when it is not a spoken
+/// variant worth keeping (Latin, digits, empty).
+fn spoken_variant(heard: &str) -> Option<String> {
+    let heard = heard.trim();
+    let is_spoken = !heard.is_empty()
+        && heard.chars().any(char::is_alphabetic)
+        && heard
+            .chars()
+            .all(|c| is_cyrillic(c) || c == ' ' || c == '-');
+    is_spoken.then(|| heard.to_lowercase())
+}
+
+fn is_cyrillic(c: char) -> bool {
+    matches!(c, '\u{0400}'..='\u{04FF}')
+}
+
+/// A term or variant as it may stand in a dictionary line: one line, without
+/// the `|` and `,` separators, trimmed.
+fn clean_field(text: &str, separators: &[char]) -> String {
+    text.chars()
+        .map(|c| {
+            if c.is_control() || separators.contains(&c) {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn render_line(term: &str, variants: &[String]) -> String {
+    if variants.is_empty() {
+        term.to_string()
+    } else {
+        format!("{term} | {}", variants.join(", "))
+    }
+}
+
+/// Adds `term` with spoken `variants` to the dictionary text `content` and
+/// returns the new text. A term already present (ignoring case) keeps its
+/// line, takes the new spelling and gains the variants it lacked; otherwise a
+/// line is appended. Comments and other lines are left as they are.
+pub fn add_entry(content: &str, term: &str, variants: &[String]) -> (String, AddOutcome) {
+    let term = clean_field(term, &['|', '#']);
+    let term = term.trim_start_matches('#').trim().to_string();
+    if term.is_empty() {
+        return (content.to_string(), AddOutcome::Unchanged);
+    }
+    let mut new_variants: Vec<String> = Vec::new();
+    for variant in variants {
+        let variant = clean_field(variant, &['|', ',']).to_lowercase();
+        if !variant.is_empty()
+            && variant != term.to_lowercase()
+            && !new_variants.contains(&variant)
+        {
+            new_variants.push(variant);
+        }
+    }
+
+    let key = term.to_lowercase();
+    let mut lines: Vec<String> = content.lines().map(String::from).collect();
+    for line in lines.iter_mut() {
+        let Some(entry) = DictEntry::parse(line) else {
+            continue;
+        };
+        if entry.term.to_lowercase() != key {
+            continue;
+        }
+        let mut merged = entry.variants.clone();
+        for variant in &new_variants {
+            if !merged.iter().any(|v| v.to_lowercase() == *variant) {
+                merged.push(variant.clone());
+            }
+        }
+        if entry.term == term && merged.len() == entry.variants.len() {
+            return (content.to_string(), AddOutcome::Unchanged);
+        }
+        *line = render_line(&term, &merged);
+        let mut out = lines.join("\n");
+        if content.ends_with('\n') {
+            out.push('\n');
+        }
+        return (out, AddOutcome::Updated);
+    }
+
+    let mut out = content.to_string();
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(&render_line(&term, &new_variants));
+    out.push('\n');
+    (out, AddOutcome::Added)
+}
+
+/// A word the user corrected right after a dictation was pasted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Correction {
+    /// The spelling the user typed.
+    pub term: String,
+    /// What was pasted in its place, lowercased, when it is a Cyrillic spoken
+    /// form worth keeping as a variant; empty otherwise.
+    pub heard: String,
+}
+
+/// Longest field the correction check reads, in characters.
+const MAX_FIELD_CHARS: usize = 20_000;
+/// Most words on either side of a correction.
+const MAX_CORRECTION_WORDS: usize = 3;
+/// Longest corrected term, in characters.
+const MAX_TERM_CHARS: usize = 40;
+
+/// Characters that belong to a term: letters, digits and the joiners of
+/// names like `C++`, `Node.js`, `CI/CD`, `.gitignore`.
+fn is_term_char(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '+' | '#' | '.' | '_' | '-' | '/' | '\'' | '’' | '@')
+}
+
+fn trim_term(text: &str) -> &str {
+    text.trim_matches(|c: char| {
+        c.is_whitespace() || matches!(c, '.' | ',' | '!' | '?' | ':' | ';' | '«' | '»' | '"' | '(' | ')')
+    })
+}
+
+/// The correction a user made inside freshly pasted text, if any.
+///
+/// `before` is the field's text right after `inserted` was pasted into it,
+/// `after` the text later. The edit must replace one to three words inside
+/// the pasted text with one to three others, and the new words must look like
+/// a term: they contain a Latin letter or a digit, or a capital letter after
+/// the first one (`GitHub`, `СберМаркет`). An ordinary Russian word fixed or
+/// re-capitalized does not count, nor do pure insertions and deletions or
+/// edits outside the pasted text.
+pub fn detect_correction(before: &str, after: &str, inserted: &str) -> Option<Correction> {
+    let old: Vec<char> = before.chars().collect();
+    let new: Vec<char> = after.chars().collect();
+    let pasted: Vec<char> = inserted.trim().chars().collect();
+    if old == new
+        || pasted.is_empty()
+        || pasted.len() > old.len()
+        || old.len() > MAX_FIELD_CHARS
+        || new.len() > MAX_FIELD_CHARS
+    {
+        return None;
+    }
+
+    let mut prefix = old.iter().zip(&new).take_while(|(a, b)| a == b).count();
+    let limit = old.len().min(new.len()) - prefix;
+    let mut suffix = old
+        .iter()
+        .rev()
+        .zip(new.iter().rev())
+        .take(limit)
+        .take_while(|(a, b)| a == b)
+        .count();
+    while prefix > 0 && is_term_char(old[prefix - 1]) {
+        prefix -= 1;
+    }
+    while suffix > 0 && is_term_char(old[old.len() - suffix]) {
+        suffix -= 1;
+    }
+    let (old_start, old_end) = (prefix, old.len() - suffix);
+    let new_end = new.len() - suffix;
+
+    let inside_paste = (0..=old.len() - pasted.len()).any(|start| {
+        old[start..start + pasted.len()] == pasted[..]
+            && start <= old_start
+            && old_end <= start + pasted.len()
+    });
+    if !inside_paste {
+        return None;
+    }
+
+    let was: String = old[old_start..old_end].iter().collect();
+    let now: String = new[prefix..new_end].iter().collect();
+    let (was, now) = (trim_term(&was), trim_term(&now));
+    let words = |text: &str| text.split_whitespace().count();
+    if was.is_empty()
+        || now.is_empty()
+        || was == now
+        || words(was) > MAX_CORRECTION_WORDS
+        || words(now) > MAX_CORRECTION_WORDS
+        || now.chars().count() < 2
+        || now.chars().count() > MAX_TERM_CHARS
+    {
+        return None;
+    }
+    let looks_like_term = now.chars().any(|c| c.is_ascii_alphanumeric())
+        || now.chars().skip(1).any(char::is_uppercase);
+    if !looks_like_term {
+        return None;
+    }
+    Some(Correction {
+        term: now.to_string(),
+        heard: spoken_variant(was).unwrap_or_default(),
+    })
+}
+
+/// Formula starts a spreadsheet would run; such cells get a leading `'`.
+fn is_formula_start(c: char) -> bool {
+    matches!(c, '=' | '+' | '-' | '@' | '\t' | '\r')
+}
+
+fn csv_field(value: &str) -> String {
+    let value = match value.chars().next() {
+        Some(c) if is_formula_start(c) => format!("'{value}"),
+        _ => value.to_string(),
+    };
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
+/// The dictionary as CSV for a spreadsheet: a UTF-8 BOM, `;` between the two
+/// columns «term» and «spoken» (variants joined with ", "), CRLF lines.
+pub fn export_csv(content: &str) -> String {
+    let mut out = String::from("\u{FEFF}term;spoken\r\n");
+    for entry in parse_entries(content) {
+        out.push_str(&csv_field(&entry.term));
+        out.push(';');
+        out.push_str(&csv_field(&entry.variants.join(", ")));
+        out.push_str("\r\n");
+    }
+    out
+}
+
+/// Rows of a CSV text. The separator is whichever of `;`, `,` or tab occurs
+/// most often outside quotes in the first line.
+fn parse_csv(text: &str) -> Vec<Vec<String>> {
+    let text = text.trim_start_matches('\u{FEFF}');
+    let first_line = text.lines().next().unwrap_or("");
+    let separator = [';', ',', '\t']
+        .into_iter()
+        .max_by_key(|sep| {
+            let mut quoted = false;
+            first_line
+                .chars()
+                .filter(|&c| {
+                    if c == '"' {
+                        quoted = !quoted;
+                    }
+                    !quoted && c == *sep
+                })
+                .count()
+        })
+        .unwrap_or(';');
+
+    let mut rows = Vec::new();
+    let mut row: Vec<String> = Vec::new();
+    let mut field = String::new();
+    let mut quoted = false;
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '"' if quoted && chars.peek() == Some(&'"') => {
+                field.push('"');
+                chars.next();
+            }
+            '"' if quoted => quoted = false,
+            '"' if field.is_empty() => quoted = true,
+            c if c == separator && !quoted => row.push(std::mem::take(&mut field)),
+            '\r' if !quoted => {}
+            '\n' if !quoted => {
+                row.push(std::mem::take(&mut field));
+                rows.push(std::mem::take(&mut row));
+            }
+            c => field.push(c),
+        }
+    }
+    if !field.is_empty() || !row.is_empty() {
+        row.push(field);
+        rows.push(row);
+    }
+    rows
+}
+
+/// A cell without the `'` [`export_csv`] puts before a formula start.
+fn unquote_cell(cell: &str) -> String {
+    let cell = cell.trim();
+    match cell.strip_prefix('\'') {
+        Some(rest) if rest.chars().next().is_some_and(is_formula_start) => rest.to_string(),
+        _ => cell.to_string(),
+    }
+}
+
+/// Counts of an import.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ImportStats {
+    pub added: usize,
+    pub updated: usize,
+    /// Rows without a term, header rows and rows already in the dictionary.
+    pub skipped: usize,
+}
+
+/// Merges the CSV `csv` into the dictionary text `content`: the first column
+/// is the term, the other columns hold spoken variants (several in one cell
+/// are separated by commas). A first row whose term is a column name is a
+/// header. Returns the new text.
+pub fn import_csv(content: &str, csv: &str) -> (String, ImportStats) {
+    const HEADERS: &[&str] = &["term", "word", "phrase", "правильно", "термин", "слово"];
+    let mut text = content.to_string();
+    let mut stats = ImportStats::default();
+    for (index, row) in parse_csv(csv).into_iter().enumerate() {
+        let term = row.first().map(|c| unquote_cell(c)).unwrap_or_default();
+        if term.is_empty() || (index == 0 && HEADERS.contains(&term.to_lowercase().as_str())) {
+            stats.skipped += 1;
+            continue;
+        }
+        let variants: Vec<String> = row[1..]
+            .iter()
+            .flat_map(|cell| cell.split(',').map(unquote_cell).collect::<Vec<_>>())
+            .filter(|v| !v.is_empty())
+            .collect();
+        let (next, outcome) = add_entry(&text, &term, &variants);
+        text = next;
+        match outcome {
+            AddOutcome::Added => stats.added += 1,
+            AddOutcome::Updated => stats.updated += 1,
+            AddOutcome::Unchanged => stats.skipped += 1,
+        }
+    }
+    (text, stats)
+}
+
 /// Text of the starter list as the app uses it: the copy in the config dir,
 /// or the built-in one when that file is missing.
 pub fn starter_text(dir: &Path) -> String {
@@ -399,6 +734,120 @@ pub extern "C" fn sp_dictionary_starter_text() -> *mut std::ffi::c_char {
     std::ffi::CString::new(starter_text(&crate::config::config_dir()))
         .unwrap_or_default()
         .into_raw()
+}
+
+fn c_text<'a>(ptr: *const std::ffi::c_char) -> &'a str {
+    unsafe { crate::ffi::cstr_to_str(ptr) }.unwrap_or("")
+}
+
+fn into_c_string(text: String) -> *mut std::ffi::c_char {
+    std::ffi::CString::new(text).unwrap_or_default().into_raw()
+}
+
+/// The user's dictionary file from the config (`dictionary.path`).
+fn user_dictionary_path() -> std::path::PathBuf {
+    match crate::config::load_config() {
+        Ok(cfg) => crate::config::resolve_dictionary_path(&cfg),
+        Err(_) => crate::config::config_dir().join("dictionary.txt"),
+    }
+}
+
+/// Writes through a temporary file, so a reader never sees half a dictionary.
+fn write_dictionary(path: &Path, content: &str) -> Result<()> {
+    let temp = path.with_extension("txt.tmp");
+    std::fs::write(&temp, content)
+        .and_then(|_| std::fs::rename(&temp, path))
+        .map_err(|e| CoreError::Config(format!("write {}: {e}", path.display())))
+}
+
+/// Adds `term` with comma-separated spoken `variants` (may be null) to the
+/// user's dictionary file. Returns 1 when a line was added, 2 when an entry
+/// was updated, 0 when nothing changed and -1 on an error.
+///
+/// # Safety
+/// Both pointers must be null or valid null-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dictionary_add(
+    term: *const std::ffi::c_char,
+    variants: *const std::ffi::c_char,
+) -> i32 {
+    let variants: Vec<String> = c_text(variants).split(',').map(String::from).collect();
+    let path = user_dictionary_path();
+    let content = std::fs::read_to_string(&path).unwrap_or_default();
+    let (next, outcome) = add_entry(&content, c_text(term), &variants);
+    if outcome == AddOutcome::Unchanged {
+        return 0;
+    }
+    if let Err(e) = write_dictionary(&path, &next) {
+        log::error!("dictionary add: {e}");
+        return -1;
+    }
+    log::info!("dictionary: {outcome:?} an entry");
+    if outcome == AddOutcome::Added {
+        1
+    } else {
+        2
+    }
+}
+
+/// The correction found by [`detect_correction`] as JSON
+/// `{"term": "...", "heard": "..."}`, or null when there is none or the user's
+/// dictionary already has it. Free with sp_core_free_string().
+///
+/// # Safety
+/// All pointers must be null or valid null-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dictionary_detect_correction(
+    before: *const std::ffi::c_char,
+    after: *const std::ffi::c_char,
+    inserted: *const std::ffi::c_char,
+) -> *mut std::ffi::c_char {
+    let Some(correction) = detect_correction(c_text(before), c_text(after), c_text(inserted)) else {
+        return std::ptr::null_mut();
+    };
+    let content = std::fs::read_to_string(user_dictionary_path()).unwrap_or_default();
+    let variants = [correction.heard.clone()];
+    if add_entry(&content, &correction.term, &variants).1 == AddOutcome::Unchanged {
+        return std::ptr::null_mut();
+    }
+    into_c_string(
+        serde_json::json!({ "term": correction.term, "heard": correction.heard }).to_string(),
+    )
+}
+
+/// [`export_csv`] of the dictionary text `content`. Free with
+/// sp_core_free_string().
+///
+/// # Safety
+/// `content` must be null or a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dictionary_export_csv(
+    content: *const std::ffi::c_char,
+) -> *mut std::ffi::c_char {
+    into_c_string(export_csv(c_text(content)))
+}
+
+/// [`import_csv`] of `csv` into the dictionary text `content`, as JSON
+/// `{"content": "...", "added": n, "updated": n, "skipped": n}`. Free with
+/// sp_core_free_string().
+///
+/// # Safety
+/// Both pointers must be null or valid null-terminated C strings.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dictionary_import_csv(
+    content: *const std::ffi::c_char,
+    csv: *const std::ffi::c_char,
+) -> *mut std::ffi::c_char {
+    let (text, stats) = import_csv(c_text(content), c_text(csv));
+    into_c_string(
+        serde_json::json!({
+            "content": text,
+            "added": stats.added,
+            "updated": stats.updated,
+            "skipped": stats.skipped,
+        })
+        .to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -585,6 +1034,169 @@ Go | го
     fn starter_text_falls_back_to_the_built_in_list() {
         let dir = std::env::temp_dir().join("vm-dictionary-starter-missing");
         assert_eq!(starter_text(&dir), STARTER_DICTIONARY);
+    }
+
+    #[test]
+    fn add_entry_appends_a_new_line() {
+        let (text, outcome) = add_entry("# мои\nGrafana", "Kubernetes", &["Кубер".into(), "".into()]);
+        assert_eq!(outcome, AddOutcome::Added);
+        assert_eq!(text, "# мои\nGrafana\nKubernetes | кубер\n");
+        let (text, _) = add_entry("", "Grafana", &[]);
+        assert_eq!(text, "Grafana\n");
+    }
+
+    #[test]
+    fn add_entry_merges_variants_and_takes_the_new_spelling() {
+        let content = "kubernetes | кубер\nGit\n";
+        let (text, outcome) = add_entry(content, "Kubernetes", &["кубернетис".into(), "Кубер".into()]);
+        assert_eq!(outcome, AddOutcome::Updated);
+        assert_eq!(text, "Kubernetes | кубер, кубернетис\nGit\n");
+        let (same, outcome) = add_entry(&text, "Kubernetes", &["кубер".into()]);
+        assert_eq!(outcome, AddOutcome::Unchanged);
+        assert_eq!(same, text);
+    }
+
+    #[test]
+    fn add_entry_keeps_separators_out_of_fields() {
+        let (text, _) = add_entry("", " # A|B \n", &["раз, два".into(), "три|четыре".into()]);
+        assert_eq!(text, "A B | раз два, три четыре\n");
+        assert_eq!(add_entry("x\n", "  ", &[]).1, AddOutcome::Unchanged);
+    }
+
+    fn correction(term: &str, heard: &str) -> Option<Correction> {
+        Some(Correction {
+            term: term.into(),
+            heard: heard.into(),
+        })
+    }
+
+    #[test]
+    fn a_respelled_word_inside_the_paste_is_a_correction() {
+        let inserted = "Разверни это в кубер, пожалуйста.";
+        let before = format!("Привет. {inserted}");
+        let after = "Привет. Разверни это в Kubernetes, пожалуйста.";
+        assert_eq!(detect_correction(&before, after, inserted), correction("Kubernetes", "кубер"));
+    }
+
+    #[test]
+    fn corrections_of_latin_words_and_case_count() {
+        let inserted = "Залей на гитхаб и в github actions";
+        assert_eq!(
+            detect_correction(inserted, "Залей на GitHub и в github actions", inserted),
+            correction("GitHub", "гитхаб")
+        );
+        assert_eq!(
+            detect_correction(inserted, "Залей на гитхаб и в GitHub Actions", inserted),
+            correction("GitHub Actions", "")
+        );
+        assert_eq!(
+            detect_correction("Открой Kubernetis.", "Открой Kubernetes.", "Открой Kubernetis."),
+            correction("Kubernetes", "")
+        );
+        assert_eq!(
+            detect_correction("купи в сбер маркете", "купи в СберМаркете", "купи в сбер маркете"),
+            correction("СберМаркете", "сбер маркете")
+        );
+    }
+
+    #[test]
+    fn terms_with_joiners_are_whole() {
+        let inserted = "пишу на си плюс плюс и ноде";
+        assert_eq!(
+            detect_correction(inserted, "пишу на C++ и ноде", inserted),
+            correction("C++", "си плюс плюс")
+        );
+        assert_eq!(
+            detect_correction(inserted, "пишу на си плюс плюс и Node.js", inserted),
+            correction("Node.js", "ноде")
+        );
+    }
+
+    #[test]
+    fn ordinary_russian_fixes_are_not_terms() {
+        let inserted = "привет как дела";
+        assert_eq!(detect_correction(inserted, "Привет как дела", inserted), None);
+        assert_eq!(detect_correction(inserted, "привет как делишки", inserted), None);
+        assert_eq!(detect_correction(inserted, "привет, как дела", inserted), None);
+    }
+
+    #[test]
+    fn insertions_deletions_and_edits_elsewhere_are_not_corrections() {
+        let inserted = "запусти докер";
+        let before = format!("Старый текст. {inserted}");
+        assert_eq!(detect_correction(&before, "Старый текст. запусти", inserted), None);
+        assert_eq!(
+            detect_correction(&before, "Старый текст. запусти докер и Docker Compose", inserted),
+            None
+        );
+        assert_eq!(detect_correction(&before, "Новый Text. запусти докер", inserted), None);
+        assert_eq!(detect_correction(&before, &before, inserted), None);
+        assert_eq!(detect_correction(&before, "Старый текст. Docker", ""), None);
+        assert_eq!(detect_correction(&before, "Старый текст. запусти D", inserted), None);
+    }
+
+    #[test]
+    fn rewrites_of_many_words_are_not_corrections() {
+        let inserted = "один два три четыре пять";
+        assert_eq!(
+            detect_correction(inserted, "One Two Three Four пять", inserted),
+            None
+        );
+    }
+
+    #[test]
+    fn the_paste_may_sit_anywhere_in_the_field() {
+        let inserted = "через кубер";
+        let before = "через кубер — это начало. Потом через кубер ещё раз.";
+        let after = "через кубер — это начало. Потом через Kubernetes ещё раз.";
+        assert_eq!(detect_correction(before, after, inserted), correction("Kubernetes", "кубер"));
+    }
+
+    #[test]
+    fn csv_export_quotes_and_defuses_formulas() {
+        let csv = export_csv("# c\nKubernetes | кубер, кубернетис\n+7 Store\nSay \"hi\"\n");
+        assert_eq!(
+            csv,
+            "\u{FEFF}term;spoken\r\n\"Kubernetes\";\"кубер, кубернетис\"\r\n\"'+7 Store\";\"\"\r\n\"Say \"\"hi\"\"\";\"\"\r\n"
+        );
+    }
+
+    #[test]
+    fn csv_round_trip_restores_the_entries() {
+        let content = "Kubernetes | кубер, кубернетис\n+7 Store\nSay \"hi\"\n";
+        let (text, stats) = import_csv("", &export_csv(content));
+        assert_eq!(parse_entries(&text), parse_entries(content));
+        assert_eq!(stats, ImportStats { added: 3, updated: 0, skipped: 1 });
+    }
+
+    #[test]
+    fn csv_import_takes_commas_tabs_and_extra_columns() {
+        let (text, stats) = import_csv(
+            "Git\nkubernetes | кубер\n",
+            "Kubernetes,\"кубернетис, кубик\"\nGrafana,графана,графа\n,пусто\nGit,\n",
+        );
+        assert_eq!(text, "Git\nKubernetes | кубер, кубернетис, кубик\nGrafana | графана, графа\n");
+        assert_eq!(stats, ImportStats { added: 1, updated: 1, skipped: 2 });
+
+        let (text, _) = import_csv("", "Слово\tкак произносят\r\nJira\tджира\r\n");
+        assert_eq!(text, "Jira | джира\n");
+    }
+
+    #[test]
+    fn detect_over_ffi_skips_what_the_dictionary_has() {
+        let before = std::ffi::CString::new("в кубер").unwrap();
+        let after = std::ffi::CString::new("в Kubernetes").unwrap();
+        let none = std::ffi::CString::new("в кубер нет").unwrap();
+        let found =
+            unsafe { sp_dictionary_detect_correction(before.as_ptr(), after.as_ptr(), before.as_ptr()) };
+        if !found.is_null() {
+            let json = unsafe { std::ffi::CStr::from_ptr(found) }.to_str().unwrap().to_string();
+            unsafe { crate::sp_core_free_string(found) };
+            assert!(json.contains("\"term\":\"Kubernetes\""), "{json}");
+        }
+        let missing =
+            unsafe { sp_dictionary_detect_correction(before.as_ptr(), after.as_ptr(), none.as_ptr()) };
+        assert!(missing.is_null());
     }
 
     #[test]
