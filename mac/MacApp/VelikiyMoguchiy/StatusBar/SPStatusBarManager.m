@@ -376,8 +376,9 @@ static const NSInteger kHeaderItemTag = 1001;
 /// Notifications are optional and never raise the warning.
 - (void)refreshPermissionStatus {
     BOOL mic = [self.permissionManager isMicrophoneGranted];
-    BOOL ax = [self.permissionManager isAccessibilityGranted];
-    BOOL input = [self.permissionManager isInputMonitoringGranted];
+    SPAccessRepairServices broken = [self.permissionManager brokenAccessServices];
+    BOOL ax = !(broken & SPAccessRepairServiceAccessibility);
+    BOOL input = !(broken & SPAccessRepairServiceInputMonitoring);
     NSLog(@"[VelikiyMoguchiy] Permissions: mic=%d ax=%d input=%d", mic, ax, input);
 
     NSMutableArray<NSString *> *missingNames = [NSMutableArray array];
@@ -389,20 +390,23 @@ static const NSInteger kHeaderItemTag = 1001;
     BOOL camera = !lipdataOn || [self.permissionManager isCameraGranted];
     if (!camera) [missingNames addObject:@"Камера"];
     self.permissionsWarningItem.hidden = missingNames.count == 0;
-    if (missingNames.count > 0) {
+    NSString *repairNotice = [SPAccessRepairPolicy noticeForServices:broken];
+    if (repairNotice) {
+        self.permissionsWarningItem.title = [@"⚠︎ " stringByAppendingString:repairNotice];
+    } else if (missingNames.count > 0) {
         self.permissionsWarningItem.title =
             [NSString stringWithFormat:@"⚠︎ Нет доступа: %@", [missingNames componentsJoinedByString:@", "]];
     }
 }
 
-/// Same action the old per-permission rows had, for the first missing one.
+/// Accessibility or Input Monitoring the system refuses: the «Исправить»
+/// offer. Otherwise the action the old per-permission rows had, for the first missing one.
 - (void)fixMissingPermission:(id)sender {
-    if (![self.permissionManager isMicrophoneGranted]) {
+    SPAccessRepairServices broken = [self.permissionManager brokenAccessServices];
+    if (broken != SPAccessRepairServiceNone) {
+        [self.permissionManager offerAccessRepairForServices:broken];
+    } else if (![self.permissionManager isMicrophoneGranted]) {
         [self openMicrophoneSettings];
-    } else if (![self.permissionManager isAccessibilityGranted]) {
-        [self requestAccessibilityPermission];
-    } else if (![self.permissionManager isInputMonitoringGranted]) {
-        [self openInputMonitoringSettings];
     } else if ([SPLipCaptureManager isFeatureEnabled] && ![self.permissionManager isCameraGranted]) {
         // First use: the system prompt (this click is the user's own action);
         // after a refusal only System Settings can grant it.
@@ -420,14 +424,6 @@ static const NSInteger kHeaderItemTag = 1001;
 
 - (void)openMicrophoneSettings {
     [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"]];
-}
-
-- (void)requestAccessibilityPermission {
-    [self.permissionManager requestAccessibilityPermission];
-}
-
-- (void)openInputMonitoringSettings {
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"]];
 }
 
 #pragma mark - Output mode

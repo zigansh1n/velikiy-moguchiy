@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import "SPAccessRepairPolicy.h"
 
 typedef void (^SPPermissionCheckCompletion)(BOOL micGranted, BOOL accessibilityGranted, BOOL inputMonitoringGranted);
 
@@ -10,7 +11,14 @@ typedef NS_ENUM(NSInteger, SPPermissionType) {
     SPPermissionTypeSpeechRecognition,
 };
 
-@interface SPPermissionManager : NSObject
+NS_ASSUME_NONNULL_BEGIN
+/// Posted on the main queue when «Исправить» is about to reset the app's rows;
+/// userInfo SPPermissionRepairServicesKey holds the SPAccessRepairServices.
+extern NSNotificationName const SPPermissionManagerWillResetAccessNotification;
+extern NSString *const SPPermissionRepairServicesKey;
+NS_ASSUME_NONNULL_END
+
+@interface SPPermissionManager : NSObject <SPTrustProvider>
 
 - (void)checkAllPermissionsWithCompletion:(SPPermissionCheckCompletion)completion;
 /// Same, without the system's Accessibility prompt (it cannot help when the
@@ -64,5 +72,13 @@ typedef NS_ENUM(NSInteger, SPPermissionType) {
 
 /// Explains lost grants and offers the System Settings pane of the first one.
 - (void)showLostAccessAlertForTypes:(NSArray<NSNumber *> *)types;
+
+/// Accessibility and Input Monitoring the system refuses now.
+- (SPAccessRepairServices)brokenAccessServices;
+
+/// Explains the stale grant and, only on «Исправить», resets this app's rows
+/// of `services` (`tccutil reset <service> <bundle id>`), asks for them again
+/// and opens their System Settings pane. Nothing else is reset.
+- (void)offerAccessRepairForServices:(SPAccessRepairServices)services;
 
 @end

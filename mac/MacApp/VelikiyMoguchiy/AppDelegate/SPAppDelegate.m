@@ -122,6 +122,8 @@
 @property (nonatomic, assign) BOOL watchedAccessibilityGranted;
 @property (nonatomic, assign) BOOL watchedInputMonitoringGranted;
 @property (nonatomic, assign) BOOL hotkeyRestartPending;
+// The «Исправить» notification was posted this launch.
+@property (nonatomic, assign) BOOL accessRepairNotified;
 // Ends a recording that has gone on for recording.max_duration_s.
 @property (nonatomic, strong) NSTimer *recordingCapTimer;
 // Recording, then processing until the text, an error or a cancel; the pill follows it.
@@ -530,6 +532,10 @@ static BOOL SPLabFlag(const char *name) {
     self.audioDeviceManager.delegate = self;
     [self.audioDeviceManager startListening];
     self.permissionManager = [[SPPermissionManager alloc] init];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(permissionManagerWillResetAccess:)
+                                                 name:SPPermissionManagerWillResetAccessNotification
+                                               object:self.permissionManager];
 
     // Initialize Rust bridge (must be before hotkey monitor)
     self.rustBridge = [[SPRustBridge alloc] initWithDelegate:self];
@@ -711,6 +717,10 @@ static BOOL SPLabFlag(const char *name) {
         NSLog(@"[VelikiyMoguchiy] Microphone access granted; preparing audio");
         [self enableAudioPreparation];
     }
+    if (!accessibility && self.watchedAccessibilityGranted) {
+        NSLog(@"[VelikiyMoguchiy] Accessibility stopped working");
+        [self showInfoMessage:@"Доступ к управлению не работает — исправить можно в меню приложения"];
+    }
     if ((accessibility && !self.watchedAccessibilityGranted) ||
         (inputMonitoring && !self.watchedInputMonitoringGranted)) {
         NSLog(@"[VelikiyMoguchiy] Accessibility / Input Monitoring granted; restarting the hotkey monitors");
@@ -727,6 +737,35 @@ static BOOL SPLabFlag(const char *name) {
         [self.permissionWatchTimer invalidate];
         self.permissionWatchTimer = nil;
     }
+}
+
+/// «Исправить» takes the grant away: the watch notices the user's new one
+/// and restarts the hotkey monitors without a restart of the app.
+- (void)permissionManagerWillResetAccess:(NSNotification *)notification {
+    SPAccessRepairServices reset = [notification.userInfo[SPPermissionRepairServicesKey] unsignedIntegerValue];
+    if (reset & SPAccessRepairServiceAccessibility) self.watchedAccessibilityGranted = NO;
+    if (reset & SPAccessRepairServiceInputMonitoring) self.watchedInputMonitoringGranted = NO;
+    [self startPermissionWatch];
+}
+
+/// Once a launch: a click on it is the «Исправить» offer. Without
+/// notifications the warning row in the menu offers the same.
+- (void)notifyAccessRepairOnce {
+    if (self.accessRepairNotified) return;
+    self.accessRepairNotified = YES;
+    [self.permissionManager checkNotificationPermissionWithCompletion:^(BOOL granted) {
+        if (!granted || self.quitting) return;
+        UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+        content.title = @"Доступ к управлению не работает — исправить";
+        content.body = @"Текст остаётся в буфере обмена. Нажмите, чтобы сбросить разрешение "
+                       @"«Великого & Могучего» и включить его заново.";
+        content.sound = nil;
+        content.userInfo = @{ @"action" : @(SPErrorActionRepairAccess) };
+        UNNotificationRequest *request = [UNNotificationRequest requestWithIdentifier:@"velikiy-moguchiy-access-repair"
+                                                                              content:content
+                                                                              trigger:nil];
+        [[UNUserNotificationCenter currentNotificationCenter] addNotificationRequest:request withCompletionHandler:nil];
+    }];
 }
 
 - (void)restartHotkeyMonitors {
@@ -1882,8 +1921,9 @@ static BOOL SPLabFlag(const char *name) {
             [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
         } else {
             NSLog(@"[VelikiyMoguchiy] Accessibility not granted — text copied to clipboard only");
-            [self.overlayPanel showMessage:@"Нет универсального доступа — текст в буфере, ⌘V"
+            [self.overlayPanel showMessage:@"Доступ к управлению не работает — текст в буфере, ⌘V"
                                       icon:SPOverlayMessageIconClipboard];
+            [self notifyAccessRepairOnce];
         }
     }
 
@@ -3251,6 +3291,9 @@ static BOOL SPLabFlag(const char *name) {
             break;
         case SPErrorActionLeaveChatGPT:
             [self switchBackFromChatGPT];
+            break;
+        case SPErrorActionRepairAccess:
+            [self.permissionManager offerAccessRepairForServices:[self.permissionManager brokenAccessServices]];
             break;
         case SPErrorActionNone:
             break;

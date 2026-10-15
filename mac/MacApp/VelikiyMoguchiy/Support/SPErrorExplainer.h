@@ -32,6 +32,8 @@ typedef NS_ENUM(NSInteger, SPErrorAction) {
     SPErrorActionRecentDictations,
     /// Back to the provider chosen before ChatGPT (its limit ran out).
     SPErrorActionLeaveChatGPT,
+    /// The «Исправить» offer for a stale Accessibility / Input Monitoring grant.
+    SPErrorActionRepairAccess,
 };
 
 /// NSUserDefaults key: the provider that was selected when ChatGPT was chosen.

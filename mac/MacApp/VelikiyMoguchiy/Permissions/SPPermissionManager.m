@@ -9,6 +9,12 @@
 static NSString *const kDontRemindPrefix = @"SPPermissionDontRemind_";
 static NSString *const kWasGrantedPrefix = @"SPPermissionWasGranted_";
 
+NSNotificationName const SPPermissionManagerWillResetAccessNotification = @"SPPermissionManagerWillResetAccessNotification";
+NSString *const SPPermissionRepairServicesKey = @"services";
+
+static NSString *const SPRepairExplanation =
+    @"«Исправить» сбросит только строку «Великого & Могучего» в списке разрешений, больше ничего не удаляется.";
+
 @implementation SPPermissionManager
 
 - (void)checkAllPermissionsWithCompletion:(SPPermissionCheckCompletion)completion {
@@ -275,6 +281,9 @@ static NSString *SPPermissionTitle(SPPermissionType type) {
     for (NSNumber *type in types) [names addObject:SPPermissionTitle((SPPermissionType)type.integerValue)];
     SPPermissionType first = (SPPermissionType)types.firstObject.integerValue;
     NSString *list = [names componentsJoinedByString:@" и "];
+    SPAccessRepairServices repairable = SPAccessRepairServiceNone;
+    if ([types containsObject:@(SPPermissionTypeAccessibility)]) repairable |= SPAccessRepairServiceAccessibility;
+    if ([types containsObject:@(SPPermissionTypeInputMonitoring)]) repairable |= SPAccessRepairServiceInputMonitoring;
 
     [NSApp activateIgnoringOtherApps:YES];
     NSAlert *alert = [[NSAlert alloc] init];
@@ -282,26 +291,107 @@ static NSString *SPPermissionTitle(SPPermissionType type) {
     alert.messageText = @"macOS сбросила доступ после обновления";
     NSMutableString *text = [NSMutableString stringWithFormat:
         @"Раньше у «Великого & Могучего» %@ %@, а у этой версии нет. Так бывает после обновления: "
-        @"галочка в Системных настройках может стоять, но относится к прежней версии.\n\nЧто сделать:",
+        @"галочка в Системных настройках может стоять, но относится к прежней версии.",
         types.count > 1 ? @"были разрешения" : @"было разрешение", list];
-    BOOL listed = [types containsObject:@(SPPermissionTypeAccessibility)] ||
-                  [types containsObject:@(SPPermissionTypeInputMonitoring)];
-    if (listed) {
-        [text appendString:@" в списке выделите «Великий & Могучий», удалите его кнопкой «−» и добавьте заново "
-                           @"кнопкой «+» из папки «Программы»."];
+    if (repairable) {
+        [text appendFormat:@"\n\n%@ Затем включите переключатель заново.", SPRepairExplanation];
     }
     if ([types containsObject:@(SPPermissionTypeMicrophone)]) {
-        [text appendString:listed ? @" В разделе «Микрофон» включите переключатель «Великий & Могучий»."
-                                  : @" в разделе «Микрофон» включите переключатель «Великий & Могучий»."];
+        [text appendString:repairable ? @" В разделе «Микрофон» включите переключатель «Великий & Могучий»."
+                                      : @"\n\nВ разделе «Микрофон» включите переключатель «Великий & Могучий»."];
     }
     [text appendString:@" Приложение подхватит доступ само; если клавиша не заработает через несколько секунд, "
                        @"перезапустите его."];
     alert.informativeText = text;
-    [alert addButtonWithTitle:SPLocalizedString(@"permission.button.openSettings")];
+    [alert addButtonWithTitle:repairable ? @"Исправить" : SPLocalizedString(@"permission.button.openSettings")];
     [alert addButtonWithTitle:@"Позже"];
-    if ([alert runModal] == NSAlertFirstButtonReturn) {
+    if ([alert runModal] != NSAlertFirstButtonReturn) return;
+    if (repairable) {
+        [self repairAccessForServices:repairable];
+    } else {
         [[NSWorkspace sharedWorkspace] openURL:[SPPermissionManager settingsURLForType:first]];
     }
+}
+
+#pragma mark - Stale Accessibility / Input Monitoring grants
+
+- (SPAccessRepairServices)brokenAccessServices {
+    return [SPAccessRepairPolicy brokenServicesWithTrust:self];
+}
+
+- (void)offerAccessRepairForServices:(SPAccessRepairServices)services {
+    if (services == SPAccessRepairServiceNone) return;
+    BOOL accessibility = (services & SPAccessRepairServiceAccessibility) != 0;
+    [NSApp activateIgnoringOtherApps:YES];
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleWarning;
+    alert.messageText = accessibility ? @"Доступ к управлению не работает" : @"Мониторинг ввода не работает";
+    alert.informativeText = [NSString stringWithFormat:
+        @"Переключатель у «Великого & Могучего» может стоять, но macOS относит его к прежней версии приложения: "
+        @"доступа нет, а включить заново не выходит.\n\n%@ Затем включите переключатель снова, "
+        @"перезапускать приложение не нужно.", SPRepairExplanation];
+    [alert addButtonWithTitle:@"Исправить"];
+    [alert addButtonWithTitle:@"Отмена"];
+    if ([alert runModal] == NSAlertFirstButtonReturn) {
+        [self repairAccessForServices:services];
+    }
+}
+
+static BOOL SPResetAccess(SPAccessRepairServices service, NSString *bundleIdentifier) {
+    NSArray<NSString *> *arguments = [SPAccessRepairPolicy tccutilArgumentsForService:service
+                                                                     bundleIdentifier:bundleIdentifier];
+    if (!arguments) {
+        NSLog(@"[VelikiyMoguchiy] Access repair: no reset for bundle id %@", bundleIdentifier);
+        return NO;
+    }
+    NSTask *task = [[NSTask alloc] init];
+    task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/tccutil"];
+    task.arguments = arguments;
+    task.standardOutput = [NSFileHandle fileHandleWithNullDevice];
+    task.standardError = [NSFileHandle fileHandleWithNullDevice];
+    NSError *error = nil;
+    if (![task launchAndReturnError:&error]) {
+        NSLog(@"[VelikiyMoguchiy] Access repair: tccutil did not start: %@", error.localizedDescription);
+        return NO;
+    }
+    [task waitUntilExit];
+    NSLog(@"[VelikiyMoguchiy] Access repair: tccutil %@ -> %d",
+          [arguments componentsJoinedByString:@" "], task.terminationStatus);
+    return task.terminationStatus == 0;
+}
+
+/// Accessibility goes first: its pane is the one opened when both were reset.
+- (void)repairAccessForServices:(SPAccessRepairServices)services {
+    NSString *bundleIdentifier = NSBundle.mainBundle.bundleIdentifier;
+    [[NSNotificationCenter defaultCenter] postNotificationName:SPPermissionManagerWillResetAccessNotification
+                                                        object:self
+                                                      userInfo:@{SPPermissionRepairServicesKey : @(services)}];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        SPAccessRepairServices reset = SPAccessRepairServiceNone;
+        for (NSNumber *each in @[ @(SPAccessRepairServiceAccessibility), @(SPAccessRepairServiceInputMonitoring) ]) {
+            SPAccessRepairServices service = each.unsignedIntegerValue;
+            if ((services & service) && SPResetAccess(service, bundleIdentifier)) reset |= service;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            BOOL accessibility = (services & SPAccessRepairServiceAccessibility) != 0;
+            // Both prompts put the app back into their list, switched off.
+            if (accessibility) [self requestAccessibilityPermission];
+            if (services & SPAccessRepairServiceInputMonitoring) CGRequestListenEventAccess();
+            SPPermissionType pane = accessibility ? SPPermissionTypeAccessibility : SPPermissionTypeInputMonitoring;
+            [[NSWorkspace sharedWorkspace] openURL:[SPPermissionManager settingsURLForType:pane]];
+            if (reset != services) [self showRepairFailedAlert];
+        });
+    });
+}
+
+- (void)showRepairFailedAlert {
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleWarning;
+    alert.messageText = @"Не получилось сбросить разрешение";
+    alert.informativeText = @"Сделайте это вручную: в открывшемся списке выделите «Великий & Могучий», удалите его "
+                            @"кнопкой «−» и добавьте заново кнопкой «+» из папки «Программы».";
+    [alert addButtonWithTitle:@"OK"];
+    [alert runModal];
 }
 
 @end
