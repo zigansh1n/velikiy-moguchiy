@@ -2770,7 +2770,7 @@ lipdata:
 # opt-in consent, off by default, independent of lipdata above. Only adapter
 # weight deltas would ever be sent, never video, audio or text. Community
 # training is not built into the app yet; this records your decision
-# (Settings > Controls > «Участвовать в общем обучении»).
+# (Settings > Controls > Lips > «Участвовать в общем обучении»).
 training:
   contribute: false
 

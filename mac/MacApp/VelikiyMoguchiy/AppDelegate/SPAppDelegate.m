@@ -1505,7 +1505,7 @@ static BOOL SPLabFlag(const char *name) {
             [strongSelf endHandsFreeRecordingLikeSecondTap];
         }
         [strongSelf showInfoMessage:[NSString stringWithFormat:
-            @"Запись остановлена: прошло %.0f мин. Предел меняется в Настройках → Управление → Запись.",
+            @"Запись остановлена: прошло %.0f мин. Предел меняется в Настройках → Управление → Запись и история.",
             seconds / 60.0]];
     }];
 }

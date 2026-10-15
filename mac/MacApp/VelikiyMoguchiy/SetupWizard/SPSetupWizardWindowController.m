@@ -39,6 +39,7 @@ static NSString *const kLlmProtocolAnthropicMessages = @"anthropic_messages";
 static const NSInteger kRecordingsRetentionMin = 1;
 static const NSInteger kRecordingsRetentionMax = 365;
 static const NSInteger kRecordingsRetentionDefault = 30;
+static const CGFloat kExperimentalFoldGap = 8.0;
 static const NSInteger kOverlayBottomMarginDefault = 10;
 static const NSInteger kOverlayBottomMarginMax = 180;
 
@@ -872,6 +873,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSSwitch *liveInsertSwitch;
 @property(nonatomic, strong) NSSwitch *keepMicWarmSwitch;
 @property(nonatomic, strong) NSSwitch *lipflowSwitch;
+// «Экспериментальное» on the Controls page folds away; the card shows only
+// while expanded and the pane closes the gap it leaves.
+@property(nonatomic, strong) NSButton *experimentalDisclosure;
+@property(nonatomic, strong) NSView *experimentalCard;
 @property(nonatomic, strong) NSSwitch *saveRecordingsSwitch;
 @property(nonatomic, strong) NSSwitch *lipdataCaptureSwitch;
 // training.contribute: the separate opt-in consent to community training
@@ -2760,7 +2765,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
   // ── Trigger card ──
   NSView *triggerCard =
-      [self cardWithTitle:@"Запуск"
+      [self cardWithTitle:@"Клавиши"
                      rows:@[
                        [self cardRowWithLabel:@"Клавиша запуска"
                                       control:triggerShortcutControl],
@@ -2782,174 +2787,208 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                       control:self.abortKeyPopup],
                        [self cardRowWithLabel:@"Кнопка мыши для записи"
                                       control:self.mouseButtonPopup],
-                       [self cardRowWithLabel:@"Кнопка Play/Pause запускает диктовку"
+                       [self cardRowWithLabel:@"Клавиша ⏯ (пуск/пауза) запускает диктовку"
+                                       detail:@"⏯ на клавиатуре или в наушниках начинает и "
+                                              @"заканчивает диктовку."
                                       control:self.mediaPlayPauseSwitch],
                      ]
                     width:cardWidth];
 
-  // ── Paste Behavior ──
+  // ── Paste ──
   self.autoReturnSwitch = [self settingsSwitchWithAction:NULL];
   self.keepLastDictationSwitch = [self settingsSwitchWithAction:NULL];
-  self.pasteAsrFirstSwitch = [self settingsSwitchWithAction:NULL];
-  self.streamingInsertSwitch = [self settingsSwitchWithAction:NULL];
-  self.liveInsertSwitch = [self settingsSwitchWithAction:NULL];
   self.voiceCommandsSwitch = [self settingsSwitchWithAction:NULL];
 
   NSView *pasteCard =
       [self cardWithTitle:@"Вставка"
                      rows:@[
-                       [self cardRowWithLabel:@"Нажимать Return после вставки"
+                       [self cardRowWithLabel:@"Нажимать ↩ (Ввод) после вставки"
+                                       detail:@"Как будто ↩ нажали вы: в чате сообщение сразу "
+                                              @"отправится."
                                       control:self.autoReturnSwitch],
                        [self cardRowWithLabel:@"Голосовые команды"
+                                       detail:@"«Новая строка», «отправь» и другие выполняются, "
+                                              @"а не печатаются."
                                       control:self.voiceCommandsSwitch],
-                       [self cardRowWithLabel:@"Оставлять диктовку в буфере обмена (скопированное раньше не вернётся)"
+                       [self cardRowWithLabel:@"Оставлять диктовку в буфере обмена"
+                                       detail:@"Скопированное раньше в буфер не вернётся. Программы "
+                                              @"истории буфера этот текст не сохраняют."
                                       control:self.keepLastDictationSwitch],
-                       [self cardRowWithLabel:@"Вставлять сырой текст сразу, потом исправлять"
+                     ]
+                    width:cardWidth];
+
+  // ── Experimental (folded) ──
+  self.pasteAsrFirstSwitch = [self settingsSwitchWithAction:NULL];
+  self.streamingInsertSwitch = [self settingsSwitchWithAction:NULL];
+  self.liveInsertSwitch = [self settingsSwitchWithAction:NULL];
+  NSView *experimentalHeader =
+      [self experimentalHeaderWithWidth:cardWidth];
+  self.experimentalCard =
+      [self cardWithTitle:nil
+                     rows:@[
+                       [self cardRowWithLabel:@"Сначала сырой текст, потом исправленный"
+                                       detail:@"Когда включена LLM: распознанное вставляется сразу, "
+                                              @"а исправление заменяет его на месте."
                                       control:self.pasteAsrFirstSwitch],
-                       [self cardRowWithLabel:@"Печатать текст по ходу генерации"
+                       [self cardRowWithLabel:@"Печатать по мере ответа модели"
+                                       detail:@"После конца записи текст появляется в поле по "
+                                              @"словам, а не одной вставкой."
                                       control:self.streamingInsertSwitch],
-                       [self cardRowWithLabel:@"Писать прямо в поле во время речи"
+                       [self cardRowWithLabel:@"Печатать прямо во время речи"
+                                       detail:@"Текст пишется в поле, пока вы говорите, и "
+                                              @"исправляется в конце. Нужен доступ к управлению."
                                       control:self.liveInsertSwitch],
                      ]
                     width:cardWidth];
 
-  // ── Feedback Sounds ──
-  self.startSoundCheckbox = [self settingsSwitchWithAction:NULL];
-  self.errorSoundCheckbox = [self settingsSwitchWithAction:NULL];
-
-  NSView *feedbackCard =
-      [self cardWithTitle:@"Звуки"
-                     rows:@[
-                       [self cardRowWithLabel:@"Начало и конец записи"
-                                      control:self.startSoundCheckbox],
-                       [self cardRowWithLabel:@"Ошибка"
-                                      control:self.errorSoundCheckbox],
-                     ]
-                    width:cardWidth];
-
-  // ── Recording ──
+  // ── Recording and history ──
   self.muteSystemOutputCheckbox = [self settingsSwitchWithAction:NULL];
   self.keepMicWarmSwitch = [self settingsSwitchWithAction:NULL];
-  self.lipflowSwitch = [self settingsSwitchWithAction:NULL];
   self.autoStopSilencePopup = [self autoStopSilencePopupButton];
   self.recordingCapPopup = [self recordingCapPopupButton];
+  self.startSoundCheckbox = [self settingsSwitchWithAction:NULL];
+  self.errorSoundCheckbox = [self settingsSwitchWithAction:NULL];
+  self.saveRecordingsSwitch = [self settingsSwitchWithAction:NULL];
+  self.autoRetryOnErrorSwitch = [self settingsSwitchWithAction:NULL];
   NSView *recordingCard =
-      [self cardWithTitle:@"Запись"
+      [self cardWithTitle:@"Запись и история"
                      rows:@[
                        [self cardRowWithLabel:@"Приглушать звук системы во время записи"
+                                       detail:@"Музыка и видео затихают, пока вы говорите."
                                       control:self.muteSystemOutputCheckbox],
                        [self cardRowWithLabel:@"Держать микрофон включённым"
                                        detail:@"Держит микрофон открытым: запись начинается мгновенно, "
                                               @"но значок микрофона в строке меню горит постоянно."
                                       control:self.keepMicWarmSwitch],
-                       [self cardRowWithLabel:@"Запускать Lipflow (чтение по губам)"
-                                      control:self.lipflowSwitch],
                        [self cardRowWithLabel:@"Автостоп по тишине (без удержания)"
                                       control:self.autoStopSilencePopup],
                        [self cardRowWithLabel:@"Предел длины записи"
                                       control:self.recordingCapPopup],
-                     ]
-                    width:cardWidth];
-
-  // ── History ──
-  self.saveRecordingsSwitch = [self settingsSwitchWithAction:NULL];
-  self.autoRetryOnErrorSwitch = [self settingsSwitchWithAction:NULL];
-  NSView *historyCard =
-      [self cardWithTitle:@"История"
-                     rows:@[
+                       [self cardRowWithLabel:@"Звук начала и конца записи"
+                                       detail:@"Короткий сигнал, когда запись началась и когда "
+                                              @"закончилась."
+                                      control:self.startSoundCheckbox],
+                       [self cardRowWithLabel:@"Звук ошибки"
+                                       detail:@"Сигнал, если диктовка не удалась."
+                                      control:self.errorSoundCheckbox],
                        [self cardRowWithLabel:@"Сохранять аудиозаписи диктовок"
+                                       detail:@"Нужны, чтобы распознать диктовку заново из окна "
+                                              @"«Последние диктовки»."
                                       control:self.saveRecordingsSwitch],
                        [self cardRowWithLabel:@"Повторно распознавать при ошибке"
+                                       detail:@"Один раз в фоне; текст попадёт в буфер обмена, "
+                                              @"сам он не вставится."
                                       control:self.autoRetryOnErrorSwitch],
-                       [self cardRowWithLabel:@"Хранить, дней"
+                       [self cardRowWithLabel:@"Хранить записи, дней"
                                       control:[self recordingsRetentionControl]],
                      ]
                     width:cardWidth];
 
-  // ── Lip-reading data ──
+  // ── Lips ──
+  self.lipflowSwitch = [self settingsSwitchWithAction:NULL];
   NSView *lipdataCard = [self lipdataCardWithWidth:cardWidth];
   // ── «Обучить на мне» (LipTraining/SPLipTrainingCard: builds and runs itself) ──
   NSView *lipTrainingCard = [[SPLipTrainingCard alloc] initWithWidth:cardWidth];
   // ── «Помочь обучить» (CommunityTraining/SPCommunityTrainingCard: builds and runs itself) ──
   NSView *communityCard = [[SPCommunityTrainingCard alloc] initWithWidth:cardWidth];
 
-  // ── Layout ──
-  CGFloat triggerH = triggerCard.frame.size.height;
-  CGFloat pasteH = pasteCard.frame.size.height;
-  CGFloat feedbackH = feedbackCard.frame.size.height;
-  CGFloat recordingH = recordingCard.frame.size.height;
-  CGFloat historyH = historyCard.frame.size.height;
-  CGFloat lipdataH = lipdataCard.frame.size.height;
-  CGFloat lipTrainingH = lipTrainingCard.frame.size.height;
-  CGFloat communityH = communityCard.frame.size.height;
-  CGFloat contentHeight = topPad + triggerH + cardSpacing + pasteH +
-                          cardSpacing + feedbackH + cardSpacing + recordingH +
-                          cardSpacing + historyH + cardSpacing + lipdataH +
-                          cardSpacing + lipTrainingH + cardSpacing + communityH + 56;
+  // ── Layout, top to bottom ──
+  NSArray<NSView *> *stack = @[
+    triggerCard, pasteCard, experimentalHeader, self.experimentalCard,
+    recordingCard, lipdataCard, lipTrainingCard, communityCard
+  ];
+  CGFloat contentHeight = topPad + 56;
+  for (NSView *view in stack)
+    contentHeight += NSHeight(view.frame) + cardSpacing;
+  contentHeight -= cardSpacing + (cardSpacing - kExperimentalFoldGap);
 
   NSView *pane =
       [[NSView alloc] initWithFrame:NSMakeRect(0, 0, paneWidth, contentHeight)];
 
   CGFloat y = contentHeight - topPad;
+  for (NSView *view in stack) {
+    CGFloat height = NSHeight(view.frame);
+    // The disclosure row hugs the card it folds.
+    if (view == self.experimentalCard)
+      y += cardSpacing - kExperimentalFoldGap;
+    y -= height;
+    view.frame = NSMakeRect(24, y, cardWidth, height);
+    [pane addSubview:view];
+    y -= cardSpacing;
+    // A card's child (index 1, after the caption) is the surface with the rows.
+    if (view == experimentalHeader || view == lipTrainingCard ||
+        view == communityCard)
+      continue;
+    NSView *body = view.subviews.count > 1 ? view.subviews[1] : view.subviews[0];
+    [self layoutCardRowControls:body width:cardWidth];
+  }
 
-  y -= triggerH;
-  triggerCard.frame = NSMakeRect(24, y, cardWidth, triggerH);
-  [pane addSubview:triggerCard];
-  // Fix control positions — the card's child (index 1) is the white card view
-  NSView *triggerCardBody = triggerCard.subviews.count > 1
-                                ? triggerCard.subviews[1]
-                                : triggerCard.subviews[0];
-  [self layoutCardRowControls:triggerCardBody width:cardWidth];
-
-  y -= cardSpacing + pasteH;
-  pasteCard.frame = NSMakeRect(24, y, cardWidth, pasteH);
-  [pane addSubview:pasteCard];
-  NSView *pasteCardBody = pasteCard.subviews.count > 1
-                              ? pasteCard.subviews[1]
-                              : pasteCard.subviews[0];
-  [self layoutCardRowControls:pasteCardBody width:cardWidth];
-
-  y -= cardSpacing + feedbackH;
-  feedbackCard.frame = NSMakeRect(24, y, cardWidth, feedbackH);
-  [pane addSubview:feedbackCard];
-  NSView *feedbackCardBody = feedbackCard.subviews.count > 1
-                                 ? feedbackCard.subviews[1]
-                                 : feedbackCard.subviews[0];
-  [self layoutCardRowControls:feedbackCardBody width:cardWidth];
-
-  y -= cardSpacing + recordingH;
-  recordingCard.frame = NSMakeRect(24, y, cardWidth, recordingH);
-  [pane addSubview:recordingCard];
-  NSView *recordingCardBody = recordingCard.subviews.count > 1
-                                  ? recordingCard.subviews[1]
-                                  : recordingCard.subviews[0];
-  [self layoutCardRowControls:recordingCardBody width:cardWidth];
-
-  y -= cardSpacing + historyH;
-  historyCard.frame = NSMakeRect(24, y, cardWidth, historyH);
-  [pane addSubview:historyCard];
-  NSView *historyCardBody = historyCard.subviews.count > 1
-                                ? historyCard.subviews[1]
-                                : historyCard.subviews[0];
-  [self layoutCardRowControls:historyCardBody width:cardWidth];
-
-  y -= cardSpacing + lipdataH;
-  lipdataCard.frame = NSMakeRect(24, y, cardWidth, lipdataH);
-  [pane addSubview:lipdataCard];
-  NSView *lipdataCardBody = lipdataCard.subviews.count > 1
-                                ? lipdataCard.subviews[1]
-                                : lipdataCard.subviews[0];
-  [self layoutCardRowControls:lipdataCardBody width:cardWidth];
-
-  y -= cardSpacing + lipTrainingH;
-  lipTrainingCard.frame = NSMakeRect(24, y, cardWidth, lipTrainingH);
-  [pane addSubview:lipTrainingCard];
-
-  y -= cardSpacing + communityH;
-  communityCard.frame = NSMakeRect(24, y, cardWidth, communityH);
-  [pane addSubview:communityCard];
-
+  [self applyExperimentalExpanded:NO reveal:NO];
   return pane;
+}
+
+/// The fold for «Экспериментальное»: a disclosure triangle, the caption and
+/// one line on what the switches inside have in common.
+- (NSView *)experimentalHeaderWithWidth:(CGFloat)width {
+  NSView *header = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, width, 40)];
+  self.experimentalDisclosure = [[NSButton alloc] initWithFrame:NSMakeRect(0, 20, 18, 18)];
+  self.experimentalDisclosure.bezelStyle = NSBezelStyleDisclosure;
+  [self.experimentalDisclosure setButtonType:NSButtonTypePushOnPushOff];
+  self.experimentalDisclosure.title = @"";
+  self.experimentalDisclosure.target = self;
+  self.experimentalDisclosure.action = @selector(experimentalDisclosureToggled:);
+  [header addSubview:self.experimentalDisclosure];
+
+  SPCaptionLabel *caption = [SPCaptionLabel captionWithString:@"Экспериментальное"];
+  caption.frame = NSMakeRect(22, 19, width - 24, 20);
+  [header addSubview:caption];
+
+  NSTextField *summary = [NSTextField
+      labelWithString:@"Три способа увидеть текст раньше конца обработки. Могут "
+                      @"ошибаться в отдельных приложениях; обычно выключены."];
+  summary.font = SPTheme.descriptionFont;
+  summary.textColor = SPTheme.secondaryLabel;
+  summary.lineBreakMode = NSLineBreakByTruncatingTail;
+  summary.frame = NSMakeRect(22, 0, width - 24, 16);
+  [header addSubview:summary];
+  return header;
+}
+
+- (void)experimentalDisclosureToggled:(NSButton *)sender {
+  [self applyExperimentalExpanded:sender.state == NSControlStateValueOn reveal:YES];
+}
+
+/// Shows or hides the experimental card and closes or reopens its gap: the
+/// views above it shift by its height (the pane's origin is bottom-left), the
+/// views below stay put.
+- (void)applyExperimentalExpanded:(BOOL)expanded reveal:(BOOL)reveal {
+  self.experimentalDisclosure.state =
+      expanded ? NSControlStateValueOn : NSControlStateValueOff;
+  NSView *card = self.experimentalCard;
+  NSView *pane = card.superview;
+  if (!pane || card.hidden == !expanded)
+    return;
+  CGFloat delta = NSHeight(card.frame) + kExperimentalFoldGap;
+  CGFloat cardTop = NSMaxY(card.frame);
+  for (NSView *view in pane.subviews) {
+    if (view == card || NSMinY(view.frame) < cardTop)
+      continue;
+    NSRect frame = view.frame;
+    frame.origin.y += expanded ? delta : -delta;
+    view.frame = frame;
+  }
+  card.hidden = !expanded;
+  NSRect paneFrame = pane.frame;
+  paneFrame.size.height += expanded ? delta : -delta;
+  pane.frame = paneFrame;
+  if (pane == self.currentPaneView) {
+    NSRect documentFrame = self.paneDocumentView.frame;
+    documentFrame.size.height =
+        MAX(paneFrame.size.height, NSHeight(self.paneScrollView.contentView.bounds));
+    self.paneDocumentView.frame = documentFrame;
+    if (expanded && reveal)
+      [card scrollRectToVisible:card.bounds];
+  }
 }
 
 /// "Данные для чтения по губам": opt-in camera recording during dictation.
@@ -2964,8 +3003,14 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   finderButton.controlSize = NSControlSizeSmall;
   [finderButton sizeToFit];
 
+  NSView *lipflowRow =
+      [self cardRowWithLabel:@"Запускать Lipflow (чтение по губам)"
+                      detail:@"Отдельное приложение для беззвучной английской речи; "
+                             @"ставится из vendor/lipflow."
+                     control:self.lipflowSwitch];
   NSView *switchRow =
       [self cardRowWithLabel:@"Снимать камеру во время диктовки (для обучения)"
+                      detail:@"Видео без звука и распознанный текст остаются на этом Mac."
                      control:self.lipdataCaptureSwitch];
   NSView *pathRow = [self cardRowWithLabel:[SPLipCaptureManager dataDirectory]
                                    control:finderButton];
@@ -2995,6 +3040,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
       [self settingsSwitchWithAction:@selector(trainingContributeToggled:)];
   NSView *contributeRow =
       [self cardRowWithLabel:@"Участвовать в общем обучении (только изменения весов)"
+                      detail:@"Только запоминает ваш ответ; само обучение запускается "
+                             @"в «Помочь обучить» ниже."
                      control:self.trainingContributeSwitch];
 
   // The lips mode's download is offered here too, so declining it at the key press is not final.
@@ -3009,8 +3056,9 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     if ([sub isKindOfClass:[NSTextField class]]) self.lipsModeLabel = (NSTextField *)sub;
   }
 
-  return [self cardWithTitle:@"Данные для чтения по губам"
-                        rows:@[ switchRow, pathRow, countRow, contributeRow, lipsModeRow ]
+  return [self cardWithTitle:@"Губы"
+                        rows:@[ lipflowRow, switchRow, pathRow, countRow, contributeRow,
+                                lipsModeRow ]
                        width:cardWidth];
 }
 
@@ -6243,6 +6291,13 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
           value ? NSControlStateValueOn : NSControlStateValueOff;
       [self rememberLoadedBooleanValue:value forKey:key];
     }
+    // A switch that is on is never folded away out of sight.
+    BOOL anyExperimentalOn = NO;
+    for (NSSwitch *toggle in @[ self.pasteAsrFirstSwitch, self.streamingInsertSwitch,
+                                self.liveInsertSwitch ]) {
+      anyExperimentalOn |= toggle.state == NSControlStateValueOn;
+    }
+    [self applyExperimentalExpanded:anyExperimentalOn reveal:NO];
     BOOL saveRecordings =
         configBooleanValue(configGet(@"history.save_recordings"), YES);
     self.saveRecordingsSwitch.state =
