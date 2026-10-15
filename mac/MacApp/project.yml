@@ -173,6 +173,8 @@ targets:
       - path: VelikiyMoguchiy/Permissions/SPAccessRepairPolicyTests.m
       - path: VelikiyMoguchiy/StatusBar/SPRecentDictationsMenuPolicy.m
       - path: VelikiyMoguchiy/StatusBar/SPRecentDictationsMenuPolicyTests.m
+      - path: VelikiyMoguchiy/FileTranscription/SPFileTranscriptionPolicy.m
+      - path: VelikiyMoguchiy/FileTranscription/SPFileTranscriptionPolicyTests.m
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -184,3 +186,4 @@ targets:
       - AVFoundation
       - ApplicationServices
       - sdk: libsqlite3.tbd
+      - sdk: UniformTypeIdentifiers.framework

@@ -11,6 +11,10 @@
 /// "Начало работы…".
 - (void)statusBarDidSelectOnboarding;
 - (void)statusBarDidSelectRecentDictations;
+/// "Расшифровать файл…".
+- (void)statusBarDidSelectTranscribeFile;
+/// Audio or video files dropped on the menu bar icon.
+- (void)statusBarDidReceiveFiles:(nonnull NSArray<NSURL *> *)urls;
 /// A dictation picked in «Последние диктовки»: copy it, or paste it at the
 /// cursor when ⌥ was held.
 - (void)statusBarDidSelectRecentDictationText:(nonnull NSString *)text paste:(BOOL)paste;

@@ -34,6 +34,7 @@
 #import "velikiy_moguchiy_core.h"
 #import "SPAppPaths.h"
 #import "SPErrorExplainer.h"
+#import "SPFileTranscriptionWindowController.h"
 #import "SPHotkeyNames.h"
 #import "SPTriggerKeyPolicy.h"
 #import <os/log.h>
@@ -553,6 +554,9 @@ static BOOL SPLabFlag(const char *name) {
     self.statusBarManager = [[SPStatusBarManager alloc] initWithDelegate:self
                                                        permissionManager:self.permissionManager
                                                       audioDeviceManager:self.audioDeviceManager];
+    // Finder → Службы → «Расшифровать в Великий & Могучий» (NSServices in Info.plist).
+    NSApp.servicesProvider = self;
+    NSUpdateDynamicServices();
 
     // Initialize floating overlay
     self.overlayPanel = [[SPOverlayPanel alloc] init];
@@ -3233,6 +3237,23 @@ static BOOL SPLabFlag(const char *name) {
         [self.setupWizard showPane:pane];
     } else {
         [self.setupWizard showWindow:nil];
+    }
+}
+
+- (void)statusBarDidSelectTranscribeFile {
+    [SPFileTranscriptionWindowController chooseFilesAndTranscribe];
+}
+
+- (void)statusBarDidReceiveFiles:(NSArray<NSURL *> *)urls {
+    [SPFileTranscriptionWindowController transcribeURLs:urls];
+}
+
+/// The `NSMessage` of the Finder service in Info.plist.
+- (void)transcribeFileService:(NSPasteboard *)pasteboard userData:(NSString *)userData error:(NSString **)error {
+    NSArray<NSURL *> *urls = [pasteboard readObjectsForClasses:@[ [NSURL class] ]
+                                                       options:@{NSPasteboardURLReadingFileURLsOnlyKey : @YES}];
+    if ([SPFileTranscriptionWindowController transcribeURLs:urls ?: @[]] == 0 && error) {
+        *error = @"Расшифровать можно только аудио, видео или голосовое сообщение.";
     }
 }
 

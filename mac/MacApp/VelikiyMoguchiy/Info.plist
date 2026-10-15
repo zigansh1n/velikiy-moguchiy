@@ -40,6 +40,26 @@
 	<string>Приложению «Великий &amp; Могучий» нужен доступ к микрофону, чтобы записывать вашу речь для голосового ввода.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Расшифровать в Великий &amp; Могучий</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>transcribeFileService</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.audio</string>
+				<string>public.movie</string>
+				<string>public.audiovisual-content</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>«Великий &amp; Могучий» использует распознавание речи на устройстве, чтобы превращать вашу речь в текст.</string>
 </dict>

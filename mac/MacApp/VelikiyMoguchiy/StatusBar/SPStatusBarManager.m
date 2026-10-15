@@ -3,6 +3,7 @@
 #import "SPAudioDeviceManager.h"
 #import "SPHistoryManager.h"
 #import "SPRecentDictationsMenuPolicy.h"
+#import "SPFileTranscriptionPolicy.h"
 #import "SPLocalization.h"
 #import "SPOutputModes.h"
 #import "SPLipCaptureManager.h"
@@ -18,7 +19,7 @@
 static const CGFloat kIconSize = 18.0;
 static const NSInteger kHeaderItemTag = 1001;
 
-@interface SPStatusBarManager ()
+@interface SPStatusBarManager () <NSWindowDelegate, NSDraggingDestination>
 
 @property (nonatomic, weak) id<SPStatusBarDelegate> delegate;
 @property (nonatomic, strong) SPPermissionManager *permissionManager;
@@ -65,6 +66,38 @@ static const NSInteger kHeaderItemTag = 1001;
 
     [self applyIdleIcon];
     self.statusItem.menu = [self buildMenu];
+
+    // Files dropped on the icon are transcribed. The button is AppKit's own
+    // class, so its window takes the drag and hands it to this delegate.
+    NSWindow *buttonWindow = self.statusItem.button.window;
+    [buttonWindow registerForDraggedTypes:@[ NSPasteboardTypeFileURL ]];
+    buttonWindow.delegate = self;
+}
+
+#pragma mark - Dropped files
+
+- (NSArray<NSURL *> *)transcribableURLsFromDrag:(id<NSDraggingInfo>)sender {
+    NSArray<NSURL *> *urls = [sender.draggingPasteboard readObjectsForClasses:@[ [NSURL class] ]
+                                                                      options:@{NSPasteboardURLReadingFileURLsOnlyKey : @YES}];
+    return [SPFileTranscriptionPolicy transcribableURLs:urls ?: @[]];
+}
+
+- (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender {
+    if ([self transcribableURLsFromDrag:sender].count == 0) return NSDragOperationNone;
+    self.statusItem.button.highlighted = YES;
+    return NSDragOperationCopy;
+}
+
+- (void)draggingExited:(id<NSDraggingInfo>)sender {
+    self.statusItem.button.highlighted = NO;
+}
+
+- (BOOL)performDragOperation:(id<NSDraggingInfo>)sender {
+    self.statusItem.button.highlighted = NO;
+    NSArray<NSURL *> *urls = [self transcribableURLsFromDrag:sender];
+    if (urls.count == 0 || ![self.delegate respondsToSelector:@selector(statusBarDidReceiveFiles:)]) return NO;
+    [self.delegate statusBarDidReceiveFiles:urls];
+    return YES;
 }
 
 - (instancetype)initMenuOnlyWithPermissionManager:(SPPermissionManager *)permissionManager
@@ -106,6 +139,14 @@ static const NSInteger kHeaderItemTag = 1001;
     recentDictations.target = self;
     recentDictations.image = [self menuSymbol:@"scroll"];
     [menu addItem:recentDictations];
+
+    NSMenuItem *transcribeFile = [[NSMenuItem alloc] initWithTitle:@"Расшифровать файл…"
+                                                            action:@selector(transcribeFile:)
+                                                     keyEquivalent:@""];
+    transcribeFile.target = self;
+    transcribeFile.image = [self menuSymbol:@"waveform"];
+    transcribeFile.toolTip = @"Аудио, видео или голосовое из Telegram. Файл можно и перетащить на значок.";
+    [menu addItem:transcribeFile];
 
     [menu addItem:[self ornamentSeparatorItem]];
 
@@ -850,6 +891,12 @@ static const NSInteger kHeaderItemTag = 1001;
 }
 
 #pragma mark - Actions
+
+- (void)transcribeFile:(id)sender {
+    if ([self.delegate respondsToSelector:@selector(statusBarDidSelectTranscribeFile)]) {
+        [self.delegate statusBarDidSelectTranscribeFile];
+    }
+}
 
 - (void)openRecentDictations:(id)sender {
     if ([self.delegate respondsToSelector:@selector(statusBarDidSelectRecentDictations)]) {

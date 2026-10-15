@@ -52,6 +52,7 @@ pub mod glm;
 pub mod key_pool;
 pub mod mimo;
 pub mod net_connect;
+pub mod ogg_opus;
 #[cfg(feature = "mlx")]
 pub mod mlx;
 pub mod provider;

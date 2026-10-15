@@ -8,6 +8,7 @@ pub mod dashscope_check;
 pub mod dictionary;
 pub mod errors;
 pub mod ffi;
+pub mod file_transcription;
 pub mod live_insert;
 pub mod llm;
 pub mod model_manager;

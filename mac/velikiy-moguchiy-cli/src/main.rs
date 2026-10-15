@@ -1,6 +1,7 @@
 mod benchmark;
 mod dict;
 mod text;
+mod wav;
 
 use std::sync::Arc;
 
@@ -20,13 +21,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Transcribe an audio or video file to text
+    /// Transcribe an audio or video file to text.
+    ///
+    /// Long files are cut at pauses into pieces of up to 20 s, each recognized
+    /// separately; their times make the SRT subtitles.
     Transcribe {
-        /// Path to the audio or video file (any format supported by ffmpeg)
+        /// Path to the audio or video file: Ogg Opus voice messages and 16 kHz
+        /// WAV are read directly, anything else through ffmpeg
         file: String,
-        /// Show interim (partial) results as they arrive
+        /// Show progress as pieces are recognized
         #[arg(long, short = 'i')]
         interim: bool,
+        /// Output: plain text (with spoken commands and snippets applied, as
+        /// in a dictation), JSON with timed segments, or SRT subtitles
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
         /// ASR provider to use (default: the provider from ~/.velikiy-moguchiy/config.yaml)
         #[arg(long, short = 'p')]
         provider: Option<String>,
@@ -71,6 +80,13 @@ enum Commands {
         #[command(subcommand)]
         action: ManifestCommands,
     },
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum OutputFormat {
+    Text,
+    Json,
+    Srt,
 }
 
 #[derive(Subcommand)]
@@ -168,17 +184,10 @@ async fn main() {
         Commands::Transcribe {
             file,
             interim,
+            format,
             provider,
             app,
-        } => {
-            transcribe(
-                &file,
-                interim,
-                provider.as_deref(),
-                app.as_deref(),
-            )
-            .await
-        }
+        } => transcribe(&file, interim, format, provider.as_deref(), app.as_deref()).await,
         Commands::Benchmark {
             corpus_dir,
             providers,
@@ -407,114 +416,65 @@ fn resolve_provider(cfg: &velikiy_moguchiy_core::config::Config, requested: Opti
 
 async fn transcribe(
     file: &str,
-    show_interim: bool,
+    show_progress: bool,
+    format: OutputFormat,
     provider: Option<&str>,
     app: Option<&str>,
 ) -> Result<(), String> {
-    use velikiy_moguchiy_asr::{AsrEvent, TranscriptAggregator};
+    use velikiy_moguchiy_core::file_transcription::{self, FileTranscript};
 
     let path = std::path::Path::new(file);
     if !path.exists() {
         return Err(format!("file not found: {file}"));
     }
 
-    // Decode audio/video to raw PCM using ffmpeg
     eprintln!("Decoding {file} ...");
-    let pcm_data = decode_to_pcm(file)?;
-    let duration_secs = pcm_data.len() as f64 / (16000.0 * 2.0); // 16kHz, 16-bit mono
-    eprintln!("Audio: {:.1}s, {} bytes PCM", duration_secs, pcm_data.len());
+    let pcm = decode_audio(path)?;
+    let duration_secs = pcm.len() as f64 / file_transcription::SAMPLE_RATE as f64;
+    eprintln!("Audio: {duration_secs:.1}s");
 
     let cfg =
         velikiy_moguchiy_core::config::load_config().map_err(|e| format!("load config: {e}"))?;
     let provider_name = resolve_provider(&cfg, provider)?;
-    let user_dictionary = velikiy_moguchiy_core::dictionary::load_entries(
-        &velikiy_moguchiy_core::config::resolve_dictionary_path(&cfg),
-    )
-    .unwrap_or_default();
-    let terms: Vec<String> = user_dictionary.iter().map(|e| e.term.clone()).collect();
-    let (mut config, mut asr) = asr_factory::create_asr_provider(&cfg, &provider_name, &terms);
-    if provider_name == "qwen"
-        && velikiy_moguchiy_asr::QwenAsrProvider::is_omni_model(&cfg.asr.qwen.model)
-    {
-        let starter = velikiy_moguchiy_core::dictionary::load_starter_sections(
-            &velikiy_moguchiy_core::config::config_dir()
-                .join(velikiy_moguchiy_core::dictionary::STARTER_FILE_NAME),
-        );
-        let instructions = velikiy_moguchiy_core::modes::dictation_instructions_for(
-            &cfg.asr.qwen,
-            &velikiy_moguchiy_core::modes::DictationEnvironment {
-                bundle_id: app,
-                user_dictionary: &user_dictionary,
-                starter_dictionary: &starter,
-                field: Default::default(),
-                voice_commands: cfg.commands.enabled,
-            },
-        );
-        eprintln!("Instructions: {} chars", instructions.chars().count());
-        config.instructions = Some(instructions);
-    }
+    let as_dictation = format == OutputFormat::Text && cfg.commands.enabled;
 
-    eprintln!("Connecting to {provider_name} ASR...");
-    asr.connect(&config)
-        .await
-        .map_err(|e| format!("connect: {e}"))?;
-
-    // Feed PCM in chunks (20ms frames = 640 bytes at 16kHz 16-bit mono)
-    // Send without delay (realtime=false equivalent) for faster processing.
-    const CHUNK_SIZE: usize = 640;
-    for chunk in pcm_data.chunks(CHUNK_SIZE) {
-        asr.send_audio(chunk)
-            .await
-            .map_err(|e| format!("send_audio: {e}"))?;
-    }
-
-    asr.finish_input()
-        .await
-        .map_err(|e| format!("finish_input: {e}"))?;
-
-    // Collect results
-    let mut aggregator = TranscriptAggregator::new();
-    loop {
-        match asr.next_event().await.map_err(|e| format!("event: {e}"))? {
-            AsrEvent::Interim(text) => {
-                aggregator.update_interim(&text);
-                if show_interim {
-                    eprint!("\r\x1b[2K[interim] {text}");
-                }
+    eprintln!("Transcribing with {provider_name} ...");
+    let progress = |done: usize, total: usize| {
+        if show_progress && total > 0 {
+            eprint!("\r\x1b[2K[{done}/{total}]");
+            if done == total {
+                eprintln!();
             }
-            AsrEvent::Definite(text) => {
-                aggregator.update_definite(&text);
-                if show_interim {
-                    eprint!("\r\x1b[2K[definite] {text}");
-                }
-            }
-            AsrEvent::Final(text) => {
-                aggregator.update_final(&text);
-                if show_interim {
-                    eprintln!();
-                }
-                break;
-            }
-            AsrEvent::Error(msg) => {
-                if show_interim {
-                    eprintln!();
-                }
-                asr.close().await.ok();
-                return Err(format!("ASR error: {msg}"));
-            }
-            AsrEvent::Closed(_) => {
-                if show_interim {
-                    eprintln!();
-                }
-                break;
-            }
-            _ => {}
         }
+    };
+    let segments = file_transcription::transcribe_pcm(
+        &cfg,
+        &provider_name,
+        app,
+        as_dictation,
+        &pcm,
+        &velikiy_moguchiy_core::model_manager::CancellationToken::new(),
+        &progress,
+    )
+    .await?;
+    let transcript = FileTranscript::new(&provider_name, pcm.len(), segments);
+
+    match format {
+        OutputFormat::Json => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&transcript).map_err(|e| e.to_string())?
+            );
+            return Ok(());
+        }
+        OutputFormat::Srt => {
+            print!("{}", transcript.srt);
+            return Ok(());
+        }
+        OutputFormat::Text => {}
     }
 
-    asr.close().await.ok();
-
-    let result = aggregator.best_text();
+    let result = transcript.text;
     if result.is_empty() {
         eprintln!("No speech detected.");
         return Ok(());
@@ -541,6 +501,29 @@ async fn transcribe(
     }
 
     Ok(())
+}
+
+/// Decodes `path` to 16 kHz mono samples: Ogg Opus and 16 kHz 16-bit WAV
+/// natively, everything else with ffmpeg.
+fn decode_audio(path: &std::path::Path) -> Result<Vec<i16>, String> {
+    use velikiy_moguchiy_core::file_transcription::{decode_ogg_opus_file, pcm_bytes_to_samples};
+
+    let mut head = [0u8; 4];
+    if let Ok(mut f) = std::fs::File::open(path) {
+        use std::io::Read;
+        let _ = f.read(&mut head);
+    }
+    if &head == b"OggS" {
+        return decode_ogg_opus_file(path);
+    }
+    if &head == b"RIFF" {
+        let bytes = std::fs::read(path).map_err(|e| format!("read: {e}"))?;
+        if let Some(pcm) = wav::pcm16_at_16khz(&bytes) {
+            return Ok(pcm);
+        }
+    }
+    let file = path.to_str().ok_or("file path is not UTF-8")?;
+    Ok(pcm_bytes_to_samples(&decode_to_pcm(file)?))
 }
 
 // ─── Dictionary ─────────────────────────────────────────────────────
