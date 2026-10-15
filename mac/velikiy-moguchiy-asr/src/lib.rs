@@ -41,6 +41,7 @@
 pub mod app_dir;
 #[cfg(feature = "apple-speech")]
 pub mod apple_speech;
+pub mod chatgpt;
 pub mod config;
 pub mod doubao;
 pub mod endpoint;
@@ -62,6 +63,7 @@ pub mod wetype;
 
 #[cfg(feature = "apple-speech")]
 pub use apple_speech::{AppleSpeechConfig, AppleSpeechProvider};
+pub use chatgpt::ChatGptAsrProvider;
 pub use config::AsrConfig;
 pub use doubao::DoubaoWsProvider;
 pub use error::AsrError;

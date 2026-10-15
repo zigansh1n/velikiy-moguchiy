@@ -111,7 +111,7 @@ pub struct PromptTemplate {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AsrSection {
-    /// Which ASR provider to use: "qwen" (default), "doubao", "glm", "mimo", "mlx", "sherpa-onnx", "apple-speech"
+    /// Which ASR provider to use: "qwen" (default), "doubao", "glm", "mimo", "chatgpt", "mlx", "sherpa-onnx", "apple-speech"
     #[serde(
         default = "default_asr_provider",
         deserialize_with = "deserialize_asr_provider"
@@ -145,6 +145,10 @@ pub struct AsrSection {
     /// MiMo (Xiaomi) ASR configuration
     #[serde(default)]
     pub mimo: MimoAsrConfig,
+
+    /// The user's own ChatGPT subscription (unofficial endpoint)
+    #[serde(default)]
+    pub chatgpt: ChatGptAsrConfig,
 
     /// WeType (微信输入法) offline local ASR configuration (embed_140m)
     #[serde(default)]
@@ -448,6 +452,25 @@ impl Default for MimoAsrConfig {
             final_wait_timeout_ms: default_final_wait_timeout(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ChatGptAsrConfig {
+    /// ISO 639-1 code sent with the audio; empty lets ChatGPT detect it.
+    #[serde(default = "default_chatgpt_language")]
+    pub language: String,
+}
+
+impl Default for ChatGptAsrConfig {
+    fn default() -> Self {
+        Self {
+            language: default_chatgpt_language(),
+        }
+    }
+}
+
+fn default_chatgpt_language() -> String {
+    "ru".into()
 }
 
 // ─── Other Sections (unchanged) ─────────────────────────────────────
@@ -2280,7 +2303,7 @@ pub fn ensure_defaults() -> Result<bool> {
     for (path, content) in defaults {
         if !path.exists() {
             if *path == config_file {
-                write_owner_only(path, content)
+                write_owner_only(path, content.as_bytes())
                     .map_err(|e| CoreError::Config(format!("write {}: {e}", path.display())))?;
             } else {
                 std::fs::write(path, content)
@@ -2399,7 +2422,7 @@ pub fn atomic_write_config(data: &str) -> Result<()> {
 /// Write `data` to `path` with owner-only (0600) permissions, tightening the
 /// mode before any content is written even when the file already exists.
 #[cfg(unix)]
-fn write_owner_only(path: &Path, data: &str) -> std::io::Result<()> {
+pub(crate) fn write_owner_only(path: &Path, data: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
     let mut file = std::fs::OpenOptions::new()
@@ -2409,13 +2432,13 @@ fn write_owner_only(path: &Path, data: &str) -> std::io::Result<()> {
         .mode(0o600)
         .open(path)?;
     file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
-    file.write_all(data.as_bytes())
+    file.write_all(data)
 }
 
 /// Windows has no mode bits: the data directory sits in the user profile,
 /// whose ACL already keeps other users out.
 #[cfg(not(unix))]
-fn write_owner_only(path: &Path, data: &str) -> std::io::Result<()> {
+pub(crate) fn write_owner_only(path: &Path, data: &[u8]) -> std::io::Result<()> {
     std::fs::write(path, data)
 }
 
@@ -2424,7 +2447,7 @@ fn write_owner_only(path: &Path, data: &str) -> std::io::Result<()> {
 /// disk with umask-derived permissions; the rename carries the mode over.
 fn atomic_write_file(path: &Path, data: &str) -> Result<()> {
     let tmp = path.with_extension("yaml.tmp");
-    write_owner_only(&tmp, data)
+    write_owner_only(&tmp, data.as_bytes())
         .map_err(|e| CoreError::Config(format!("write {}: {e}", tmp.display())))?;
     std::fs::rename(&tmp, path).map_err(|e| {
         CoreError::Config(format!(
@@ -2560,7 +2583,7 @@ const DEFAULT_CONFIG_YAML: &str = r#"# Velikiy Moguchiy (Великий & Мог
 # ~/.velikiy-moguchiy/config.yaml
 
 asr:
-  # ASR provider: "qwen" (default; DashScope, your own key), "doubao", "glm", "mimo", "apple-speech", "mlx", "sherpa-onnx"
+  # ASR provider: "qwen" (default; DashScope, your own key), "doubao", "glm", "mimo", "chatgpt", "apple-speech", "mlx", "sherpa-onnx"
   provider: "qwen"
 
   # Doubao (豆包) Streaming ASR 2.0 (优化版双向流式)
@@ -2616,6 +2639,12 @@ asr:
     api_key: ""          # 从 https://platform.xiaomimimo.com 获取
     model: "mimo-v2.5-asr"
     language: "auto"     # auto | zh-CN | en-US | ja-JP 等
+
+  # ChatGPT (your own subscription) — unofficial: the endpoint of the ChatGPT
+  # apps' voice input. Sign in from Settings; tokens stay in the Keychain
+  # (DPAPI on Windows), never in this file. Audio goes to OpenAI.
+  # chatgpt:
+  #   language: "ru"     # empty = detect
 
   # Apple Speech local ASR (macOS 26+, zero-config, no model download)
   apple-speech:
@@ -3815,5 +3844,63 @@ clipboard:
         );
         assert_eq!(set.app_modes["com.apple.Notes"], "light");
         assert!(!set.use_field_context);
+    }
+
+    #[test]
+    fn chatgpt_is_never_the_default_and_leaves_an_existing_choice_alone() {
+        let root: serde_yaml::Value = serde_yaml::from_str(DEFAULT_CONFIG_YAML).unwrap();
+        assert_eq!(root["asr"]["provider"].as_str(), Some("qwen"));
+        assert!(
+            root["asr"].get("chatgpt").is_none(),
+            "the template only mentions it in a comment"
+        );
+        assert_eq!(default_asr_provider(), "qwen");
+        assert_eq!(ChatGptAsrConfig::default().language, "ru");
+
+        let _env_lock = PROCESS_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let home = EnvVarGuard::new("HOME");
+        let tmp = std::env::temp_dir().join(format!(
+            "velikiy-moguchiy-test-owner-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let app_dir = tmp.join(velikiy_moguchiy_asr::app_dir::DIR_NAME);
+        fs::create_dir_all(&app_dir).unwrap();
+        let owner = "asr:\n  provider: qwen\n  qwen:\n    url: wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime\n    api_keys:\n    - sk-owner-1\n    - sk-owner-2\n    model: qwen3.8-omni-flash-realtime\n    language: ru\n    output_mode: light\nllm:\n  enabled: false\n";
+        fs::write(app_dir.join("config.yaml"), owner).unwrap();
+        home.set(&tmp);
+
+        // The first load applies the existing normalizations (hotkey keys);
+        // from then on the file is what the app keeps.
+        load_config().unwrap();
+        let before = fs::read_to_string(app_dir.join("config.yaml")).unwrap();
+        // Everything the ChatGPT provider adds to the settings windows reads
+        // config and the token store only; none of it may write config.yaml.
+        let _ = crate::chatgpt_account::status();
+        crate::chatgpt_account::cancel_login();
+        let cfg = load_config().unwrap();
+        let (asr_config, _provider) =
+            crate::asr_factory::create_asr_provider(&cfg, &cfg.asr.provider, &[]);
+        let after = fs::read_to_string(app_dir.join("config.yaml")).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+
+        assert_eq!(after, before);
+        assert!(
+            before.contains("provider: qwen") && before.contains("sk-owner-2"),
+            "{before}"
+        );
+        assert_eq!(cfg.asr.provider, "qwen");
+        assert_eq!(cfg.asr.qwen.model, "qwen3.8-omni-flash-realtime");
+        assert_eq!(
+            cfg.asr.qwen.effective_api_keys(),
+            ["sk-owner-1", "sk-owner-2"]
+        );
+        assert_eq!(
+            asr_config.url,
+            "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime"
+        );
+        assert_eq!(asr_config.app_key, "qwen3.8-omni-flash-realtime");
     }
 }

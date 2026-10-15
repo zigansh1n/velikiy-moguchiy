@@ -35,6 +35,11 @@ enum Commands {
         #[arg(long)]
         app: Option<String>,
     },
+    /// The sign-in of the unofficial «ChatGPT (your subscription)» provider
+    Chatgpt {
+        #[command(subcommand)]
+        action: ChatgptCommands,
+    },
     /// Benchmark ASR providers over a corpus of audio files with references.
     ///
     /// The corpus directory holds audio files (any ffmpeg-supported format),
@@ -66,6 +71,18 @@ enum Commands {
         #[command(subcommand)]
         action: ManifestCommands,
     },
+}
+
+#[derive(Subcommand)]
+enum ChatgptCommands {
+    /// Sign in with ChatGPT in the browser (the unofficial «ChatGPT» provider)
+    Login,
+    /// Whether this computer is signed in, and as whom
+    Status,
+    /// Send a second of silence to ChatGPT with the stored sign-in
+    Check,
+    /// Forget the sign-in on this computer
+    Logout,
 }
 
 #[derive(Subcommand)]
@@ -167,6 +184,7 @@ async fn main() {
             providers,
             json,
         } => run_benchmark(&corpus_dir, providers.as_deref(), json).await,
+        Commands::Chatgpt { action } => chatgpt(action).await,
         Commands::Model { action } => match action {
             ModelCommands::List => list(),
             ModelCommands::Status { model, verify_mode } => status(&model, &verify_mode),
@@ -597,6 +615,59 @@ fn dict_suggest(min_count: usize, limit: usize, db: Option<&str>, json: bool) ->
     Ok(())
 }
 
+async fn chatgpt(action: ChatgptCommands) -> Result<(), String> {
+    use velikiy_moguchiy_core::chatgpt_account;
+    let blocking = |f: fn() -> Result<(), String>| async move {
+        tokio::task::spawn_blocking(f)
+            .await
+            .map_err(|e| e.to_string())?
+    };
+    match action {
+        ChatgptCommands::Status => {
+            let status = chatgpt_account::status();
+            match (status.signed_in, status.email, status.error) {
+                (true, email, _) => println!(
+                    "signed in{}",
+                    email.map(|e| format!(" as {e}")).unwrap_or_default()
+                ),
+                (false, _, Some(error)) => return Err(error),
+                (false, _, None) => println!("not signed in"),
+            }
+            Ok(())
+        }
+        ChatgptCommands::Login => {
+            let url = chatgpt_account::start_login().map_err(|e| e.to_string())?;
+            eprintln!("Open this page to sign in (waiting up to 10 minutes):\n{url}");
+            #[cfg(target_os = "macos")]
+            let _ = std::process::Command::new("open").arg(&url).status();
+            blocking(|| {
+                chatgpt_account::wait_login()
+                    .map(|s| {
+                        println!(
+                            "signed in{}",
+                            s.email.map(|e| format!(" as {e}")).unwrap_or_default()
+                        )
+                    })
+                    .map_err(|e| e.to_string())
+            })
+            .await
+        }
+        ChatgptCommands::Check => {
+            blocking(|| {
+                chatgpt_account::check().map_err(|e| e.to_string())?;
+                println!("ChatGPT accepted the test request");
+                Ok(())
+            })
+            .await
+        }
+        ChatgptCommands::Logout => {
+            chatgpt_account::logout()?;
+            println!("signed out on this computer");
+            Ok(())
+        }
+    }
+}
+
 fn dict_add(terms: &[String]) -> Result<(), String> {
     let cfg =
         velikiy_moguchiy_core::config::load_config().map_err(|e| format!("load config: {e}"))?;
@@ -652,8 +723,10 @@ async fn run_benchmark(
 
     let provider_names: Vec<String> = match providers {
         None => vec![resolve_provider(&cfg, None)?],
+        // The unofficial ChatGPT provider sends the corpus to OpenAI: only when named.
         Some("all") => asr_factory::supported_providers()
             .iter()
+            .filter(|p| **p != "chatgpt")
             .map(|s| s.to_string())
             .collect(),
         Some(list) => list

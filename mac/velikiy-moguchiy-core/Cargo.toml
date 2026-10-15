@@ -43,6 +43,10 @@ tokio-util = { workspace = true, features = ["rt"] }
 urlencoding.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# The ChatGPT sign-in is kept in the login Keychain.
+security-framework = "3"
+
 [dev-dependencies]
 
 [build-dependencies]

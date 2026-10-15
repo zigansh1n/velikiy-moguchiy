@@ -1,6 +1,7 @@
 pub mod app_context;
 pub mod asr_factory;
 pub mod audio_buffer;
+pub mod chatgpt_account;
 pub mod commands;
 pub mod config;
 pub mod dashscope_check;
@@ -2064,6 +2065,73 @@ pub unsafe extern "C" fn sp_dashscope_check_key(
     };
     let json = serde_json::to_string(&check).unwrap_or_else(|_| "{\"ok\":false}".into());
     CString::new(json).unwrap_or_default().into_raw()
+}
+
+fn json_c_string(value: serde_json::Value) -> *mut c_char {
+    CString::new(value.to_string()).unwrap_or_default().into_raw()
+}
+
+fn chatgpt_failure(e: &velikiy_moguchiy_asr::chatgpt::ChatGptError) -> serde_json::Value {
+    serde_json::json!({ "ok": false, "code": e.code(), "message": e.to_string() })
+}
+
+/// The ChatGPT sign-in: `{"signed_in": bool, "email": str|null, "plan": str|null, "error": str|null}`.
+/// Caller must free the returned pointer with `sp_core_free_string()`.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_status_json() -> *mut c_char {
+    json_c_string(serde_json::to_value(chatgpt_account::status()).unwrap_or_default())
+}
+
+/// Starts «Войти через ChatGPT»: `{"ok": true, "url": "<page to open in the browser>"}`
+/// or `{"ok": false, "code": "...", "message": "..."}`. Then call
+/// `sp_chatgpt_login_wait_json()` off the main thread.
+/// Caller must free the returned pointer with `sp_core_free_string()`.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_login_start_json() -> *mut c_char {
+    json_c_string(match chatgpt_account::start_login() {
+        Ok(url) => serde_json::json!({ "ok": true, "url": url }),
+        Err(e) => chatgpt_failure(&e),
+    })
+}
+
+/// Blocks until the browser sign-in ends (up to 10 minutes):
+/// `{"ok": true, "email": str|null}` or a failure as in `sp_chatgpt_login_start_json`.
+/// Caller must free the returned pointer with `sp_core_free_string()`.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_login_wait_json() -> *mut c_char {
+    json_c_string(match chatgpt_account::wait_login() {
+        Ok(status) => serde_json::json!({ "ok": true, "email": status.email }),
+        Err(e) => chatgpt_failure(&e),
+    })
+}
+
+/// Stops a sign-in waiting for the browser.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_login_cancel() {
+    chatgpt_account::cancel_login();
+}
+
+/// Forgets the ChatGPT sign-in on this computer. Returns 0 on success.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_logout() -> i32 {
+    match chatgpt_account::logout() {
+        Ok(()) => 0,
+        Err(e) => {
+            log::error!("ChatGPT sign-out failed: {e}");
+            -1
+        }
+    }
+}
+
+/// «Проверить»: one transcription of a second of silence through the stored
+/// sign-in. `{"ok": true}` or a failure as in `sp_chatgpt_login_start_json`.
+/// Blocks; call off the main thread. Caller must free with `sp_core_free_string()`.
+#[no_mangle]
+pub extern "C" fn sp_chatgpt_check_json() -> *mut c_char {
+    json_c_string(match chatgpt_account::check() {
+        Ok(()) => serde_json::json!({ "ok": true }),
+        Err(e) => chatgpt_failure(&e),
+    })
 }
 
 /// List remote models from OpenAI-compatible `{base_url}/models`.

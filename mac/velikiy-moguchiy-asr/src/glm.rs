@@ -66,7 +66,7 @@ impl Default for GlmAsrProvider {
 }
 
 /// Wrap raw PCM data (16-bit mono 16kHz) in a WAV container.
-fn wrap_wav(pcm: &[u8]) -> Vec<u8> {
+pub(crate) fn wrap_wav(pcm: &[u8]) -> Vec<u8> {
     let data_len = pcm.len() as u32;
     let sample_rate: u32 = 16000;
     let num_channels: u16 = 1;

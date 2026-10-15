@@ -10,7 +10,8 @@ use velikiy_moguchiy_asr::WeTypeOfflineProvider;
 #[cfg(feature = "apple-speech")]
 use velikiy_moguchiy_asr::{AppleSpeechConfig, AppleSpeechProvider};
 use velikiy_moguchiy_asr::{
-    AsrConfig, AsrProvider, DoubaoWsProvider, GlmAsrProvider, MimoAsrProvider, QwenAsrProvider,
+    AsrConfig, AsrProvider, ChatGptAsrProvider, DoubaoWsProvider, GlmAsrProvider, MimoAsrProvider,
+    QwenAsrProvider,
 };
 #[cfg(feature = "mlx")]
 use velikiy_moguchiy_asr::{MlxConfig, MlxProvider};
@@ -22,7 +23,7 @@ use velikiy_moguchiy_asr::{SherpaOnnxConfig, SherpaOnnxProvider};
 /// Cargo features are enabled.
 pub fn supported_providers() -> Vec<&'static str> {
     #[allow(unused_mut)]
-    let mut providers = vec!["qwen", "doubao", "glm", "mimo"];
+    let mut providers = vec!["qwen", "doubao", "glm", "mimo", "chatgpt"];
     #[cfg(feature = "mlx")]
     providers.push("mlx");
     #[cfg(feature = "sherpa-onnx")]
@@ -139,6 +140,18 @@ pub fn create_asr_provider(
                 instructions: None,
             };
             (config, Box::new(MimoAsrProvider::new()))
+        }
+        "chatgpt" => {
+            let language = cfg.asr.chatgpt.language.trim();
+            let config = AsrConfig {
+                url: velikiy_moguchiy_asr::chatgpt::TRANSCRIBE_URL.into(),
+                language: (!language.is_empty()).then(|| language.to_string()),
+                ..AsrConfig::default()
+            };
+            (
+                config,
+                Box::new(ChatGptAsrProvider::new(crate::chatgpt_account::store())),
+            )
         }
         #[cfg(feature = "mlx")]
         "mlx" => {
