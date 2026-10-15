@@ -182,6 +182,49 @@ impl Budget {
     }
 }
 
+/// User entries rendered for the instructions block, in order, as far as the
+/// budget allows. `seen` collects their lowercased terms.
+fn take_user_entries(
+    user: &[DictEntry],
+    budget: &mut Budget,
+    seen: &mut std::collections::HashSet<String>,
+) -> Vec<String> {
+    let mut items = Vec::new();
+    for entry in user {
+        if seen.insert(entry.term.to_lowercase()) {
+            let text = entry.render(MAX_USER_VARIANTS);
+            if budget.take(&text) {
+                items.push(text);
+            }
+        }
+    }
+    items
+}
+
+/// How much of the user's dictionary reaches the Omni instructions block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UserBudget {
+    /// Distinct terms (case-insensitive).
+    pub entries: usize,
+    /// Terms that fit under `MAX_PROMPT_ENTRIES` and `MAX_PROMPT_CHARS`.
+    pub kept: usize,
+    /// Characters the kept terms take.
+    pub chars: usize,
+}
+
+/// The share of the instructions block the user's own entries take; the
+/// starter list only fills what they leave.
+pub fn user_budget(user: &[DictEntry]) -> UserBudget {
+    let mut budget = Budget::new();
+    let mut seen = std::collections::HashSet::new();
+    let kept = take_user_entries(user, &mut budget, &mut seen).len();
+    UserBudget {
+        entries: seen.len(),
+        kept,
+        chars: budget.chars,
+    }
+}
+
 /// The compact "correct spelling" block for the Omni session instructions, or
 /// `None` when there is nothing to say. User entries go first and always win;
 /// then starter sections matching the frontmost app's category, then the
@@ -194,17 +237,8 @@ pub fn build_prompt_block(
     developer_tool: bool,
 ) -> Option<String> {
     let mut budget = Budget::new();
-    let mut items: Vec<String> = Vec::new();
     let mut seen = std::collections::HashSet::new();
-
-    for entry in user {
-        if seen.insert(entry.term.to_lowercase()) {
-            let text = entry.render(MAX_USER_VARIANTS);
-            if budget.take(&text) {
-                items.push(text);
-            }
-        }
-    }
+    let mut items = take_user_entries(user, &mut budget, &mut seen);
 
     let regular: Vec<&Section> = starter
         .iter()
@@ -318,6 +352,53 @@ pub fn ensure_starter_file(dir: &Path) -> Result<bool> {
         .map_err(|e| CoreError::Config(format!("write {}: {e}", path.display())))?;
     log::info!("created default: {}", path.display());
     Ok(true)
+}
+
+/// Text of the starter list as the app uses it: the copy in the config dir,
+/// or the built-in one when that file is missing.
+pub fn starter_text(dir: &Path) -> String {
+    std::fs::read_to_string(dir.join(STARTER_FILE_NAME))
+        .unwrap_or_else(|_| STARTER_DICTIONARY.to_string())
+}
+
+/// Counts of a dictionary text for the settings window.
+#[repr(C)]
+pub struct SPDictionaryStats {
+    /// Distinct terms in the text.
+    pub entries: u32,
+    /// Of them, the ones the Omni instructions block keeps.
+    pub kept: u32,
+    /// Characters the kept ones take.
+    pub chars: u32,
+    pub max_entries: u32,
+    pub max_chars: u32,
+}
+
+/// Counts for the dictionary text `content` (UTF-8, may be null).
+///
+/// # Safety
+/// `content` must be null or a valid null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn sp_dictionary_stats(
+    content: *const std::ffi::c_char,
+) -> SPDictionaryStats {
+    let text = unsafe { crate::ffi::cstr_to_str(content) }.unwrap_or("");
+    let budget = user_budget(&parse_entries(text));
+    SPDictionaryStats {
+        entries: budget.entries as u32,
+        kept: budget.kept as u32,
+        chars: budget.chars as u32,
+        max_entries: MAX_PROMPT_ENTRIES as u32,
+        max_chars: MAX_PROMPT_CHARS as u32,
+    }
+}
+
+/// The starter list text (see [`starter_text`]). Free with sp_core_free_string().
+#[no_mangle]
+pub extern "C" fn sp_dictionary_starter_text() -> *mut std::ffi::c_char {
+    std::ffi::CString::new(starter_text(&crate::config::config_dir()))
+        .unwrap_or_default()
+        .into_raw()
 }
 
 #[cfg(test)]
@@ -464,6 +545,46 @@ Go | го
         let block = build_prompt_block(&user(&lines), &[], AppCategory::Other, false).unwrap();
         assert!(block.matches("Term").count() <= MAX_PROMPT_ENTRIES);
         assert!(block.chars().count() < MAX_PROMPT_CHARS + 300);
+    }
+
+    #[test]
+    fn user_budget_counts_distinct_terms_and_what_fits() {
+        let budget = user_budget(&user("Kubernetes | кубер\nkubernetes\nGrafana"));
+        assert_eq!(budget.entries, 2);
+        assert_eq!(budget.kept, 2);
+        assert_eq!(budget.chars, "Kubernetes (кубер)".chars().count() + 2 + "Grafana".chars().count());
+
+        let lines: String = (0..500).map(|i| format!("Term{i}\n")).collect();
+        let budget = user_budget(&user(&lines));
+        assert_eq!(budget.entries, 500);
+        assert_eq!(budget.kept, MAX_PROMPT_ENTRIES);
+
+        let long: String = (0..40).map(|i| format!("Term{i} | {}\n", "вариант".repeat(10))).collect();
+        let budget = user_budget(&user(&long));
+        assert!(budget.kept < 40 && budget.chars <= MAX_PROMPT_CHARS, "{budget:?}");
+    }
+
+    #[test]
+    fn user_budget_matches_the_block() {
+        let lines: String = (0..200).map(|i| format!("Term{i} | вариант{i}\n")).collect();
+        let entries = user(&lines);
+        let block = build_prompt_block(&entries, &[], AppCategory::Other, false).unwrap();
+        assert_eq!(block.matches("Term").count(), user_budget(&entries).kept);
+    }
+
+    #[test]
+    fn stats_over_ffi() {
+        let text = std::ffi::CString::new("A\nB | б\n# c\n").unwrap();
+        let stats = unsafe { sp_dictionary_stats(text.as_ptr()) };
+        assert_eq!((stats.entries, stats.kept, stats.max_entries), (2, 2, 120));
+        let empty = unsafe { sp_dictionary_stats(std::ptr::null()) };
+        assert_eq!(empty.entries, 0);
+    }
+
+    #[test]
+    fn starter_text_falls_back_to_the_built_in_list() {
+        let dir = std::env::temp_dir().join("vm-dictionary-starter-missing");
+        assert_eq!(starter_text(&dir), STARTER_DICTIONARY);
     }
 
     #[test]

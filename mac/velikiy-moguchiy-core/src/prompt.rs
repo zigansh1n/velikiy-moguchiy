@@ -120,6 +120,15 @@ fn build_default_system_prompt() -> String {
     include_str!("default_system_prompt.txt").trim().to_string()
 }
 
+/// The built-in system prompt as first written to `system_prompt.txt`.
+/// Free with sp_core_free_string().
+#[no_mangle]
+pub extern "C" fn sp_default_system_prompt() -> *mut std::ffi::c_char {
+    std::ffi::CString::new(include_str!("default_system_prompt.txt"))
+        .unwrap_or_default()
+        .into_raw()
+}
+
 /// Built-in default user prompt template.
 /// cbindgen:ignore
 fn build_default_user_prompt_template() -> String {

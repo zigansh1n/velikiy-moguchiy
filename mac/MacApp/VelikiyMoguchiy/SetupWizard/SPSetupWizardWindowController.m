@@ -900,6 +900,9 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
 // Dictionary
 @property(nonatomic, strong) NSTextView *dictionaryTextView;
+@property(nonatomic, strong) NSTextField *dictionaryCountLabel;
+@property(nonatomic, strong) NSTextField *dictionaryWarningLabel;
+@property(nonatomic, strong) NSSwitch *starterDictionarySwitch;
 
 // Snippets
 @property(nonatomic, strong) SPFlippedDocumentView *snippetRows;
@@ -3606,25 +3609,75 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
   CGFloat y = contentHeight - 30.0;
 
-  // Description
-  NSTextField *desc =
-      [self addSettingsDescriptionText:
-                @"Пользовательский словарь — по одному термину в строке. Эти "
-                @"термины в приоритете при коррекции через LLM. Строки, "
-                @"начинающиеся с #, — комментарии."
-                                toPane:pane
-                                  topY:y
-                                     x:contentX
-                                 width:contentW];
+  NSTextField *desc = [self
+      addSettingsDescriptionText:
+          @"Словарь подсказывает распознаванию, как писать термины, имена и "
+          @"названия. Одна запись в строке: «Правильно | как произносят», "
+          @"например «Kubernetes | кубер, кубернетис». Часть после | "
+          @"необязательна, строки с # — комментарии.\n"
+          @"С Qwen Omni словарь уходит в каждую диктовку: сначала ваши записи, "
+          @"на оставшееся место — встроенный словарь IT-терминов, всего до 120 "
+          @"записей и 2500 знаков. С другими моделями распознавания термины "
+          @"уходят подсказками, а при включённой языковой модели — и ей."
+                          toPane:pane
+                            topY:y
+                               x:contentX
+                           width:contentW];
 
   NSTextField *sectionTitle = [self
-      sectionTitleLabel:@"Словарь"
+      sectionTitleLabel:@"Мой словарь"
                   frame:NSMakeRect(contentX, floor(NSMinY(desc.frame) - 36.0),
-                                   contentW, 20)];
+                                   contentW - 160.0, 20)];
   [pane addSubview:sectionTitle];
 
-  // Text editor
-  CGFloat editorCardY = SPTheme.pageMargin;
+  self.dictionaryCountLabel = [NSTextField labelWithString:@""];
+  self.dictionaryCountLabel.font = SPTheme.bodyFont;
+  self.dictionaryCountLabel.textColor = SPTheme.secondaryLabel;
+  self.dictionaryCountLabel.alignment = NSTextAlignmentRight;
+  self.dictionaryCountLabel.frame =
+      NSMakeRect(contentX + contentW - 160.0, NSMinY(sectionTitle.frame), 160.0, 20);
+  self.dictionaryCountLabel.toolTip =
+      @"Сколько ваших записей уходит в диктовку с Qwen Omni";
+  [pane addSubview:self.dictionaryCountLabel];
+
+  // Built-in list toggle at the bottom, the warning above it.
+  CGFloat starterCardH = 48.0;
+  self.starterDictionarySwitch = [self settingsSwitchWithAction:NULL];
+  self.starterDictionarySwitch.accessibilityIdentifier = @"dictionary.starter";
+  NSView *starterCard = [self
+      settingsToggleCardWithFrame:NSMakeRect(contentX, SPTheme.pageMargin,
+                                             contentW, starterCardH)
+                            title:[self starterDictionaryTitle]
+                           toggle:self.starterDictionarySwitch];
+  NSButton *showStarter = [NSButton buttonWithTitle:@"Показать…"
+                                             target:self
+                                             action:@selector(showStarterDictionary:)];
+  showStarter.controlSize = NSControlSizeSmall;
+  showStarter.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
+  [showStarter sizeToFit];
+  showStarter.frame = NSMakeRect(
+      NSMinX(self.starterDictionarySwitch.frame) - NSWidth(showStarter.frame) - 12.0,
+      floor((starterCardH - NSHeight(showStarter.frame)) / 2.0),
+      NSWidth(showStarter.frame), NSHeight(showStarter.frame));
+  for (NSView *subview in starterCard.subviews) {
+    if ([subview isKindOfClass:[NSTextField class]]) {
+      NSRect frame = subview.frame;
+      frame.size.width = NSMinX(showStarter.frame) - NSMinX(frame) - 8.0;
+      subview.frame = frame;
+    }
+  }
+  [starterCard addSubview:showStarter];
+  [pane addSubview:starterCard];
+
+  self.dictionaryWarningLabel = [NSTextField wrappingLabelWithString:@""];
+  self.dictionaryWarningLabel.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
+  self.dictionaryWarningLabel.textColor = NSColor.systemOrangeColor;
+  self.dictionaryWarningLabel.frame =
+      NSMakeRect(contentX + 2.0, NSMaxY(starterCard.frame) + 6.0, contentW - 4.0, 30.0);
+  self.dictionaryWarningLabel.hidden = YES;
+  [pane addSubview:self.dictionaryWarningLabel];
+
+  CGFloat editorCardY = NSMaxY(self.dictionaryWarningLabel.frame) + 6.0;
   CGFloat editorTopY = NSMinY(sectionTitle.frame) - 12.0;
   CGFloat editorHeight = editorTopY - editorCardY;
   NSView *editorCard =
@@ -3658,10 +3711,71 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   [self styleEditorTextView:self.dictionaryTextView scrollView:scrollView];
   scrollView.documentView = self.dictionaryTextView;
   [editorCard addSubview:scrollView];
-
-  // Save / Cancel buttons
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(dictionaryTextDidChange:)
+                                               name:NSTextDidChangeNotification
+                                             object:self.dictionaryTextView];
 
   return pane;
+}
+
+- (NSString *)starterDictionaryTitle {
+  char *raw = sp_dictionary_starter_text();
+  struct SPDictionaryStats stats = sp_dictionary_stats(raw);
+  sp_core_free_string(raw);
+  return [NSString stringWithFormat:@"Встроенный словарь IT-терминов (%u)", stats.entries];
+}
+
+- (void)dictionaryTextDidChange:(NSNotification *)notification {
+  [self updateDictionaryCount];
+}
+
+/// «N из 120» and, when the user's entries do not all fit the Omni block, a
+/// warning naming how many are left out.
+- (void)updateDictionaryCount {
+  if (!self.dictionaryTextView) return;
+  struct SPDictionaryStats stats =
+      sp_dictionary_stats(self.dictionaryTextView.string.UTF8String);
+  self.dictionaryCountLabel.stringValue =
+      [NSString stringWithFormat:@"%u из %u", stats.kept, stats.max_entries];
+  uint32_t cut = stats.entries - stats.kept;
+  self.dictionaryCountLabel.textColor =
+      cut > 0 ? NSColor.systemOrangeColor : SPTheme.secondaryLabel;
+  self.dictionaryWarningLabel.hidden = cut == 0;
+  if (cut > 0) {
+    self.dictionaryWarningLabel.stringValue = [NSString
+        stringWithFormat:@"Не помещаются %u из %u записей: в диктовку уходят первые "
+                         @"%u записей и не больше %u знаков, остальные пропускаются. "
+                         @"Важные держите вверху, длинные списки вариантов сократите.",
+                         cut, stats.entries, stats.max_entries, stats.max_chars];
+  }
+}
+
+- (void)showStarterDictionary:(id)sender {
+  char *raw = sp_dictionary_starter_text();
+  NSString *text = raw ? ([NSString stringWithUTF8String:raw] ?: @"") : @"";
+  sp_core_free_string(raw);
+
+  NSScrollView *scroll = [NSTextView scrollableTextView];
+  scroll.frame = NSMakeRect(0, 0, 560, 360);
+  scroll.hasVerticalScroller = YES;
+  scroll.borderType = NSBezelBorder;
+  NSTextView *textView = scroll.documentView;
+  textView.editable = NO;
+  textView.selectable = YES;
+  textView.font = [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightRegular];
+  textView.string = text;
+
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = @"Встроенный словарь IT-терминов";
+  alert.informativeText =
+      @"Только для чтения. Он заполняет место, которое осталось после ваших "
+      @"записей; если термин есть и у вас, берётся ваша запись. Первыми идут "
+      @"разделы под текущее приложение, «Омонимы» — только в редакторах кода. "
+      @"Чтобы поправить термин, добавьте его в свой словарь.";
+  alert.accessoryView = scroll;
+  [alert addButtonWithTitle:@"Закрыть"];
+  [alert beginSheetModalForWindow:self.window completionHandler:nil];
 }
 
 - (NSView *)buildSnippetsPane {
@@ -3834,6 +3948,21 @@ static const CGFloat kSnippetRowHeight = 58.0;
   return data ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : @"";
 }
 
+- (void)resetSystemPrompt:(id)sender {
+  char *raw = sp_default_system_prompt();
+  NSString *prompt = raw ? ([NSString stringWithUTF8String:raw] ?: @"") : @"";
+  sp_core_free_string(raw);
+  NSTextView *textView = self.systemPromptTextView;
+  if (prompt.length == 0 || !textView || [textView.string isEqualToString:prompt]) return;
+  // shouldChangeText…/didChangeText record the change for undo, so ⌘Z brings
+  // the edited prompt back.
+  NSRange all = NSMakeRange(0, textView.string.length);
+  if ([textView shouldChangeTextInRange:all replacementString:prompt]) {
+    [textView.textStorage replaceCharactersInRange:all withString:prompt];
+    [textView didChangeText];
+  }
+}
+
 - (NSView *)buildSystemPromptPane {
   CGFloat paneWidth = [self paneContentWidth];
   CGFloat contentHeight = [self paneViewportHeight];
@@ -3846,8 +3975,12 @@ static const CGFloat kSnippetRowHeight = 58.0;
 
   // Description
   NSTextField *desc = [self
-      addSettingsDescriptionText:@"Системный промпт, который отправляется в LLM для коррекции "
-                                 @"текста. Измените его, чтобы настроить поведение."
+      addSettingsDescriptionText:
+          @"Инструкция для языковой модели, которая правит текст после "
+          @"распознавания. Действует, только когда во вкладке «Языковая модель» "
+          @"правка включена и профиль настроен, и только для обычной диктовки: "
+          @"перевод, вопрос и правка голосом её не используют, а режимы вывода "
+          @"Qwen Omni заданы отдельно. Пустой промпт — то же, что стандартный."
                           toPane:pane
                             topY:y
                                x:contentX
@@ -3856,8 +3989,20 @@ static const CGFloat kSnippetRowHeight = 58.0;
   NSTextField *sectionTitle = [self
       sectionTitleLabel:@"Системный промпт"
                   frame:NSMakeRect(contentX, floor(NSMinY(desc.frame) - 36.0),
-                                   contentW, 20)];
+                                   contentW - 200.0, 20)];
   [pane addSubview:sectionTitle];
+
+  NSButton *resetPrompt = [NSButton buttonWithTitle:@"Вернуть стандартный"
+                                             target:self
+                                             action:@selector(resetSystemPrompt:)];
+  resetPrompt.controlSize = NSControlSizeSmall;
+  resetPrompt.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
+  resetPrompt.toolTip = @"Подставить исходный промпт; применится после «Сохранить»";
+  [resetPrompt sizeToFit];
+  resetPrompt.frame = NSMakeRect(contentX + contentW - NSWidth(resetPrompt.frame),
+                                 NSMinY(sectionTitle.frame) - 2.0,
+                                 NSWidth(resetPrompt.frame), NSHeight(resetPrompt.frame));
+  [pane addSubview:resetPrompt];
 
   // Text editor
   CGFloat editorCardY = SPTheme.pageMargin;
@@ -6363,6 +6508,11 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
             ?: @"";
     [self.dictionaryTextView setString:dictContent];
     self.loadedDictionaryContent = dictContent;
+    [self updateDictionaryCount];
+    BOOL starter = configBooleanValue(configGet(@"dictionary.starter_enabled"), YES);
+    self.starterDictionarySwitch.state =
+        starter ? NSControlStateValueOn : NSControlStateValueOff;
+    [self rememberLoadedBooleanValue:starter forKey:@"dictionary.starter_enabled"];
   } else if ([identifier isEqualToString:kToolbarSystemPrompt]) {
     NSString *promptPath =
         [dir stringByAppendingPathComponent:kSystemPromptFile];
@@ -6689,6 +6839,12 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       if ([self shouldPersistBooleanValue:value forKey:key]) {
         saveOk &= configSet(key, value ? @"true" : @"false");
       }
+    }
+  }
+  if (self.starterDictionarySwitch) {
+    BOOL starter = self.starterDictionarySwitch.state == NSControlStateValueOn;
+    if ([self shouldPersistBooleanValue:starter forKey:@"dictionary.starter_enabled"]) {
+      saveOk &= configSet(@"dictionary.starter_enabled", starter ? @"true" : @"false");
     }
   }
   if (self.saveRecordingsSwitch) {

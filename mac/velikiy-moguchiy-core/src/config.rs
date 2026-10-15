@@ -709,6 +709,10 @@ pub struct FeedbackSection {
 pub struct DictionarySection {
     #[serde(default = "default_dictionary_path")]
     pub path: String,
+    /// Whether the built-in IT list (`dictionary-it-ru.txt`) joins the user's
+    /// entries in the Omni instructions.
+    #[serde(default = "default_true")]
+    pub starter_enabled: bool,
 }
 
 // ─── Clipboard Configuration ────────────────────────────────────────

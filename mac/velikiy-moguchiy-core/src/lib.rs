@@ -486,9 +486,11 @@ fn prepare_omni_dictation() -> Option<PreparedDictation> {
     }
     let user_dictionary =
         dictionary::load_entries(&config::resolve_dictionary_path(&cfg)).unwrap_or_default();
-    let starter_dictionary = dictionary::load_starter_sections(
-        &config::config_dir().join(dictionary::STARTER_FILE_NAME),
-    );
+    let starter_dictionary = if cfg.dictionary.starter_enabled {
+        dictionary::load_starter_sections(&config::config_dir().join(dictionary::STARTER_FILE_NAME))
+    } else {
+        Vec::new()
+    };
     let field = if cfg.asr.qwen.use_field_context {
         app_context::capture_field_context()
     } else {
