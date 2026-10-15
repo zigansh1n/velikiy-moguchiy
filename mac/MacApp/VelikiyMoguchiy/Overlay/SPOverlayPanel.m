@@ -1,4 +1,7 @@
 #import "SPOverlayPanel.h"
+#import "SPOverlayCard.h"
+#import "SPOverlayLayout.h"
+#import "SPOverlayPalette.h"
 #import "SPTheme.h"
 #import "velikiy_moguchiy_core.h"
 #import <QuartzCore/QuartzCore.h>
@@ -8,12 +11,9 @@ static const CGFloat kPillWidth  = 76.0;
 static const CGFloat kPillHeight = 30.0;
 static const CGFloat kDefaultBottomMargin = 10.0;
 static const CGFloat kMaxBottomMargin = 180.0;
-// A message widens the pill: the icon on the left, one line of text after it.
-static const CGFloat kMessageMaxWidth = 420.0;
-static const CGFloat kMessageEdgeInset = 12.0;
-static const CGFloat kMessageGap = 8.0;
-static const CGFloat kMessageRightInset = 16.0;
-static const CGFloat kMessageFontSize = 12.5;
+// The caption next to the pill: one line of text on a small plate.
+static const CGFloat kCaptionFontSize = 12.0;
+static const CGFloat kCaptionInsetX = 10.0;
 
 // Waveform bars
 static const NSInteger kBarCount   = 6;
@@ -55,28 +55,6 @@ static const NSTimeInterval kModeLetterLingerDuration = 1.2;
 static const NSTimeInterval kMessageMinLinger = 3.0;
 static const NSTimeInterval kMessageMaxLinger = 7.0;
 static const NSTimeInterval kMessageLingerPerChar = 0.06;
-
-// An ink plate edged in ochre, with parchment-coloured marks: the overlay is
-// the same old book page as the Settings window, in its dark appearance.
-static NSColor *SPOverlaySurfaceTintColor(void) {
-    return [NSColor colorWithSRGBRed:0x0E / 255.0 green:0x0A / 255.0 blue:0x08 / 255.0 alpha:0.96];
-}
-
-static NSColor *SPOverlayInkColor(void) {
-    return [NSColor colorWithSRGBRed:0xE8 / 255.0 green:0xDC / 255.0 blue:0xC8 / 255.0 alpha:1.0];
-}
-
-static NSColor *SPOverlayOchreColor(void) {
-    return [NSColor colorWithSRGBRed:0xD9 / 255.0 green:0xB8 / 255.0 blue:0x65 / 255.0 alpha:1.0];
-}
-
-static NSColor *SPOverlayCinnabarColor(void) {
-    return [NSColor colorWithSRGBRed:0xD9 / 255.0 green:0x82 / 255.0 blue:0x6C / 255.0 alpha:1.0];
-}
-
-static NSColor *SPOverlayShadowColor(void) {
-    return [NSColor colorWithSRGBRed:0.04 green:0.035 blue:0.015 alpha:1.0];
-}
 
 static CGFloat SPOverlayClampBottomMargin(CGFloat bottomMargin) {
     return fmin(fmax(bottomMargin, 0.0), kMaxBottomMargin);
@@ -135,31 +113,16 @@ typedef NS_ENUM(NSInteger, SPOverlayMode) {
     SPOverlayModeNotice,
 };
 
-/// Width the icon of `mode` takes on the left of a message.
-static CGFloat SPOverlayIconSlotWidth(SPOverlayMode mode) {
-    if (mode == SPOverlayModeWaveform) return 6 * 3.0 + 5 * 3.0;
-    // The extra room keeps the first lozenge clear of the clasp stud at the edge.
-    if (mode == SPOverlayModeProcessing) return 2 * (kLozengeSpacing + kLozengeHalfW) + 6.0;
-    return 18.0;
-}
-
-static NSAttributedString *SPOverlayMessageString(NSString *text) {
+static NSAttributedString *SPOverlayCaptionString(NSString *text) {
     NSMutableParagraphStyle *paragraph = [[NSMutableParagraphStyle alloc] init];
     paragraph.lineBreakMode = NSLineBreakByTruncatingTail;
+    paragraph.alignment = NSTextAlignmentCenter;
     return [[NSAttributedString alloc] initWithString:text
                                            attributes:@{
-        NSFontAttributeName : [NSFont systemFontOfSize:kMessageFontSize weight:NSFontWeightMedium],
+        NSFontAttributeName : [NSFont systemFontOfSize:kCaptionFontSize weight:NSFontWeightMedium],
         NSForegroundColorAttributeName : SPOverlayInkColor(),
         NSParagraphStyleAttributeName : paragraph,
     }];
-}
-
-/// The pill's width for `message` next to the icon of `mode`; the compact width without one.
-static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, CGFloat screenWidth) {
-    if (message.length == 0) return kPillWidth;
-    CGFloat textWidth = ceil(SPOverlayMessageString(message).size.width);
-    CGFloat width = kMessageEdgeInset + SPOverlayIconSlotWidth(mode) + kMessageGap + textWidth + kMessageRightInset;
-    return fmax(kPillWidth, fmin(width, fmin(kMessageMaxWidth, screenWidth - 32.0)));
 }
 
 // ── Click-aware effect view ──────────────────────────────
@@ -186,8 +149,6 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
 @property (nonatomic, assign) SPOverlayMode mode;
 @property (nonatomic, assign) NSInteger     tick;  // animation counter
 @property (nonatomic, copy)   NSString     *letter; // SPOverlayModeLetter
-/// One line after the icon; nil keeps the compact pill.
-@property (nonatomic, copy)   NSString     *message;
 @property (nonatomic, copy)   NSString     *symbolName; // SPOverlayModeNotice
 /// Zero the smoothed bar levels so a new recording does not start from the
 /// previous one's tail.
@@ -239,18 +200,6 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
 
     CGFloat centerX = NSMidX(bounds);
     CGFloat centerY = NSMidY(bounds);
-    if (self.message.length > 0) {
-        CGFloat slot = SPOverlayIconSlotWidth(self.mode);
-        centerX = NSMinX(bounds) + kMessageEdgeInset + slot / 2.0;
-        CGFloat textX = NSMinX(bounds) + kMessageEdgeInset + slot + kMessageGap;
-        NSRect textRect = NSMakeRect(textX, 0, NSMaxX(bounds) - kMessageRightInset - textX, NSHeight(bounds));
-        NSAttributedString *line = SPOverlayMessageString(self.message);
-        NSSize size = line.size;
-        textRect.origin.y = floor(centerY - size.height / 2.0);
-        textRect.size.height = ceil(size.height);
-        [line drawWithRect:textRect
-                   options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingTruncatesLastVisibleLine];
-    }
 
     switch (self.mode) {
         case SPOverlayModeWaveform:
@@ -442,6 +391,27 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
 
 @end
 
+// ── Caption ──────────────────────────────────────────────
+
+@interface SPOverlayCaptionView : NSView
+@property (nonatomic, copy) NSString *text;
+@end
+
+@implementation SPOverlayCaptionView
+
+- (void)drawRect:(NSRect)dirtyRect {
+    NSRect bounds = self.bounds;
+    SPOverlayDrawPlate(bounds, NSHeight(bounds) / 2.0);
+    NSAttributedString *line = SPOverlayCaptionString(self.text ?: @"");
+    CGFloat lineHeight = ceil(line.size.height);
+    NSRect textRect = NSMakeRect(kCaptionInsetX, floor(NSMidY(bounds) - lineHeight / 2.0),
+                                 NSWidth(bounds) - 2 * kCaptionInsetX, lineHeight);
+    [line drawWithRect:textRect
+               options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingTruncatesLastVisibleLine];
+}
+
+@end
+
 // ── Main overlay controller ──────────────────────────────
 
 @interface SPOverlayPanel ()
@@ -456,7 +426,13 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
 @property (nonatomic, assign) CGFloat configuredBottomMargin;
 @property (nonatomic, assign, getter=isPreviewActive) BOOL previewActive;
 @property (nonatomic, assign) BOOL rawAsrFallbackClickEnabled;
-@property (nonatomic, assign) CGFloat pillWidth;
+@property (nonatomic, strong) NSPanel *captionPanel;
+@property (nonatomic, strong) SPOverlayCaptionView *captionView;
+/// The line in the caption; nil when there is none.
+@property (nonatomic, copy)   NSString *caption;
+/// A result caption ("Скопировано", "Отменено") lingers with its icon, not like a message.
+@property (nonatomic, assign) BOOL captionIsBadge;
+@property (nonatomic, strong) SPOverlayCard *card;
 
 @end
 
@@ -468,8 +444,9 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
         _currentState = @"idle";
         _bottomMargin = kDefaultBottomMargin;
         _configuredBottomMargin = kDefaultBottomMargin;
-        _pillWidth = kPillWidth;
         [self setupPanel];
+        [self setupCaptionPanel];
+        [self setupCard];
         [self reloadAppearanceFromConfig];
         [[NSWorkspace sharedWorkspace].notificationCenter
             addObserver:self
@@ -508,6 +485,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 - (void)activeSpaceDidChange:(NSNotification *)notification {
     if (self.panel.isVisible && self.panel.alphaValue > 0.01) {
         SPOrderFrontOnActiveSpace(self.panel);
+        if (self.caption.length > 0) SPOrderFrontOnActiveSpace(self.captionPanel);
     }
 }
 
@@ -651,6 +629,43 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     self.panel = panel;
 }
 
+- (void)setupCaptionPanel {
+    NSRect rect = NSMakeRect(0, 0, kPillWidth, SPOverlayLayout.captionHeight);
+    NSPanel *panel = [[NSPanel alloc] initWithContentRect:rect
+                                                styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+                                                  backing:NSBackingStoreBuffered
+                                                    defer:YES];
+    panel.level = NSStatusWindowLevel;
+    panel.collectionBehavior = self.panel.collectionBehavior;
+    panel.backgroundColor = NSColor.clearColor;
+    panel.opaque = NO;
+    panel.hasShadow = NO;
+    panel.ignoresMouseEvents = YES;
+    panel.hidesOnDeactivate = NO;
+    panel.alphaValue = 0.0;
+    self.captionView = [[SPOverlayCaptionView alloc] initWithFrame:rect];
+    self.captionView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    panel.contentView = self.captionView;
+    self.captionPanel = panel;
+}
+
+- (void)setupCard {
+    self.card = [[SPOverlayCard alloc] init];
+    __weak typeof(self) weakSelf = self;
+    self.card.copyHandler = ^(NSString *text) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if ([strongSelf.delegate respondsToSelector:@selector(overlayPanel:didCopyCardText:)]) {
+            [strongSelf.delegate overlayPanel:strongSelf didCopyCardText:text];
+        }
+    };
+    self.card.closeHandler = ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if ([strongSelf.delegate respondsToSelector:@selector(overlayPanelDidCloseCard:)]) {
+            [strongSelf.delegate overlayPanelDidCloseCard:strongSelf];
+        }
+    };
+}
+
 - (void)setMainPanelInteractive:(BOOL)interactive {
     self.panel.ignoresMouseEvents = !interactive;
 }
@@ -671,7 +686,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     [self clearLingerTimer];
     [self setRawAsrFallbackClickEnabled:NO];
     self.currentState = @"idle";
-    self.contentView.message = nil;
+    self.caption = nil;
     [self hide];
 
     if ([self.delegate respondsToSelector:@selector(overlayPanelDidDismiss:)]) {
@@ -695,30 +710,102 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 
 /// How long the icon of the current mode stays on screen before the pill hides.
 - (NSTimeInterval)lingerDurationForCurrentMode {
-    if (self.contentView.message.length > 0) {
+    if (self.caption.length > 0 && !self.captionIsBadge) {
         return fmin(kMessageMaxLinger,
-                    fmax(kMessageMinLinger, self.contentView.message.length * kMessageLingerPerChar + 1.5));
+                    fmax(kMessageMinLinger, self.caption.length * kMessageLingerPerChar + 1.5));
     }
+    NSTimeInterval iconLinger;
     switch (self.contentView.mode) {
-        case SPOverlayModeClipboard: return kClipboardLingerDuration;
-        case SPOverlayModeCancelled: return kCancelledLingerDuration;
-        case SPOverlayModeError:     return kErrorLingerDuration;
-        case SPOverlayModeLetter:    return kModeLetterLingerDuration;
-        default:                     return kSuccessLingerDuration;
+        case SPOverlayModeClipboard: iconLinger = kClipboardLingerDuration; break;
+        case SPOverlayModeCancelled: iconLinger = kCancelledLingerDuration; break;
+        case SPOverlayModeError:     iconLinger = kErrorLingerDuration; break;
+        case SPOverlayModeLetter:    iconLinger = kModeLetterLingerDuration; break;
+        default:                     iconLinger = kSuccessLingerDuration; break;
     }
+    return [SPOverlayLayout lingerForCaption:self.caption iconLinger:iconLinger];
 }
 
 #pragma mark - Public
 
 - (BOOL)isShowingMessage {
-    return self.contentView.message.length > 0 && [self.currentState isEqualToString:@"message"];
+    return self.caption.length > 0 && [self.currentState isEqualToString:@"message"];
 }
 
-/// Puts `message` (or nothing) after the icon and resizes the pill to fit.
+/// Puts `message` (or nothing) in the caption; the pill keeps its size.
 - (void)applyMessage:(NSString *)message {
-    self.contentView.message = message.length > 0 ? message : nil;
-    NSRect visible = (self.screenOverride ?: [NSScreen mainScreen]).visibleFrame;
-    self.pillWidth = SPOverlayWidthForMessage(self.contentView.message, self.contentView.mode, NSWidth(visible));
+    self.caption = message.length > 0 ? message : nil;
+    self.captionIsBadge = NO;
+    [self refreshCaption];
+}
+
+/// Sizes and places the caption for the current text, shown while the pill is.
+- (void)refreshCaption {
+    if (self.caption.length == 0) {
+        self.captionPanel.alphaValue = 0.0;
+        [self.captionPanel orderOut:nil];
+        return;
+    }
+    self.captionView.text = self.caption;
+    [self.captionView setNeedsDisplay:YES];
+    [self positionCaption];
+    if (self.panel.isVisible && self.panel.alphaValue > 0.01) [self showCaption];
+}
+
+- (void)positionCaption {
+    if (self.caption.length == 0) return;
+    CGFloat width = ceil(SPOverlayCaptionString(self.caption).size.width) + 2 * kCaptionInsetX;
+    NSRect frame = [SPOverlayLayout captionFrameWithWidth:width
+                                                     pill:[self pillFrame]
+                                             visibleFrame:[self pillScreen].visibleFrame];
+    [self.captionPanel setFrame:frame display:YES];
+}
+
+- (void)showCaption {
+    if (self.caption.length == 0) return;
+    [self positionCaption];
+    SPOrderFrontOnActiveSpace(self.captionPanel);
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *ctx) {
+        ctx.duration = kFadeInDuration;
+        self.captionPanel.animator.alphaValue = 1.0;
+    }];
+}
+
+- (void)hideCaption {
+    if (!self.captionPanel.isVisible) return;
+    NSPanel *captionPanel = self.captionPanel;
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *ctx) {
+        ctx.duration = kPanelExitDuration;
+        captionPanel.animator.alphaValue = 0.0;
+    } completionHandler:^{
+        if (captionPanel.alphaValue <= 0.01) [captionPanel orderOut:nil];
+    }];
+}
+
+- (void)showCardWithTitle:(NSString *)title text:(NSString *)text copyable:(BOOL)copyable {
+    if (text.length == 0) return;
+    NSRect pill = [self pillFrame];
+    NSRect visible = [self pillScreen].visibleFrame;
+    BOOL captionAbove = self.caption.length > 0 && ![SPOverlayLayout captionGoesBelowPill:pill visibleFrame:visible];
+    [self.card showTitle:title
+                    text:text
+                copyable:copyable
+          frameForHeight:^NSRect(CGFloat contentHeight) {
+        return [SPOverlayLayout cardFrameWithContentHeight:contentHeight
+                                                      pill:pill
+                                              captionAbove:captionAbove
+                                              visibleFrame:visible];
+    }];
+    if ([self.delegate respondsToSelector:@selector(overlayPanelDidShowCard:)]) {
+        [self.delegate overlayPanelDidShowCard:self];
+    }
+}
+
+- (void)dismissCard {
+    [self.card close];
+}
+
+- (BOOL)isShowingCard {
+    return self.card.isVisible;
 }
 
 - (void)showMessage:(NSString *)text icon:(SPOverlayMessageIcon)icon {
@@ -767,7 +854,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 }
 
 - (void)applyHint:(NSString *)hint {
-    NSString *current = self.contentView.message ?: @"";
+    NSString *current = self.caption ?: @"";
     if ([current isEqualToString:hint ?: @""]) return;
     [self applyMessage:hint];
     [self positionPanel];
@@ -775,8 +862,9 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 }
 
 - (void)updateState:(NSString *)state {
-    // The session ending quietly must not cut short a message being read.
-    if (self.isShowingMessage &&
+    // The session ending quietly must not cut short a message or a caption being read.
+    BOOL captionLingering = self.captionIsBadge && self.caption.length > 0 && self.lingerTimer;
+    if ((self.isShowingMessage || captionLingering) &&
         ([state isEqualToString:@"idle"] || [state isEqualToString:@"completed"])) {
         return;
     }
@@ -813,16 +901,24 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     [self stopAnimation];
 
     if ([state isEqualToString:@"idle"] || [state isEqualToString:@"completed"]) {
-        self.contentView.message = nil;
+        self.caption = nil;
         [self hide];
         return;
     }
 
     if (mode == SPOverlayModeWaveform) {
         [(SPOverlayContentView *)self.contentView resetLevels];
+        // A new recording: the previous answer is done with.
+        if (!isPreviewState) [self.card close];
     }
     self.contentView.mode = mode;
-    [self applyMessage:nil];
+    if (mode == SPOverlayModeCancelled) {
+        self.caption = @"Отменено";
+        self.captionIsBadge = YES;
+        [self refreshCaption];
+    } else {
+        [self applyMessage:nil];
+    }
     self.contentView.tick = 0;
     [self positionPanel];
     [self.contentView setNeedsDisplay:YES];
@@ -863,15 +959,18 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     [self scheduleDismissAfter:kModeLetterLingerDuration];
 }
 
-/// Every badge means the text reached the clipboard but not the field.
 - (void)showResultBadge:(NSString *)badgeText {
     if (badgeText.length == 0) return;
     [self stopAnimation];
-    self.contentView.mode = SPOverlayModeClipboard;
-    [self applyMessage:nil];
-    [self positionPanel];
+    SPOverlayBadgeIcon icon = [SPOverlayLayout iconForBadgeText:badgeText];
+    self.contentView.mode = icon == SPOverlayBadgeIconClipboard ? SPOverlayModeClipboard : SPOverlayModeSuccess;
     self.contentView.tick = 0;
+    [self positionPanel];
     [self.contentView setNeedsDisplay:YES];
+    self.caption = [SPOverlayLayout captionForBadgeText:badgeText];
+    self.captionIsBadge = YES;
+    [self refreshCaption];
+    if (icon == SPOverlayBadgeIconSuccess) [self startAnimation];
 }
 
 - (void)shake {
@@ -979,13 +1078,22 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 
 #pragma mark - Layout
 
+- (NSScreen *)pillScreen {
+    return self.screenOverride ?: [NSScreen mainScreen];
+}
+
+/// Where the pill sits when shown, whether or not it is on screen now.
+- (NSRect)pillFrame {
+    NSRect visible = [self pillScreen].visibleFrame;
+    return NSMakeRect(round(NSMidX(visible) - kPillWidth / 2.0),
+                      NSMinY(visible) + self.bottomMargin,
+                      kPillWidth,
+                      kPillHeight);
+}
+
 - (void)positionPanel {
-    NSRect visible = (self.screenOverride ?: [NSScreen mainScreen]).visibleFrame;
-    NSRect frame = NSMakeRect(round(NSMidX(visible) - self.pillWidth / 2.0),
-                              NSMinY(visible) + self.bottomMargin,
-                              self.pillWidth,
-                              kPillHeight);
-    [self.panel setFrame:frame display:YES];
+    [self.panel setFrame:[self pillFrame] display:YES];
+    [self positionCaption];
 }
 
 #pragma mark - Show / Hide
@@ -994,6 +1102,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     BOOL wasVisible = self.panel.isVisible && self.panel.alphaValue > 0.01;
     [self resetMotionPresentationState];
     SPOrderFrontOnActiveSpace(self.panel);
+    [self showCaption];
 
     if (wasVisible || SPOverlayShouldReduceMotion()) {
         if (!wasVisible) {
@@ -1050,6 +1159,7 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     [self stopAnimation];
     [self setRawAsrFallbackClickEnabled:NO];
     [self setMainPanelInteractive:NO];
+    [self hideCaption];
 
     if (!self.panel.isVisible || self.panel.alphaValue <= 0.01) {
         [self.panel orderOut:nil];

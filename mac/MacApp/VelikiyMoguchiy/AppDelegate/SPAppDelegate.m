@@ -117,6 +117,8 @@
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSDate *> *warningShownAt;
 // A message that waits for the pill to finish the result of the session.
 @property (nonatomic, strong) SPErrorExplanation *pendingPillMessage;
+/// The abort-key handler that closes the overlay card while no session runs.
+@property (nonatomic, copy) BOOL (^cardEscHandler)(void);
 // Polls the permissions while one is missing, so granting it later needs no restart.
 @property (nonatomic, strong) NSTimer *permissionWatchTimer;
 @property (nonatomic, assign) BOOL watchedAccessibilityGranted;
@@ -798,7 +800,7 @@ static BOOL SPLabFlag(const char *name) {
                                        detail:@"Разрешите его: Системные настройки → Конфиденциальность → Микрофон → "
                                               @"«Великий & Могучий». Перезапускать приложение не нужно."
                                        action:SPErrorActionMicrophonePrivacy];
-    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self showErrorOnPill:explanation];
     [self sendErrorNotificationForExplanation:explanation];
     return YES;
 }
@@ -1791,8 +1793,8 @@ static BOOL SPLabFlag(const char *name) {
         [self.clipboardManager cancelPendingRestore];
         [self.clipboardManager writeText:text];
         [self.statusBarManager updateState:@"idle"];
-        [self.overlayPanel showMessage:@"Не вставилось целиком — текст в буфере, ⌘V"
-                                  icon:SPOverlayMessageIconClipboard];
+        [self.overlayPanel showMessage:@"Не вставилось целиком — в буфере" icon:SPOverlayMessageIconClipboard];
+        [self showUnpastedTranslation:text purpose:purpose];
         [self applyDeferredConfigReloadIfNeeded];
         return;
     }
@@ -1820,8 +1822,10 @@ static BOOL SPLabFlag(const char *name) {
         [self.clipboardManager cancelPendingRestore];
         [self.clipboardManager writeText:text];
         [self.statusBarManager updateState:@"idle"];
-        [self.overlayPanel showMessage:[@"Ответ в буфере: " stringByAppendingString:[self firstLineOfText:text]]
-                                  icon:SPOverlayMessageIconClipboard];
+        [self.overlayPanel updateState:@"pasting"];
+        [self.overlayPanel showResultBadge:@"✓ Скопировано"];
+        [self.overlayPanel lingerAndDismiss];
+        [self.overlayPanel showCardWithTitle:@"Ответ" text:text copyable:YES];
         [self applyDeferredConfigReloadIfNeeded];
         return;
     }
@@ -1855,7 +1859,8 @@ static BOOL SPLabFlag(const char *name) {
         [self.clipboardManager cancelPendingRestore];
         [self.clipboardManager writeText:text];
         [self.statusBarManager updateState:@"idle"];
-        [self.overlayPanel showMessage:@"Некуда вставить — текст в буфере, ⌘V" icon:SPOverlayMessageIconClipboard];
+        [self.overlayPanel showMessage:@"Некуда вставить — в буфере" icon:SPOverlayMessageIconClipboard];
+        [self showUnpastedTranslation:text purpose:purpose];
         [self applyDeferredConfigReloadIfNeeded];
         return;
     }
@@ -1905,8 +1910,8 @@ static BOOL SPLabFlag(const char *name) {
                 // the user can paste manually; restoring the backup over it
                 // would throw the transcript away.
                 [self.clipboardManager cancelPendingRestore];
-                [self.overlayPanel showMessage:@"Не вставилось — текст в буфере, ⌘V"
-                                          icon:SPOverlayMessageIconClipboard];
+                [self.overlayPanel showMessage:@"Не вставилось — в буфере" icon:SPOverlayMessageIconClipboard];
+                [self showUnpastedTranslation:text purpose:purpose];
             }
             [self.statusBarManager updateState:@"idle"];
             [self showPromptTemplateButtonsIfNeededOrDismiss];
@@ -1926,10 +1931,12 @@ static BOOL SPLabFlag(const char *name) {
             [self.overlayPanel updateState:@"pasting"];
             [self.overlayPanel showResultBadge:@"✓ Скопировано"];
             [self showPromptTemplateButtonsIfNeededOrDismissWithLingerDuration:kManualPasteResultLingerDuration];
+            [self showUnpastedTranslation:text purpose:purpose];
         } else {
             NSLog(@"[VelikiyMoguchiy] Accessibility not granted — text copied to clipboard only");
             [self.overlayPanel showMessage:@"Доступ к управлению не работает — текст в буфере, ⌘V"
                                       icon:SPOverlayMessageIconClipboard];
+            [self showUnpastedTranslation:text purpose:purpose];
             [self notifyAccessRepairOnce];
         }
     }
@@ -1969,7 +1976,7 @@ static BOOL SPLabFlag(const char *name) {
     // The provider's own text stays in the log and the history row.
     SPErrorExplanation *explanation = [SPErrorExplainer explanationForMessage:message recordingKept:recordingKept];
     NSLog(@"[VelikiyMoguchiy] Error %@ shown as \"%@\"", explanation.code, explanation.shortText);
-    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self showErrorOnPill:explanation];
     [self sendErrorNotificationForExplanation:explanation];
 
     // Brief error display, then back to idle.
@@ -2025,6 +2032,20 @@ static BOOL SPLabFlag(const char *name) {
     }];
 }
 
+/// The error in a few words under the pill's cross, and what to do in the card.
+- (void)showErrorOnPill:(SPErrorExplanation *)explanation {
+    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    if (explanation.detail.length > 0) {
+        [self.overlayPanel showCardWithTitle:@"Что делать" text:explanation.detail copyable:NO];
+    }
+}
+
+/// A translation that did not reach the field is put where it can be read.
+- (void)showUnpastedTranslation:(NSString *)text purpose:(SPSessionPurpose)purpose {
+    if (purpose != SPSessionPurposeTranslate || text.length == 0) return;
+    [self.overlayPanel showCardWithTitle:@"Перевод" text:text copyable:YES];
+}
+
 - (void)sendErrorNotificationForExplanation:(SPErrorExplanation *)explanation {
     [self postNotificationWithIdentifier:@"velikiy-moguchiy-error"
                                    title:SPLocalizedString(@"notification.error.title")
@@ -2056,13 +2077,6 @@ static BOOL SPLabFlag(const char *name) {
             }
         });
     }];
-}
-
-/// The first line of `text`, short enough for the pill.
-- (NSString *)firstLineOfText:(NSString *)text {
-    NSString *line = [[text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
-        componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet].firstObject ?: @"";
-    return line.length > 80 ? [[line substringToIndex:80] stringByAppendingString:@"…"] : line;
 }
 
 - (void)rustBridgeDidReceiveInterimText:(NSString *)text {
@@ -2560,7 +2574,7 @@ static BOOL SPLabFlag(const char *name) {
                                                     @"меню значка → «Сообщить о проблеме…»."
                                              action:SPErrorActionNone]
             : [SPErrorExplainer microphoneExplanationWithShortText:reason];
-    [self.overlayPanel showMessage:explanation.shortText icon:SPOverlayMessageIconError];
+    [self showErrorOnPill:explanation];
     [self sendErrorNotificationForExplanation:explanation];
 
     uint64_t token = self.rustBridge.currentSessionToken;
@@ -2790,8 +2804,7 @@ static BOOL SPLabFlag(const char *name) {
                 [self.clipboardManager cancelPendingRestore];
                 [self.clipboardManager writeText:text];
                 [self.statusBarManager updateState:@"idle"];
-                [self.overlayPanel showMessage:@"Не заменилось — правка в буфере, ⌘V"
-                                          icon:SPOverlayMessageIconClipboard];
+                [self.overlayPanel showMessage:@"Не заменилось — в буфере" icon:SPOverlayMessageIconClipboard];
             }
         }];
         return;
@@ -2800,8 +2813,7 @@ static BOOL SPLabFlag(const char *name) {
     [self.clipboardManager cancelPendingRestore];
     [self.clipboardManager writeText:text];
     [self.statusBarManager updateState:@"idle"];
-    [self.overlayPanel showMessage:@"Выделение изменилось — правка в буфере, ⌘V"
-                              icon:SPOverlayMessageIconClipboard];
+    [self.overlayPanel showMessage:@"Выделение изменилось — в буфере" icon:SPOverlayMessageIconClipboard];
 }
 
 /// The paste replaced a clipboard that the backup could not keep: once the
@@ -2883,7 +2895,7 @@ static BOOL SPLabFlag(const char *name) {
         } else {
             [self.clipboardManager cancelPendingRestore];
             [self.clipboardManager writeText:replacement];
-            [self showQuickBadge:@"Исходный текст в буфере, ⌘V"];
+            [self showQuickBadge:@"Исходный текст в буфере"];
         }
     }];
 }
@@ -2949,7 +2961,7 @@ static BOOL SPLabFlag(const char *name) {
         } else {
             [self.clipboardManager cancelPendingRestore];
             [self.clipboardManager writeText:text];
-            [self showQuickBadge:@"Не вставилось — в буфере, ⌘V"];
+            [self showQuickBadge:@"Не вставилось — в буфере"];
         }
     }];
 }
@@ -3319,6 +3331,33 @@ static BOOL SPLabFlag(const char *name) {
     NSLog(@"[VelikiyMoguchiy] ChatGPT limit: switched back to %@", previous);
     [self reloadConfigAndApplyHotkeyIfSafe];
     [self.overlayPanel showMessage:@"Распознавание: снова прежняя модель" icon:SPOverlayMessageIconSuccess];
+}
+
+- (void)overlayPanelDidShowCard:(id)panel {
+    // Esc closes the card while no session owns the abort key.
+    if (self.hotkeyMonitor.abortKeyCode == 0 || !sessionStateAllowsConfigReload(self.sessionState)) return;
+    BOOL (^current)(void) = self.hotkeyMonitor.abortKeyHandler;
+    if (current && current != self.cardEscHandler) return;
+    __weak typeof(self) weakSelf = self;
+    self.cardEscHandler = ^BOOL{
+        [weakSelf.overlayPanel dismissCard];
+        return YES;
+    };
+    self.hotkeyMonitor.abortKeyHandler = self.cardEscHandler;
+}
+
+- (void)overlayPanelDidCloseCard:(id)panel {
+    // A session started meanwhile owns the key now; its handler stays.
+    if (self.cardEscHandler && self.hotkeyMonitor.abortKeyHandler == self.cardEscHandler) {
+        [self disarmAbortKey];
+    }
+    self.cardEscHandler = nil;
+}
+
+- (void)overlayPanel:(id)panel didCopyCardText:(NSString *)text {
+    [self.clipboardManager cancelPendingRestore];
+    [self.clipboardManager writeText:text];
+    if (sessionStateAllowsConfigReload(self.sessionState)) [self showQuickBadge:@"✓ Скопировано"];
 }
 
 - (void)overlayPanelDidRequestRawAsrFallback:(id)panel {

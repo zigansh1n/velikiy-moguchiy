@@ -9,6 +9,11 @@
 - (void)overlayPanelDidDismiss:(id)panel;
 /// Called when the user clicks the pill to use raw ASR text.
 - (void)overlayPanelDidRequestRawAsrFallback:(id)panel;
+/// The card is on screen until overlayPanelDidCloseCard:.
+- (void)overlayPanelDidShowCard:(id)panel;
+- (void)overlayPanelDidCloseCard:(id)panel;
+/// «Копировать» on the card.
+- (void)overlayPanel:(id)panel didCopyCardText:(NSString *)text;
 @end
 
 /// The icon in front of a message on the pill.
@@ -23,8 +28,9 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
 /// Small status pill displayed at bottom-center of screen, above the Dock:
 /// mic bars while recording, pulsing lozenges while processing, then a checkmark
 /// (delivered), a clipboard (copied only), an xmark (cancelled) or a red xmark
-/// (error) before it hides. Transcripts never appear on it; only a short
-/// message (an error, "nothing heard") widens it for a few seconds.
+/// (error) before it hides. The pill never widens: a short line ("Скопировано",
+/// an error, "nothing heard") goes into a caption under it, or over it when the
+/// pill sits too low, and a text to read goes into a card above it.
 @interface SPOverlayPanel : NSObject
 
 @property (nonatomic, weak) id<SPOverlayPanelDelegate> delegate;
@@ -45,18 +51,26 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
 /// Enable clicking the pill to accept the raw ASR result.
 - (void)setRawAsrFallbackClickEnabled:(BOOL)enabled;
 
-/// Switch the pill to the clipboard icon: the text was copied but not pasted.
-/// The badge text itself is not shown (use showMessage:icon: for that). Call after updateState:.
+/// A result icon with `badgeText` in the caption, without its leading mark:
+/// the clipboard when the text is on the clipboard only ("✓ Скопировано",
+/// "… в буфере"), a checkmark otherwise ("✓ Заменено"). Call after updateState:.
 - (void)showResultBadge:(NSString *)badgeText;
 
-/// Widen the pill with one line of text after `icon`, then hide it once the
-/// text had time to be read. A session going idle meanwhile does not cut it short.
+/// `icon` on the pill and `text` in the caption, hidden once the text had time
+/// to be read. A session going idle meanwhile does not cut it short.
 - (void)showMessage:(NSString *)text icon:(SPOverlayMessageIcon)icon;
 
-/// While recording: a line next to the level bars ("Микрофон молчит"), nil to drop it.
+/// A card above the pill with `text` under `title`, scrolling when long, with
+/// «Копировать» when `copyable`. It outlives the pill: it closes on a click,
+/// dismissCard, a new recording or after 20 s.
+- (void)showCardWithTitle:(NSString *)title text:(NSString *)text copyable:(BOOL)copyable;
+- (void)dismissCard;
+@property (nonatomic, readonly, getter=isShowingCard) BOOL showingCard;
+
+/// While recording: a caption for the level bars ("Микрофон молчит"), nil to drop it.
 - (void)setRecordingHint:(NSString *)hint;
 
-/// While processing: a line next to the pulsing lozenges ("Распознаю…"), nil to drop it.
+/// While processing: a caption for the pulsing lozenges ("Распознаю…"), nil to drop it.
 - (void)setProcessingHint:(NSString *)hint;
 
 /// Shake the pill sideways: a key press that starts nothing.
