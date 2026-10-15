@@ -8,11 +8,13 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 
 static const NSUInteger kRecentLimit = 500;
+static const NSUInteger kSearchLimit = 1000;
 static const NSTimeInterval kToastDuration = 1.5;
 static const NSTimeInterval kRetranscribeToastDuration = 8.0;
 static const NSTimeInterval kExportToastDuration = 8.0;
 static NSString *const kTimeColumn = @"time";
 static NSString *const kDurationColumn = @"duration";
+static NSString *const kTypeColumn = @"type";
 static NSString *const kTextColumn = @"text";
 static NSString *const kPlayColumn = @"play";
 static NSString *const kBusyIdentifier = @"retranscribing";
@@ -48,9 +50,20 @@ static NSString *formatTime(NSDate *date) {
     return [formatter stringFromDate:date];
 }
 
-/// Table that builds its context menu for the row under the pointer.
+/// The beginning of `text` on one line, cut to about `limit` characters.
+static NSString *snippet(NSString *text, NSUInteger limit) {
+    NSString *line = singleLine(text);
+    if (line.length <= limit) return line;
+    NSRange safe = [line rangeOfComposedCharacterSequencesForRange:NSMakeRange(0, limit)];
+    return [[line substringWithRange:safe] stringByAppendingString:@"…"];
+}
+
+/// Table that builds its context menu for the row under the pointer and hands
+/// Delete and Return on the selected row to its owner.
 @interface SPDictationsTableView : NSTableView
 @property (nonatomic, copy) NSMenu * (^menuForRow)(NSInteger row);
+@property (nonatomic, copy) void (^deletePressed)(void);
+@property (nonatomic, copy) void (^returnPressed)(void);
 @end
 
 @implementation SPDictationsTableView
@@ -62,6 +75,24 @@ static NSString *formatTime(NSDate *date) {
     return self.menuForRow(row);
 }
 
+- (void)keyDown:(NSEvent *)event {
+    NSString *key = event.charactersIgnoringModifiers;
+    NSEventModifierFlags modifiers = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask &
+        ~(NSEventModifierFlagFunction | NSEventModifierFlagNumericPad);
+    if (key.length == 1 && modifiers == 0 && self.selectedRow >= 0) {
+        unichar ch = [key characterAtIndex:0];
+        if ((ch == NSDeleteCharacter || ch == NSDeleteFunctionKey) && self.deletePressed) {
+            self.deletePressed();
+            return;
+        }
+        if ((ch == NSCarriageReturnCharacter || ch == NSEnterCharacter) && self.returnPressed) {
+            self.returnPressed();
+            return;
+        }
+    }
+    [super keyDown:event];
+}
+
 @end
 
 @interface SPRecentDictationsWindowController () <NSTableViewDataSource, NSTableViewDelegate,
@@ -71,7 +102,10 @@ static NSString *formatTime(NSDate *date) {
 @property (nonatomic, strong) NSTableView *tableView;
 @property (nonatomic, strong) NSTextField *statusLabel;
 @property (nonatomic, strong) NSTextField *countLabel;
+@property (nonatomic, strong) NSTextField *retentionLabel;
+@property (nonatomic, strong) NSButton *textCopyButton;
 @property (nonatomic, strong) NSButton *exportButton;
+@property (nonatomic, strong) NSButton *clearButton;
 @property (nonatomic, strong) NSProgressIndicator *spinner;
 @property (nonatomic, strong) NSWindow *textSheet;
 @property (nonatomic, copy) NSArray<NSDictionary *> *allRows;
@@ -80,6 +114,7 @@ static NSString *formatTime(NSDate *date) {
 @property (nonatomic, strong) NSNumber *playingId;
 @property (nonatomic, assign) NSUInteger toastGeneration;
 @property (nonatomic, assign) BOOL exporting;
+@property (nonatomic, assign) NSInteger totalCount;
 @end
 
 @implementation SPRecentDictationsWindowController
@@ -96,7 +131,7 @@ static NSString *formatTime(NSDate *date) {
     if (self) {
         window.title = @"Последние диктовки";
         window.releasedWhenClosed = NO;
-        window.minSize = NSMakeSize(520, 320);
+        window.minSize = NSMakeSize(600, 320);
         window.delegate = self;
         [self buildContent];
         BOOL hadSavedFrame = [[NSUserDefaults standardUserDefaults]
@@ -125,7 +160,7 @@ static NSString *formatTime(NSDate *date) {
     NSView *content = self.window.contentView;
 
     self.searchField = [[NSSearchField alloc] init];
-    self.searchField.placeholderString = @"Поиск по тексту";
+    self.searchField.placeholderString = @"Поиск по всей истории";
     self.searchField.sendsSearchStringImmediately = YES;
     self.searchField.target = self;
     self.searchField.action = @selector(searchChanged:);
@@ -136,6 +171,12 @@ static NSString *formatTime(NSDate *date) {
     table.menuForRow = ^NSMenu *(NSInteger row) {
         return [weakSelf contextMenuForRow:[weakSelf rowAtIndex:row]];
     };
+    table.deletePressed = ^{
+        [weakSelf confirmDeleteRow:[weakSelf rowAtIndex:weakSelf.tableView.selectedRow]];
+    };
+    table.returnPressed = ^{
+        [weakSelf showFullTextOfRow:[weakSelf rowAtIndex:weakSelf.tableView.selectedRow]];
+    };
     self.tableView = table;
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
@@ -145,12 +186,12 @@ static NSString *formatTime(NSDate *date) {
     self.tableView.allowsColumnReordering = NO;
     self.tableView.columnAutoresizingStyle = NSTableViewUniformColumnAutoresizingStyle;
     self.tableView.target = self;
-    self.tableView.action = @selector(rowClicked:);
     self.tableView.doubleAction = @selector(rowDoubleClicked:);
 
     NSArray *columns = @[
         @[ kTimeColumn, @"Время", @110 ],
         @[ kDurationColumn, @"Длит.", @52 ],
+        @[ kTypeColumn, @"Тип", @74 ],
         @[ kTextColumn, @"Текст", @300 ],
         @[ kPlayColumn, @"", @36 ],
     ];
@@ -174,8 +215,23 @@ static NSString *formatTime(NSDate *date) {
     scroll.borderType = NSBezelBorder;
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
 
+    self.textCopyButton = [NSButton buttonWithTitle:@"Копировать" target:self action:@selector(copy:)];
+    self.textCopyButton.toolTip = @"Скопировать текст выбранной диктовки (⌘C или двойной клик)";
+    self.textCopyButton.enabled = NO;
+    self.textCopyButton.translatesAutoresizingMaskIntoConstraints = NO;
+
     self.exportButton = [NSButton buttonWithTitle:@"Выгрузить…" target:self action:@selector(exportClicked:)];
     self.exportButton.translatesAutoresizingMaskIntoConstraints = NO;
+
+    self.clearButton = [NSButton buttonWithTitle:@"Очистить историю…" target:self
+                                          action:@selector(clearHistoryClicked:)];
+    self.clearButton.translatesAutoresizingMaskIntoConstraints = NO;
+
+    self.retentionLabel = [NSTextField labelWithString:@""];
+    self.retentionLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+    self.retentionLabel.textColor = NSColor.secondaryLabelColor;
+    self.retentionLabel.font = [NSFont systemFontOfSize:NSFont.smallSystemFontSize];
+    self.retentionLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
     self.spinner = [[NSProgressIndicator alloc] init];
     self.spinner.style = NSProgressIndicatorStyleSpinning;
@@ -194,8 +250,9 @@ static NSString *formatTime(NSDate *date) {
     self.countLabel.textColor = NSColor.tertiaryLabelColor;
     self.countLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
-    for (NSView *view in @[ self.searchField, scroll, self.exportButton, self.spinner,
-                            self.statusLabel, self.countLabel ]) {
+    for (NSView *view in @[ self.searchField, scroll, self.retentionLabel, self.textCopyButton,
+                            self.exportButton, self.clearButton, self.spinner, self.statusLabel,
+                            self.countLabel ]) {
         [content addSubview:view];
     }
 
@@ -207,12 +264,22 @@ static NSString *formatTime(NSDate *date) {
         [scroll.topAnchor constraintEqualToAnchor:self.searchField.bottomAnchor constant:10],
         [scroll.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:12],
         [scroll.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-12],
-        [scroll.bottomAnchor constraintEqualToAnchor:self.exportButton.topAnchor constant:-10],
+        [scroll.bottomAnchor constraintEqualToAnchor:self.retentionLabel.topAnchor constant:-6],
 
-        [self.exportButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:12],
-        [self.exportButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-12],
+        [self.retentionLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:14],
+        [self.retentionLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-14],
+        [self.retentionLabel.bottomAnchor constraintEqualToAnchor:self.exportButton.topAnchor constant:-8],
 
-        [self.spinner.leadingAnchor constraintEqualToAnchor:self.exportButton.trailingAnchor constant:8],
+        [self.textCopyButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:12],
+        [self.textCopyButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-12],
+
+        [self.exportButton.leadingAnchor constraintEqualToAnchor:self.textCopyButton.trailingAnchor constant:8],
+        [self.exportButton.centerYAnchor constraintEqualToAnchor:self.textCopyButton.centerYAnchor],
+
+        [self.clearButton.leadingAnchor constraintEqualToAnchor:self.exportButton.trailingAnchor constant:8],
+        [self.clearButton.centerYAnchor constraintEqualToAnchor:self.textCopyButton.centerYAnchor],
+
+        [self.spinner.leadingAnchor constraintEqualToAnchor:self.clearButton.trailingAnchor constant:8],
         [self.spinner.centerYAnchor constraintEqualToAnchor:self.exportButton.centerYAnchor],
 
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:self.spinner.trailingAnchor constant:8],
@@ -257,17 +324,9 @@ static NSString *formatTime(NSDate *date) {
     NSInteger selected = self.tableView.selectedRow;
     if (selected >= 0 && selected < (NSInteger)self.rows.count) selectedId = self.rows[selected][@"id"];
 
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSMutableArray<NSDictionary *> *all = [NSMutableArray array];
-    for (NSDictionary *session in [[SPHistoryManager sharedManager] recentSessionsWithLimit:kRecentLimit]) {
-        NSMutableDictionary *row = [session mutableCopy];
-        NSString *path = session[@"audio_path"];
-        row[@"has_audio"] = @(path.length > 0 && [fm fileExistsAtPath:path]);
-        row[@"retranscribing"] = @([[SPRetranscriber sharedRetranscriber]
-            isRunningForSessionId:[session[@"id"] longLongValue]]);
-        [all addObject:row];
-    }
-    self.allRows = all;
+    self.allRows = [self decoratedRows:[[SPHistoryManager sharedManager] recentSessionsWithLimit:kRecentLimit]];
+    self.totalCount = [[SPHistoryManager sharedManager] sessionCount];
+    [self updateRetentionLabel];
     [self applyFilter];
 
     if (selectedId) {
@@ -280,23 +339,65 @@ static NSString *formatTime(NSDate *date) {
     }
 }
 
+/// Session rows with `has_audio` and `retranscribing` added.
+- (NSArray<NSDictionary *> *)decoratedRows:(NSArray<NSDictionary *> *)sessions {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSMutableArray<NSDictionary *> *rows = [NSMutableArray arrayWithCapacity:sessions.count];
+    for (NSDictionary *session in sessions) {
+        NSMutableDictionary *row = [session mutableCopy];
+        NSString *path = session[@"audio_path"];
+        row[@"has_audio"] = @(path.length > 0 && [fm fileExistsAtPath:path]);
+        row[@"retranscribing"] = @([[SPRetranscriber sharedRetranscriber]
+            isRunningForSessionId:[session[@"id"] longLongValue]]);
+        [rows addObject:row];
+    }
+    return rows;
+}
+
+- (void)updateRetentionLabel {
+    self.retentionLabel.stringValue = [SPRecordingManager savingEnabled]
+        ? [NSString stringWithFormat:@"Аудиозаписи хранятся %@, тексты — пока вы их не удалите.",
+                                     [SPRecentDictationsWindowController daysPhrase:[SPRecordingManager retentionDays]]]
+        : @"Аудиозаписи не сохраняются. Тексты хранятся, пока вы их не удалите.";
+}
+
+/// «1 день», «3 дня», «30 дней».
++ (NSString *)daysPhrase:(NSInteger)days {
+    NSInteger tens = days % 100;
+    NSInteger ones = days % 10;
+    NSString *word = (tens >= 11 && tens <= 14) ? @"дней"
+        : ones == 1 ? @"день"
+        : (ones >= 2 && ones <= 4) ? @"дня" : @"дней";
+    return [NSString stringWithFormat:@"%ld %@", (long)days, word];
+}
+
 - (void)applyFilter {
     NSString *query = [self.searchField.stringValue
         stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (query.length == 0) {
         self.rows = self.allRows;
+        self.countLabel.stringValue = self.totalCount > (NSInteger)self.allRows.count
+            ? [NSString stringWithFormat:@"%lu из %ld", (unsigned long)self.allRows.count,
+                                         (long)self.totalCount]
+            : [NSString stringWithFormat:@"%lu", (unsigned long)self.allRows.count];
     } else {
-        NSMutableArray *filtered = [NSMutableArray array];
-        for (NSDictionary *row in self.allRows) {
-            if ([row[@"text"] localizedCaseInsensitiveContainsString:query]) [filtered addObject:row];
-        }
-        self.rows = filtered;
+        self.rows = [self decoratedRows:[[SPHistoryManager sharedManager] sessionsMatchingQuery:query
+                                                                                         limit:kSearchLimit]];
+        self.countLabel.stringValue = self.rows.count >= kSearchLimit
+            ? [NSString stringWithFormat:@"найдено больше %lu", (unsigned long)kSearchLimit]
+            : [NSString stringWithFormat:@"найдено %lu", (unsigned long)self.rows.count];
     }
     [self.tableView reloadData];
-    self.countLabel.stringValue = query.length > 0
-        ? [NSString stringWithFormat:@"%lu из %lu", (unsigned long)self.rows.count,
-                                     (unsigned long)self.allRows.count]
-        : [NSString stringWithFormat:@"%lu", (unsigned long)self.allRows.count];
+    [self updateButtons];
+}
+
+- (void)updateButtons {
+    self.textCopyButton.enabled = [[self rowAtIndex:self.tableView.selectedRow][@"text"] length] > 0;
+    self.clearButton.enabled = self.totalCount > 0;
+}
+
+- (void)tableViewSelectionDidChange:(NSNotification *)notification {
+    [self updateButtons];
 }
 
 - (void)searchChanged:(id)sender {
@@ -352,6 +453,12 @@ static NSString *formatTime(NSDate *date) {
         cell.textField.textColor = NSColor.secondaryLabelColor;
         return cell;
     }
+    if ([identifier isEqualToString:kTypeColumn]) {
+        NSTableCellView *cell = [self labelCellWithIdentifier:identifier monospaced:NO];
+        cell.textField.stringValue = [SPHistoryManager titleForPurpose:row[@"purpose"]];
+        cell.textField.textColor = NSColor.secondaryLabelColor;
+        return cell;
+    }
     if ([identifier isEqualToString:kTextColumn]) {
         NSTableCellView *cell = [self labelCellWithIdentifier:identifier monospaced:NO];
         NSString *text = row[@"text"];
@@ -362,8 +469,20 @@ static NSString *formatTime(NSDate *date) {
             cell.textField.stringValue = @"распознаю заново…";
             cell.textField.textColor = NSColor.secondaryLabelColor;
         } else if (text.length > 0) {
-            cell.textField.stringValue = singleLine(text);
-            cell.textField.textColor = NSColor.labelColor;
+            NSString *context = [SPRecentDictationsWindowController contextPrefixForRow:row];
+            if (context.length > 0) {
+                NSMutableAttributedString *value = [[NSMutableAttributedString alloc]
+                    initWithString:context
+                        attributes:@{NSForegroundColorAttributeName : NSColor.secondaryLabelColor}];
+                [value appendAttributedString:[[NSAttributedString alloc]
+                    initWithString:singleLine(text)
+                        attributes:@{NSForegroundColorAttributeName : NSColor.labelColor}]];
+                cell.textField.attributedStringValue = value;
+                tooltip = [SPRecentDictationsWindowController sheetBodyForRow:row];
+            } else {
+                cell.textField.stringValue = singleLine(text);
+                cell.textField.textColor = NSColor.labelColor;
+            }
         } else {
             NSString *reason = [SPHistoryManager shortErrorReason:error];
             if ([status isEqualToString:@"cancelled"]) {
@@ -430,6 +549,21 @@ static NSString *formatTime(NSDate *date) {
     return cell;
 }
 
+/// What an Ask answered or an Edit changed, shown before the result:
+/// «По „…“: » or «„…“ → ».
++ (NSString *)contextPrefixForRow:(NSDictionary *)row {
+    NSString *original = row[@"original_text"];
+    if (original.length == 0) return nil;
+    NSString *purpose = row[@"purpose"];
+    if ([purpose isEqualToString:SPHistoryPurposeAsk]) {
+        return [NSString stringWithFormat:@"по «%@»: ", snippet(original, 40)];
+    }
+    if ([purpose isEqualToString:SPHistoryPurposeEdit]) {
+        return [NSString stringWithFormat:@"«%@» → ", snippet(original, 40)];
+    }
+    return nil;
+}
+
 #pragma mark - Copy
 
 - (void)copyRow:(NSDictionary *)row {
@@ -450,25 +584,37 @@ static NSString *formatTime(NSDate *date) {
     });
 }
 
-- (void)rowClicked:(id)sender {
-    [self copyRow:[self rowAtIndex:self.tableView.clickedRow]];
-}
-
 - (void)copy:(id)sender {
     [self copyRow:[self rowAtIndex:self.tableView.selectedRow]];
 }
 
+/// Edit ▸ Delete.
+- (void)delete:(id)sender {
+    [self confirmDeleteRow:[self rowAtIndex:self.tableView.selectedRow]];
+}
+
 - (BOOL)validateUserInterfaceItem:(id<NSValidatedUserInterfaceItem>)item {
+    if (item.action == @selector(delete:)) {
+        return [self rowAtIndex:self.tableView.selectedRow] != nil;
+    }
     if (item.action == @selector(copy:)) {
         return [[self rowAtIndex:self.tableView.selectedRow][@"text"] length] > 0;
     }
     return YES;
 }
 
-#pragma mark - Full text sheet
-
 - (void)rowDoubleClicked:(id)sender {
     NSDictionary *row = [self rowAtIndex:self.tableView.clickedRow];
+    if ([row[@"text"] length] > 0) {
+        [self copyRow:row];
+    } else {
+        [self showFullTextOfRow:row];
+    }
+}
+
+#pragma mark - Full text sheet
+
+- (void)showFullTextOfRow:(NSDictionary *)row {
     NSString *error = row[@"error"];
     BOOL hasText = [row[@"text"] length] > 0;
     if ((!hasText && error.length == 0) || self.textSheet) return;
@@ -480,8 +626,9 @@ static NSString *formatTime(NSDate *date) {
     NSView *content = sheet.contentView;
 
     NSTextField *header = [NSTextField labelWithString:
-        [NSString stringWithFormat:@"%@  ·  %@", formatTime(row[@"timestamp"]),
-                                   formatDuration([row[@"duration_ms"] integerValue])]];
+        [NSString stringWithFormat:@"%@  ·  %@  ·  %@", formatTime(row[@"timestamp"]),
+                                   formatDuration([row[@"duration_ms"] integerValue]),
+                                   [SPHistoryManager titleForPurpose:row[@"purpose"]]]];
     header.textColor = NSColor.secondaryLabelColor;
     header.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -537,14 +684,19 @@ static NSString *formatTime(NSDate *date) {
         [body appendFormat:@"%@: %@", [row[@"status"] isEqualToString:@"error"] ? @"Ошибка" : @"Без текста", error];
     }
     if (original.length > 0) {
-        [body appendFormat:@"\n\n— Исходный текст (до повторного распознавания) —\n%@", original];
+        NSString *purpose = row[@"purpose"];
+        NSString *title = [purpose isEqualToString:SPHistoryPurposeAsk]
+            ? @"Вопрос задан голосом о выделенном тексте"
+            : [purpose isEqualToString:SPHistoryPurposeEdit] ? @"Текст до правки"
+            : @"Исходный текст (до повторного распознавания)";
+        [body appendFormat:@"\n\n— %@ —\n%@", title, original];
     }
     return body;
 }
 
 - (void)sheetCopy:(NSButton *)sender {
     NSString *identifier = sender.identifier;
-    for (NSDictionary *row in self.allRows) {
+    for (NSDictionary *row in [self.rows arrayByAddingObjectsFromArray:self.allRows]) {
         if ([[row[@"id"] stringValue] isEqualToString:identifier]) {
             [self copyRow:row];
             break;
@@ -624,8 +776,12 @@ static NSString *formatTime(NSDate *date) {
     BOOL hasAudio = [row[@"has_audio"] boolValue];
     BOOL playing = [self.playingId isEqual:row[@"id"]];
 
-    NSMenuItem *copy = [menu addItemWithTitle:@"Копировать текст" action:@selector(menuCopy:) keyEquivalent:@""];
+    NSMenuItem *copy = [menu addItemWithTitle:@"Копировать текст" action:@selector(menuCopy:) keyEquivalent:@"c"];
     copy.enabled = hasText;
+    NSMenuItem *open = [menu addItemWithTitle:@"Показать полностью…" action:@selector(menuShowFull:)
+                                keyEquivalent:@"\r"];
+    open.keyEquivalentModifierMask = 0;
+    open.enabled = hasText || [row[@"error"] length] > 0;
     NSMenuItem *play = [menu addItemWithTitle:playing ? @"Остановить" : @"Воспроизвести"
                                        action:@selector(menuPlay:) keyEquivalent:@""];
     play.enabled = hasAudio;
@@ -636,7 +792,9 @@ static NSString *formatTime(NSDate *date) {
                                                action:@selector(menuRetranscribe:) keyEquivalent:@""];
     retranscribe.enabled = hasAudio && !retranscribing;
     [menu addItem:[NSMenuItem separatorItem]];
-    [menu addItemWithTitle:@"Удалить…" action:@selector(menuDelete:) keyEquivalent:@""];
+    NSMenuItem *delete = [menu addItemWithTitle:@"Удалить…" action:@selector(menuDelete:)
+                                  keyEquivalent:[NSString stringWithFormat:@"%C", (unichar)NSBackspaceCharacter]];
+    delete.keyEquivalentModifierMask = 0;
     for (NSMenuItem *item in menu.itemArray) {
         item.target = self;
         item.representedObject = row;
@@ -646,6 +804,10 @@ static NSString *formatTime(NSDate *date) {
 
 - (void)menuCopy:(NSMenuItem *)item {
     [self copyRow:item.representedObject];
+}
+
+- (void)menuShowFull:(NSMenuItem *)item {
+    [self showFullTextOfRow:item.representedObject];
 }
 
 - (void)menuPlay:(NSMenuItem *)item {
@@ -686,7 +848,11 @@ static NSString *formatTime(NSDate *date) {
 }
 
 - (void)menuDelete:(NSMenuItem *)item {
-    NSDictionary *row = item.representedObject;
+    [self confirmDeleteRow:item.representedObject];
+}
+
+- (void)confirmDeleteRow:(NSDictionary *)row {
+    if (!row || self.window.attachedSheet) return;
     NSAlert *alert = [[NSAlert alloc] init];
     alert.alertStyle = NSAlertStyleWarning;
     alert.messageText = @"Удалить диктовку?";
@@ -712,6 +878,35 @@ static NSString *formatTime(NSDate *date) {
     }
     [[SPHistoryManager sharedManager] deleteSessionWithId:[row[@"id"] longLongValue]];
     [self reloadRows];
+}
+
+- (void)clearHistoryClicked:(id)sender {
+    if (self.window.attachedSheet || self.exporting) return;
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleWarning;
+    alert.messageText = @"Очистить всю историю?";
+    alert.informativeText = [NSString stringWithFormat:
+        @"Будут удалены все диктовки (%ld) и их аудиозаписи без возможности восстановления. "
+        @"Словарь и настройки останутся.", (long)self.totalCount];
+    NSButton *clear = [alert addButtonWithTitle:@"Очистить"];
+    clear.hasDestructiveAction = YES;
+    NSButton *cancel = [alert addButtonWithTitle:@"Отмена"];
+    cancel.keyEquivalent = @"\r";
+    clear.keyEquivalent = @"";
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+        if (response != NSAlertFirstButtonReturn) return;
+        [self clearHistory];
+    }];
+}
+
+- (void)clearHistory {
+    [self stopPlayback];
+    [[SPHistoryManager sharedManager] deleteAllSessions];
+    self.searchField.stringValue = @"";
+    [self reloadRows];
+    [[SPRecordingManager sharedManager] deleteAllRecordingsWithCompletion:^{
+        [self showStatus:@"История очищена" duration:kToastDuration];
+    }];
 }
 
 #pragma mark - Export
@@ -829,8 +1024,10 @@ static NSString *formatTime(NSDate *date) {
         }
         [csv appendString:[SPDictationsCSV rowWithDate:[dateFormatter stringFromDate:date]
                                             durationMs:[session[@"duration_ms"] doubleValue]
+                                                  type:[SPHistoryManager titleForPurpose:session[@"purpose"]]
                                                 status:session[@"status"]
                                                   text:session[@"text"]
+                                              original:session[@"original_text"]
                                                   file:fileName]];
     }
 

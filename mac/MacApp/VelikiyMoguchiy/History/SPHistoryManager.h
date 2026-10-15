@@ -4,6 +4,12 @@
 /// changed.
 extern NSNotificationName const SPHistoryDidChangeNotification;
 
+/// Values of a session's `purpose`.
+extern NSString *const SPHistoryPurposeDictate;
+extern NSString *const SPHistoryPurposeTranslate;
+extern NSString *const SPHistoryPurposeAsk;
+extern NSString *const SPHistoryPurposeEdit;
+
 @interface SPHistoryStats : NSObject
 
 @property (nonatomic, assign) NSInteger sessionCount;
@@ -71,6 +77,29 @@ extern NSNotificationName const SPHistoryDidChangeNotification;
                            appBundleId:(NSString *)appBundleId
                           originalText:(NSString *)originalText;
 
+/// Same, with the session's purpose (`SPHistoryPurpose…`; nil is a
+/// dictation). For an Ask, `originalText` is the selection the question was
+/// about; for an Edit, the selection the result replaced.
+- (int64_t)recordSessionWithDurationMs:(NSInteger)durationMs
+                                  text:(NSString *)text
+                               asrText:(NSString *)asrText
+                           asrProvider:(NSString *)asrProvider
+                            llmApplied:(BOOL)llmApplied
+                                status:(NSString *)status
+                             audioPath:(NSString *)audioPath
+                                 error:(NSString *)error
+                           appBundleId:(NSString *)appBundleId
+                          originalText:(NSString *)originalText
+                               purpose:(NSString *)purpose;
+
+/// The `SPHistoryPurpose…` value of an sp_core_set_next_session_purpose code
+/// (0 dictate, 1 translate, 2 ask, 3 edit); unknown codes are dictations.
++ (NSString *)purposeForCode:(NSInteger)code;
+
+/// Russian name of a purpose for the history list: «диктовка», «перевод»,
+/// «вопрос», «правка».
++ (NSString *)titleForPurpose:(NSString *)purpose;
+
 /// Replace the outcome of a stored session (re-transcription). A nil `text`
 /// or `status` leaves that column unchanged; `error` is always written (nil
 /// clears it). Replacing a non-empty text with a different one keeps the first
@@ -92,16 +121,29 @@ extern NSNotificationName const SPHistoryDidChangeNotification;
 /// First line of a stored reason: the short summary shown in the list.
 + (NSString *)shortErrorReason:(NSString *)error;
 
-/// Aggregates cover successful sessions only.
+/// Aggregates cover successful dictations and translations only: an Ask
+/// answer or an Edit result is not text the user dictated.
 - (SPHistoryStats *)aggregateStats;
 
 /// The most recent sessions, newest first. Each entry is a dictionary with
 /// `id` (NSNumber), `timestamp` (NSDate), `duration_ms` (NSNumber), `text`,
-/// `status`, `audio_path`, `error`, `app_bundle_id` and `original_text`
-/// (NSString, empty when there is no recording / reason / app / original).
+/// `status`, `audio_path`, `error`, `app_bundle_id`, `original_text`
+/// (NSString, empty when there is no recording / reason / app / original) and
+/// `purpose` (an `SPHistoryPurpose…` value).
 - (NSArray<NSDictionary *> *)recentSessionsWithLimit:(NSUInteger)limit;
 
+/// Sessions of the whole history whose text or original text contains
+/// `query`, ignoring case and diacritics (so «е» finds «ё»), newest first.
+/// Same entries as `recentSessionsWithLimit:`.
+- (NSArray<NSDictionary *> *)sessionsMatchingQuery:(NSString *)query limit:(NSUInteger)limit;
+
+/// Number of stored sessions.
+- (NSInteger)sessionCount;
+
 - (void)deleteSessionWithId:(int64_t)sessionId;
+
+/// Removes every session row (recording files are the caller's business).
+- (void)deleteAllSessions;
 
 /// Called after a recording file was deleted: clears `audio_path` of the rows
 /// that referenced it and drops those that had no text of their own.

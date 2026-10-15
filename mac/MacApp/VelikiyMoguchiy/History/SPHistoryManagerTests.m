@@ -315,4 +315,68 @@
                           @"только итог");
 }
 
+- (int64_t)recordIn:(SPHistoryManager *)manager text:(NSString *)text purpose:(NSString *)purpose
+           original:(NSString *)original {
+    return [manager recordSessionWithDurationMs:1000 text:text asrText:nil asrProvider:nil llmApplied:NO
+                                         status:@"ok" audioPath:nil error:nil appBundleId:nil
+                                   originalText:original purpose:purpose];
+}
+
+- (void)testPurposeIsStoredAndOlderRowsAreDictations {
+    [self createLegacySchemaDatabase];
+    SPHistoryManager *manager = [[SPHistoryManager alloc] initWithDatabasePath:self.dbPath];
+    [self recordIn:manager text:@"Ответ" purpose:SPHistoryPurposeAsk original:@"выделенный текст"];
+    [self recordIn:manager text:@"Hello" purpose:SPHistoryPurposeTranslate original:nil];
+    [self recordIn:manager text:@"Привет" purpose:SPHistoryPurposeDictate original:nil];
+    NSArray<NSDictionary *> *rows = [manager recentSessionsWithLimit:10];
+    XCTAssertEqual(rows.count, 4u);
+    XCTAssertEqualObjects(rows[0][@"purpose"], SPHistoryPurposeDictate);
+    XCTAssertEqualObjects(rows[1][@"purpose"], SPHistoryPurposeTranslate);
+    XCTAssertEqualObjects(rows[2][@"purpose"], SPHistoryPurposeAsk);
+    XCTAssertEqualObjects(rows[2][@"original_text"], @"выделенный текст");
+    XCTAssertEqualObjects(rows[3][@"purpose"], SPHistoryPurposeDictate);
+
+    XCTAssertEqualObjects([SPHistoryManager purposeForCode:2], SPHistoryPurposeAsk);
+    XCTAssertEqualObjects([SPHistoryManager purposeForCode:9], SPHistoryPurposeDictate);
+    XCTAssertEqualObjects([SPHistoryManager titleForPurpose:SPHistoryPurposeEdit], @"правка");
+}
+
+- (void)testStatsCountDictationsAndTranslationsButNotAnswersOrEdits {
+    SPHistoryManager *manager = [[SPHistoryManager alloc] initWithDatabasePath:self.dbPath];
+    [self recordIn:manager text:@"раз" purpose:nil original:nil];
+    [self recordIn:manager text:@"two" purpose:SPHistoryPurposeTranslate original:nil];
+    [self recordIn:manager text:@"ответ" purpose:SPHistoryPurposeAsk original:@"x"];
+    [self recordIn:manager text:@"правка" purpose:SPHistoryPurposeEdit original:@"y"];
+    XCTAssertEqual([manager aggregateStats].sessionCount, 2);
+}
+
+- (void)testSearchCoversTheWholeHistoryIgnoringCaseAndYo {
+    SPHistoryManager *manager = [[SPHistoryManager alloc] initWithDatabasePath:self.dbPath];
+    [self recordIn:manager text:@"Ещё раз про Kubernetes" purpose:nil original:nil];
+    for (int i = 0; i < 600; i++) {
+        [self recordIn:manager text:[NSString stringWithFormat:@"строка %d", i] purpose:nil original:nil];
+    }
+    [self recordIn:manager text:@"Ответ" purpose:SPHistoryPurposeAsk original:@"Про КУБЕРНЕТИС"];
+
+    NSArray *hits = [manager sessionsMatchingQuery:@"еще" limit:500];
+    XCTAssertEqual(hits.count, 1u);
+    XCTAssertEqualObjects(hits[0][@"text"], @"Ещё раз про Kubernetes");
+    XCTAssertEqual([manager sessionsMatchingQuery:@"kubernetes" limit:500].count, 1u);
+    XCTAssertEqual([manager sessionsMatchingQuery:@"кубернетис" limit:500].count, 1u);
+    XCTAssertEqual([manager sessionsMatchingQuery:@"строка" limit:500].count, 500u);
+    XCTAssertEqual([manager sessionsMatchingQuery:@"%" limit:500].count, 0u);
+    XCTAssertEqual([manager sessionsMatchingQuery:@"" limit:500].count, 0u);
+    XCTAssertEqual([manager sessionCount], 602);
+}
+
+- (void)testDeleteAllSessionsEmptiesTheHistory {
+    SPHistoryManager *manager = [[SPHistoryManager alloc] initWithDatabasePath:self.dbPath];
+    [self recordIn:manager text:@"раз" purpose:nil original:nil];
+    [self recordIn:manager text:@"два" purpose:nil original:nil];
+    [manager deleteAllSessions];
+    XCTAssertEqual([manager sessionCount], 0);
+    XCTAssertEqual([manager recentSessionsWithLimit:10].count, 0u);
+    XCTAssertGreaterThan([self recordIn:manager text:@"после" purpose:nil original:nil], 0);
+}
+
 @end

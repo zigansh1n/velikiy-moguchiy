@@ -11,6 +11,12 @@
 /// ~/.velikiy-moguchiy/recordings
 + (NSString *)recordingsDirectory;
 
+/// history.save_recordings (on unless switched off).
++ (BOOL)savingEnabled;
+
+/// history.recordings_retention_days (at least 1).
++ (NSInteger)retentionDays;
+
 /// Open a new recording (closing any previous one) when history.save_recordings
 /// is on. Returns the path the file will be written to, or nil when recording
 /// is disabled.
@@ -28,6 +34,10 @@
 /// Waits for pending writes of `path` and returns it if a non-empty file
 /// exists there, nil otherwise.
 - (NSString *)existingPathForRecording:(NSString *)path;
+
+/// Delete every finished recording (the one being written stays), then call
+/// `completion` on the main queue.
+- (void)deleteAllRecordingsWithCompletion:(void (^)(void))completion;
 
 /// Delete recordings older than history.recordings_retention_days now and
 /// every 6 hours afterwards.

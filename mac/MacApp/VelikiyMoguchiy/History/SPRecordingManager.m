@@ -52,6 +52,14 @@ static NSInteger retentionDays(void) {
     return instance;
 }
 
++ (BOOL)savingEnabled {
+    return saveRecordingsEnabled();
+}
+
++ (NSInteger)retentionDays {
+    return retentionDays();
+}
+
 + (NSString *)recordingsDirectory {
     return SPAppDataPath(@"recordings");
 }
@@ -201,16 +209,28 @@ static NSInteger retentionDays(void) {
     dispatch_resume(_retentionTimer);
 }
 
+- (void)deleteAllRecordingsWithCompletion:(void (^)(void))completion {
+    dispatch_async(_queue, ^{
+        [self purgeRecordingsOlderThan:DBL_MAX];
+        if (completion) dispatch_async(dispatch_get_main_queue(), completion);
+    });
+}
+
 /// Must run on _queue.
 - (void)purgeExpiredLocked {
-    NSFileManager *fm = [NSFileManager defaultManager];
     NSString *root = [[SPRecordingManager recordingsDirectory] stringByStandardizingPath];
-    [fm createDirectoryAtPath:root
+    [[NSFileManager defaultManager] createDirectoryAtPath:root
   withIntermediateDirectories:YES
                    attributes:@{NSFilePosixPermissions : @(0700)}
                         error:nil];
+    [self purgeRecordingsOlderThan:[[NSDate date] timeIntervalSince1970] - retentionDays() * 86400.0];
+}
+
+/// Runs on _queue. `cutoff` is a Unix time.
+- (void)purgeRecordingsOlderThan:(NSTimeInterval)cutoff {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *root = [[SPRecordingManager recordingsDirectory] stringByStandardizingPath];
     NSString *rootPrefix = [root stringByAppendingString:@"/"];
-    NSTimeInterval cutoff = [[NSDate date] timeIntervalSince1970] - retentionDays() * 86400.0;
 
     NSInteger removedFiles = 0;
     for (NSString *dayName in [fm contentsOfDirectoryAtPath:root error:nil]) {
@@ -242,8 +262,7 @@ static NSInteger retentionDays(void) {
         }
     }
     if (removedFiles > 0) {
-        NSLog(@"[VelikiyMoguchiy] Recording retention removed %ld file(s) older than %ld day(s)",
-              (long)removedFiles, (long)retentionDays());
+        NSLog(@"[VelikiyMoguchiy] Removed %ld recording(s)", (long)removedFiles);
     }
 }
 
