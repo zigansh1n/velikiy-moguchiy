@@ -37,6 +37,7 @@
 #import "SPErrorExplainer.h"
 #import "SPFileTranscriptionWindowController.h"
 #import "SPHotkeyNames.h"
+#import "SPSettingsValidation.h"
 #import "SPVoiceKeyPolicy.h"
 #import "SPTriggerKeyPolicy.h"
 #import "SPCorrectionWatcher.h"
@@ -570,6 +571,10 @@ static BOOL SPLabFlag(const char *name) {
     [self startMicWarmIfEnabled];
     [self launchLipflowIfEnabled];
     [self.rustBridge initializeCore];
+    // After launch finishes, so the alert does not hold up the hotkey and menu.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self reportUnreadableConfig];
+    });
 
     // Initialize status bar
     self.statusBarManager = [[SPStatusBarManager alloc] initWithDelegate:self
@@ -1064,6 +1069,25 @@ static BOOL SPLabFlag(const char *name) {
     }
     CFRelease(selected);
     return text.length > 0 ? text : nil;
+}
+
+/// A config.yaml that does not parse leaves the core on defaults: keys and
+/// the hotkey look lost. Say which line is wrong instead.
+- (void)reportUnreadableConfig {
+    NSDictionary *problem = [self.rustBridge configProblem];
+    if (!problem) return;
+    NSLog(@"[VelikiyMoguchiy] config.yaml does not parse: %@", problem[@"message"]);
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleWarning;
+    alert.messageText = SPConfigProblemTitle(problem);
+    alert.informativeText = SPConfigProblemDetail(problem);
+    [alert addButtonWithTitle:@"Показать в Finder"];
+    [alert addButtonWithTitle:@"OK"];
+    [NSApp activateIgnoringOtherApps:YES];
+    if ([alert runModal] == NSAlertFirstButtonReturn) {
+        NSURL *url = [NSURL fileURLWithPath:SPAppDataPath(@"config.yaml")];
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[ url ]];
+    }
 }
 
 // Lipflow (amywork777/lipflow, vendored in vendor/lipflow) reads silently

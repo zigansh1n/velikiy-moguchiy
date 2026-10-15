@@ -2212,6 +2212,49 @@ fn normalize_prompt_templates_config(path: &Path, config: &Config) -> Result<boo
 
 // ─── Load & Ensure ─────────────────────────────────────────────────
 
+/// Why config.yaml exists but cannot be used. The app then runs on defaults
+/// and must say so instead of looking as if the settings were lost.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ConfigProblem {
+    /// 1-based line and column serde_yaml points at, when it knows them.
+    pub line: Option<usize>,
+    pub column: Option<usize>,
+    pub message: String,
+    /// Whether `config.yaml.bak` exists to restore from.
+    pub backup: bool,
+}
+
+/// The parse problem of config.yaml, or None when it reads (or does not exist yet).
+pub fn config_problem() -> Option<ConfigProblem> {
+    let path = config_path();
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(raw) => raw,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(e) => {
+            return Some(ConfigProblem {
+                line: None,
+                column: None,
+                message: e.to_string(),
+                backup: backup_path(&path).exists(),
+            })
+        }
+    };
+    let mut problem = parse_problem(&substitute_env_vars(&raw))?;
+    problem.backup = backup_path(&path).exists();
+    Some(problem)
+}
+
+fn parse_problem(yaml: &str) -> Option<ConfigProblem> {
+    let err = serde_yaml::from_str::<Config>(yaml).err()?;
+    let location = err.location();
+    Some(ConfigProblem {
+        line: location.as_ref().map(|l| l.line()),
+        column: location.as_ref().map(|l| l.column()),
+        message: err.to_string(),
+        backup: false,
+    })
+}
+
 /// Load config from ~/.velikiy-moguchiy/config.yaml.
 /// Automatically migrates V1 config to V2 if needed.
 /// Performs environment variable substitution before parsing.
@@ -2446,10 +2489,43 @@ pub(crate) fn write_owner_only(path: &Path, data: &[u8]) -> std::io::Result<()> 
     std::fs::write(path, data)
 }
 
+/// One Settings save writes many keys one by one; a backup younger than this
+/// already holds the file from before the save and is left alone.
+const BACKUP_KEEP_FOR: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// `config.yaml.bak` next to `config.yaml`.
+pub fn backup_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".bak");
+    path.with_file_name(name)
+}
+
+/// Copy the file about to be replaced to its `.bak`, owner-only like the
+/// original. A failed backup is logged and does not stop the write.
+fn backup_before_write(path: &Path) {
+    let bak = backup_path(path);
+    let recent = std::fs::metadata(&bak)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok())
+        .is_some_and(|age| age < BACKUP_KEEP_FOR);
+    if recent {
+        return;
+    }
+    let Ok(data) = std::fs::read(path) else {
+        return;
+    };
+    if let Err(e) = write_owner_only(&bak, &data) {
+        log::warn!("could not back up {} to {}: {e}", path.display(), bak.display());
+    }
+}
+
 /// Write data to a file atomically: write to a temp sibling, then rename.
 /// The temp file is created owner-only so secrets (API keys) never sit on
 /// disk with umask-derived permissions; the rename carries the mode over.
+/// The previous contents go to `<file>.bak` first.
 fn atomic_write_file(path: &Path, data: &str) -> Result<()> {
+    backup_before_write(path);
     let tmp = path.with_extension("yaml.tmp");
     write_owner_only(&tmp, data.as_bytes())
         .map_err(|e| CoreError::Config(format!("write {}: {e}", tmp.display())))?;
@@ -2957,6 +3033,105 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "a: 2\n");
 
         let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn a_write_keeps_the_previous_file_as_bak_for_the_whole_save() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = temp_config_path("backup");
+        let bak = backup_path(&path);
+        assert!(bak.to_string_lossy().ends_with(".yaml.bak"));
+        fs::write(&path, "a: 1\n").unwrap();
+
+        atomic_write_file(&path, "a: 2\n").unwrap();
+        assert_eq!(fs::read_to_string(&bak).unwrap(), "a: 1\n");
+        let mode = fs::metadata(&bak).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600);
+
+        // The next key of the same save must not replace the backup with a
+        // half-saved file.
+        atomic_write_file(&path, "a: 3\n").unwrap();
+        assert_eq!(fs::read_to_string(&bak).unwrap(), "a: 1\n");
+        assert_eq!(fs::read_to_string(&path).unwrap(), "a: 3\n");
+
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(&bak);
+    }
+
+    #[test]
+    fn a_broken_config_is_reported_with_its_line() {
+        let broken = "asr:\n  provider: qwen\nhotkey:\n  trigger_key: [right_command\n  trigger_mode: hold\n";
+        let problem = parse_problem(broken).expect("must not parse");
+        assert!(problem.line.is_some_and(|line| (4..=6).contains(&line)), "{problem:?}");
+        assert!(!problem.message.is_empty());
+
+        let wrong_type = "asr:\n  qwen:\n    model: m\n    connect_timeout_ms: soon\n";
+        let problem = parse_problem(wrong_type).expect("must not parse");
+        assert_eq!(problem.line, Some(4), "{problem:?}");
+
+        assert_eq!(parse_problem(include_str!("testdata/existing_config.yaml")), None);
+        assert_eq!(parse_problem(DEFAULT_CONFIG_YAML), None);
+    }
+
+    #[test]
+    fn config_problem_reads_the_file_and_sees_the_backup() {
+        let _env_lock = PROCESS_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let home = EnvVarGuard::new("HOME");
+        let tmp = std::env::temp_dir().join(format!(
+            "velikiy-moguchiy-test-problem-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let app_dir = tmp.join(velikiy_moguchiy_asr::app_dir::DIR_NAME);
+        fs::create_dir_all(&app_dir).unwrap();
+        home.set(&tmp);
+
+        assert_eq!(config_problem(), None, "no file yet is not a problem");
+        fs::write(app_dir.join("config.yaml"), "asr: [\n").unwrap();
+        let problem = config_problem().expect("broken file");
+        assert!(!problem.backup);
+        fs::write(app_dir.join("config.yaml.bak"), "asr: {}\n").unwrap();
+        assert!(config_problem().unwrap().backup);
+        // config_set refuses to touch a file it cannot read back.
+        assert!(config_set("asr.provider", "qwen").is_err());
+        assert_eq!(
+            fs::read_to_string(app_dir.join("config.yaml")).unwrap(),
+            "asr: [\n"
+        );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn saving_one_key_of_an_existing_config_keeps_every_other_value() {
+        let _env_lock = PROCESS_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let home = EnvVarGuard::new("HOME");
+        let tmp = std::env::temp_dir().join(format!(
+            "velikiy-moguchiy-test-save-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let app_dir = tmp.join(velikiy_moguchiy_asr::app_dir::DIR_NAME);
+        fs::create_dir_all(&app_dir).unwrap();
+        let existing = include_str!("testdata/existing_config.yaml");
+        fs::write(app_dir.join("config.yaml"), existing).unwrap();
+        home.set(&tmp);
+
+        config_set("overlay.bottom_margin", "24").unwrap();
+        let saved: serde_yaml::Value =
+            serde_yaml::from_str(&fs::read_to_string(app_dir.join("config.yaml")).unwrap())
+                .unwrap();
+        let backup = fs::read_to_string(app_dir.join("config.yaml.bak")).unwrap();
+        let _ = fs::remove_dir_all(&tmp);
+
+        assert_eq!(backup, existing);
+        let mut expected: serde_yaml::Value = serde_yaml::from_str(existing).unwrap();
+        expected["overlay"]["bottom_margin"] = serde_yaml::Value::from(24);
+        assert_eq!(saved, expected);
     }
 
     #[test]

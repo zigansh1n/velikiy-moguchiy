@@ -86,6 +86,10 @@ static const NSInteger SPTextDeliverySendFlag = 0x80;
 /// Reload configuration.
 - (void)reloadConfig;
 
+/// Why config.yaml cannot be read ({line, column, message, backup}), or nil
+/// when it reads. While it cannot, the core runs on defaults.
+- (NSDictionary *)configProblem;
+
 // ─── Model Management ──────────────────────────────────────────────
 
 /// Return supported local provider names (e.g. @[@"mlx", @"sherpa-onnx"]).

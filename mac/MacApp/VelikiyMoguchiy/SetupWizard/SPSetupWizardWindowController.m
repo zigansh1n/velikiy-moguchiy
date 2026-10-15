@@ -9,6 +9,7 @@
 #import "SPQwenModelChoice.h"
 #import "SPRustBridge.h"
 #import "SPSettingsSidebar.h"
+#import "SPSettingsValidation.h"
 #import "SPSettingsViews.h"
 #import "SPErrorExplainer.h"
 #import "SPTheme.h"
@@ -219,6 +220,54 @@ static BOOL configBooleanValue(NSString *value, BOOL fallback) {
   }
 
   return fallback;
+}
+
+/// What the user can change in `view`, as text; nil for anything else. A
+/// popup also records how many items it has, so one filled in later (a model
+/// list arriving) is not mistaken for an edit.
+static NSString *editableValueOfView(NSView *view) {
+  if ([view isKindOfClass:[NSTextView class]]) {
+    NSTextView *textView = (NSTextView *)view;
+    return textView.isEditable ? [textView.string copy] : nil;
+  }
+  if ([view isKindOfClass:[NSPopUpButton class]]) {
+    NSPopUpButton *popup = (NSPopUpButton *)view;
+    return [NSString stringWithFormat:@"#%ld|%@", (long)popup.numberOfItems,
+                                      popup.titleOfSelectedItem ?: @""];
+  }
+  if ([view isKindOfClass:[NSTextField class]]) {
+    NSTextField *field = (NSTextField *)view;
+    return field.isEditable ? [field.stringValue copy] : nil;
+  }
+  if ([view isKindOfClass:[NSSwitch class]])
+    return [NSString stringWithFormat:@"%ld", (long)((NSSwitch *)view).state];
+  if ([view isKindOfClass:[NSSegmentedControl class]])
+    return [NSString stringWithFormat:@"%ld",
+                                      (long)((NSSegmentedControl *)view).selectedSegment];
+  if ([view isKindOfClass:[NSSlider class]])
+    return [NSString stringWithFormat:@"%ld", lround(((NSSlider *)view).doubleValue)];
+  return nil;
+}
+
+static NSMapTable<NSView *, NSString *> *editableValuesUnderView(NSView *root) {
+  NSMapTable<NSView *, NSString *> *values = [NSMapTable strongToStrongObjectsMapTable];
+  NSMutableArray<NSView *> *pending = [NSMutableArray arrayWithObject:root];
+  while (pending.count > 0) {
+    NSView *view = pending.lastObject;
+    [pending removeLastObject];
+    NSString *value = editableValueOfView(view);
+    if (value)
+      [values setObject:value forKey:view];
+    [pending addObjectsFromArray:view.subviews];
+  }
+  return values;
+}
+
+static BOOL popupItemCountsDiffer(NSString *before, NSString *now) {
+  if (![before hasPrefix:@"#"] || ![now hasPrefix:@"#"])
+    return NO;
+  return [before componentsSeparatedByString:@"|"].firstObject.integerValue !=
+         [now componentsSeparatedByString:@"|"].firstObject.integerValue;
 }
 
 static BOOL isNumericKeycode(NSString *value) {
@@ -760,6 +809,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 // The model as loaded, so Save writes asr.qwen.model only when the user picked
 // another one.
 @property(nonatomic, copy) NSString *asrQwenLoadedModel;
+// Keys as loaded: Save writes them only when the user changed them, so an
+// untouched pane never rewrites (or blanks) keys of a provider not in use.
+@property(nonatomic, copy) NSArray<NSString *> *asrLoadedQwenKeys;
+@property(nonatomic, copy) NSArray<NSString *> *asrLoadedDoubaoKeys;
 @property(nonatomic, strong) NSSecureTextField *asrGlmApiKeySecureField;
 @property(nonatomic, strong) NSTextField *asrGlmApiKeyField;
 @property(nonatomic, strong) NSButton *asrGlmApiKeyToggle;
@@ -913,6 +966,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSMutableArray<NSTextField *> *snippetTriggerFields;
 @property(nonatomic, strong) NSMutableArray<NSTextField *> *snippetTextFields;
 @property(nonatomic, copy) NSString *loadedSnippetsSignature;
+// Per pane: the pane view and what its controls showed right after loading,
+// to ask before «Отмена» throws edits away.
+@property(nonatomic, strong)
+    NSMutableDictionary<NSString *, NSArray *> *paneBaselines;
 
 // System Prompt
 @property(nonatomic, strong) NSTextView *systemPromptTextView;
@@ -995,6 +1052,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 }
 
 - (void)showWindow:(id)sender {
+  self.paneBaselines = [NSMutableDictionary dictionary];
   if (!self.currentPaneIdentifier) {
     [self switchToPane:kToolbarASR];
   }
@@ -1002,6 +1060,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   [self.window center];
   [self.window makeKeyAndOrderFront:sender];
   [NSApp activateIgnoringOtherApps:YES];
+  // The panes show defaults for a file that does not parse; say so up front.
+  [self presentConfigProblem];
 }
 
 // ─── Window Chrome ──────────────────────────────────────────────────
@@ -1252,6 +1312,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
   // Reload values for this pane
   [self loadValuesForPane:identifier];
+  [self rememberBaselineOfCurrentPane];
 }
 
 // Place a pane inside the scrolling document. Panes lay themselves out with
@@ -4886,6 +4947,7 @@ static NSArray<NSString *> *parsedQwenKeys(NSString *text) {
       [keys addObject:single];
   }
   self.asrQwenKeys = keys;
+  self.asrLoadedQwenKeys = keys;
   self.asrQwenKeysEditing = NO;
   [self showQwenKeysMasked];
 }
@@ -6241,6 +6303,43 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
 
 - (void)loadCurrentValues {
   [self loadValuesForPane:self.currentPaneIdentifier];
+  [self rememberBaselineOfCurrentPane];
+}
+
+- (void)rememberBaselineOfCurrentPane {
+  if (!self.currentPaneIdentifier || !self.currentPaneView)
+    return;
+  if (!self.paneBaselines)
+    self.paneBaselines = [NSMutableDictionary dictionary];
+  self.paneBaselines[self.currentPaneIdentifier] =
+      @[ self.currentPaneView, editableValuesUnderView(self.currentPaneView) ];
+}
+
+/// Whether any control of a pane loaded in this session differs from what it
+/// showed after loading. Lists built from rows (snippets, DashScope keys) are
+/// compared by content, since their controls come and go.
+- (BOOL)hasUnsavedChanges {
+  if (self.snippetRows &&
+      ![[self signatureForSnippets:[self snippetsForSave]]
+          isEqualToString:self.loadedSnippetsSignature ?: @""])
+    return YES;
+  if (self.asrQwenKeysTextView &&
+      ![[self currentQwenKeys] isEqualToArray:self.asrLoadedQwenKeys ?: @[]])
+    return YES;
+  for (NSArray *entry in self.paneBaselines.allValues) {
+    NSMapTable<NSView *, NSString *> *baseline = entry[1];
+    for (NSView *view in baseline) {
+      if ([view isKindOfClass:[SPKeysTextView class]])
+        continue;
+      NSString *before = [baseline objectForKey:view];
+      NSString *now = editableValueOfView(view);
+      if (!now || popupItemCountsDiffer(before, now))
+        continue;
+      if (![before isEqualToString:now])
+        return YES;
+    }
+  }
+  return NO;
 }
 
 - (void)rememberLoadedBooleanValue:(BOOL)value forKey:(NSString *)key {
@@ -6298,6 +6397,8 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     NSString *apiKey = configGet(@"asr.doubao.api_key");
     self.asrApiKeySecureField.stringValue = apiKey;
     self.asrApiKeyField.stringValue = apiKey;
+    self.asrLoadedDoubaoKeys = @[ apiKey ?: @"", self.asrAppKeyField.stringValue ?: @"",
+                                  accessKey ?: @"" ];
     // Select auth mode: if api_key is set, use New Console mode
     if (apiKey.length > 0) {
       [self.asrAuthModeControl setSelectedSegment:0];
@@ -6378,10 +6479,12 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     NSString *glmApiKey = configGet(@"asr.glm.api_key");
     self.asrGlmApiKeySecureField.stringValue = glmApiKey;
     self.asrGlmApiKeyField.stringValue = glmApiKey;
+    [self rememberLoadedStringValue:glmApiKey forKey:@"asr.glm.api_key"];
     // Load MiMo fields
     NSString *mimoApiKey = configGet(@"asr.mimo.api_key");
     self.asrMimoApiKeySecureField.stringValue = mimoApiKey;
     self.asrMimoApiKeyField.stringValue = mimoApiKey;
+    [self rememberLoadedStringValue:mimoApiKey forKey:@"asr.mimo.api_key"];
     // Reset visibility based on selected provider
     [self asrProviderChanged:self.asrProviderPopup];
     // Select saved Apple Speech locale (always, so switching to apple-speech
@@ -6665,8 +6768,95 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   }
 }
 
+/// Shows why config.yaml cannot be read, if it cannot; YES when it showed.
+/// Saving over such a file would fail key by key, so the save stops here.
+- (BOOL)presentConfigProblem {
+  NSDictionary *problem = [self.rustBridge configProblem];
+  if (!problem)
+    return NO;
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.alertStyle = NSAlertStyleWarning;
+  alert.messageText = SPConfigProblemTitle(problem);
+  alert.informativeText = SPConfigProblemDetail(problem);
+  [alert addButtonWithTitle:@"Показать в Finder"];
+  [alert addButtonWithTitle:@"OK"];
+  if ([alert runModal] == NSAlertFirstButtonReturn) {
+    [[NSWorkspace sharedWorkspace]
+        activateFileViewerSelectingURLs:@[ [NSURL fileURLWithPath:configFilePath()] ]];
+  }
+  return YES;
+}
+
+/// A typing key as the trigger and two roles on one key stop the save; a
+/// cloud provider without its key only asks, since the key may come later.
+- (BOOL)validateBeforeSave {
+  if (self.hotkeyPopup) {
+    NSString *trigger = normalizedHotkeyValue(
+        self.hotkeyPopup.selectedItem.representedObject ?: @"fn");
+    NSString *problem = SPTriggerKeyProblem(trigger);
+    if (problem) {
+      [self showAlert:@"Эта клавиша не может запускать диктовку" info:problem];
+      return NO;
+    }
+    NSString * (^value)(NSPopUpButton *) = ^NSString *(NSPopUpButton *popup) {
+      id represented = popup.selectedItem.representedObject;
+      return [represented isKindOfClass:[NSString class]] ? represented : @"";
+    };
+    problem = SPSharedHotkeyProblem(@[
+      @[ @"Клавиша запуска", trigger ],
+      @[ @"Клавиша перевода", value(self.translateKeyPopup) ],
+      @[ @"Клавиша вопроса", value(self.askKeyPopup) ],
+      @[ @"Клавиша правки", value(self.editKeyPopup) ],
+      @[ @"Отменить вставку", value(self.undoKeyPopup) ],
+      @[ @"Вставить последнюю диктовку", value(self.repasteKeyPopup) ],
+      @[ @"Клавиша режима текста", value(self.modeKeyPopup) ],
+      @[ @"Клавиша отмены записи", value(self.abortKeyPopup) ],
+    ]);
+    if (problem) {
+      [self showAlert:@"Две роли на одной клавише" info:problem];
+      return NO;
+    }
+  }
+  if (self.asrProviderPopup) {
+    NSString *provider = self.asrProviderPopup.selectedItem.representedObject ?: @"qwen";
+    NSDictionary<NSString *, NSString *> *keys;
+    if ([provider isEqualToString:@"qwen"]) {
+      keys = @{ @"api_keys" : [[self currentQwenKeys] componentsJoinedByString:@"\n"] };
+    } else if ([provider isEqualToString:@"doubao"]) {
+      keys = @{
+        @"api_key" : (self.asrApiKeyToggle.tag == 1 ? self.asrApiKeyField
+                                                    : self.asrApiKeySecureField).stringValue,
+        @"app_key" : self.asrAppKeyField.stringValue ?: @"",
+        @"access_key" : (self.asrAccessKeyToggle.tag == 1 ? self.asrAccessKeyField
+                                                          : self.asrAccessKeySecureField).stringValue,
+      };
+    } else if ([provider isEqualToString:@"glm"]) {
+      keys = @{ @"api_key" : (self.asrGlmApiKeyToggle.tag == 1 ? self.asrGlmApiKeyField
+                                                               : self.asrGlmApiKeySecureField).stringValue };
+    } else if ([provider isEqualToString:@"mimo"]) {
+      keys = @{ @"api_key" : (self.asrMimoApiKeyToggle.tag == 1 ? self.asrMimoApiKeyField
+                                                                : self.asrMimoApiKeySecureField).stringValue };
+    }
+    NSString *problem = SPMissingProviderKeyProblem(provider, keys ?: @{});
+    if (problem) {
+      NSAlert *alert = [[NSAlert alloc] init];
+      alert.alertStyle = NSAlertStyleWarning;
+      alert.messageText = @"Нет ключа для распознавания";
+      alert.informativeText = [problem
+          stringByAppendingString:@" Без него диктовка не заработает. Ключ вводится в «Распознавание»."];
+      [alert addButtonWithTitle:@"Вернуться"];
+      [alert addButtonWithTitle:@"Сохранить без ключа"];
+      if ([alert runModal] == NSAlertFirstButtonReturn)
+        return NO;
+    }
+  }
+  return YES;
+}
+
 - (void)saveConfig:(id)sender {
   [self endHotkeyRecording];
+  if ([self presentConfigProblem] || ![self validateBeforeSave])
+    return;
 
   // Warn if a local provider is selected but assets/models are not installed
   if (self.asrProviderPopup) {
@@ -6769,23 +6959,26 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
              forKey:SPChatGPTPreviousProviderKey];
     }
     saveOk &= configSet(@"asr.provider", selectedProvider);
-    // Save Doubao fields based on auth mode
+    // Doubao keys, by auth mode: one mode's keys clear the other's, so they
+    // are written only when they were edited.
     BOOL isNewConsoleMode = (self.asrAuthModeControl.selectedSegment == 0);
-    if (isNewConsoleMode) {
-      NSString *apiKey = self.asrApiKeyToggle.tag == 1
-                             ? self.asrApiKeyField.stringValue
-                             : self.asrApiKeySecureField.stringValue;
-      saveOk &= configSet(@"asr.doubao.api_key", apiKey);
-      saveOk &= configSet(@"asr.doubao.app_key", @"");
-      saveOk &= configSet(@"asr.doubao.access_key", @"");
-    } else {
-      saveOk &= configSet(@"asr.doubao.api_key", @"");
-      saveOk &=
-          configSet(@"asr.doubao.app_key", self.asrAppKeyField.stringValue);
-      NSString *accessKey = self.asrAccessKeyToggle.tag == 1
-                                ? self.asrAccessKeyField.stringValue
-                                : self.asrAccessKeySecureField.stringValue;
-      saveOk &= configSet(@"asr.doubao.access_key", accessKey);
+    NSString *doubaoApiKey = self.asrApiKeyToggle.tag == 1
+                                 ? self.asrApiKeyField.stringValue
+                                 : self.asrApiKeySecureField.stringValue;
+    NSString *doubaoAccessKey = self.asrAccessKeyToggle.tag == 1
+                                    ? self.asrAccessKeyField.stringValue
+                                    : self.asrAccessKeySecureField.stringValue;
+    NSArray<NSString *> *doubaoKeys =
+        isNewConsoleMode
+            ? @[ doubaoApiKey ?: @"", @"", @"" ]
+            : @[ @"", self.asrAppKeyField.stringValue ?: @"", doubaoAccessKey ?: @"" ];
+    NSArray<NSString *> *shownDoubaoKeys =
+        @[ doubaoApiKey ?: @"", self.asrAppKeyField.stringValue ?: @"", doubaoAccessKey ?: @"" ];
+    if (![shownDoubaoKeys isEqualToArray:self.asrLoadedDoubaoKeys ?: @[]]) {
+      saveOk &= configSet(@"asr.doubao.api_key", doubaoKeys[0]);
+      saveOk &= configSet(@"asr.doubao.app_key", doubaoKeys[1]);
+      saveOk &= configSet(@"asr.doubao.access_key", doubaoKeys[2]);
+      if (saveOk) self.asrLoadedDoubaoKeys = shownDoubaoKeys;
     }
     // Save language only when Doubao is selected
     if ([selectedProvider isEqualToString:@"doubao"]) {
@@ -6814,8 +7007,11 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     }
     // Save Qwen fields
     NSArray<NSString *> *qwenKeys = [self currentQwenKeys];
-    saveOk &= configSetJSON(@"asr.qwen.api_keys", qwenKeys);
-    saveOk &= configSet(@"asr.qwen.api_key", qwenKeys.firstObject ?: @"");
+    if (![qwenKeys isEqualToArray:self.asrLoadedQwenKeys ?: @[]]) {
+      saveOk &= configSetJSON(@"asr.qwen.api_keys", qwenKeys);
+      saveOk &= configSet(@"asr.qwen.api_key", qwenKeys.firstObject ?: @"");
+      if (saveOk) self.asrLoadedQwenKeys = qwenKeys;
+    }
     saveOk &= configSet(@"asr.qwen.use_field_context",
                         self.asrQwenFieldContextCheckbox.state ==
                                 NSControlStateValueOn
@@ -6842,12 +7038,12 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     NSString *glmApiKey = self.asrGlmApiKeyToggle.tag == 1
                               ? self.asrGlmApiKeyField.stringValue
                               : self.asrGlmApiKeySecureField.stringValue;
-    saveOk &= configSet(@"asr.glm.api_key", glmApiKey);
+    saveOk &= [self saveStringValue:glmApiKey forKey:@"asr.glm.api_key"];
     // Save MiMo fields
     NSString *mimoApiKey = self.asrMimoApiKeyToggle.tag == 1
                                ? self.asrMimoApiKeyField.stringValue
                                : self.asrMimoApiKeySecureField.stringValue;
-    saveOk &= configSet(@"asr.mimo.api_key", mimoApiKey);
+    saveOk &= [self saveStringValue:mimoApiKey forKey:@"asr.mimo.api_key"];
     // Save Apple Speech locale
     if ([selectedProvider isEqualToString:@"apple-speech"]) {
       NSString *locale =
@@ -7129,9 +7325,30 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
 }
 
 - (void)cancelSetup:(id)sender {
+  if (![self windowShouldClose:self.window])
+    return;
   [self endHotkeyRecording];
   [self hideRuntimeOverlayPreview];
   [self.window close];
+}
+
+/// «Отмена» and the close button ask before unsaved edits are dropped. A
+/// successful save closes the window itself, without coming here.
+- (BOOL)windowShouldClose:(NSWindow *)sender {
+  if (![self hasUnsavedChanges])
+    return YES;
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = @"Сохранить изменения?";
+  alert.informativeText = @"В настройках есть несохранённые изменения. Без сохранения они пропадут.";
+  [alert addButtonWithTitle:@"Сохранить"];
+  [alert addButtonWithTitle:@"Не сохранять"];
+  [alert addButtonWithTitle:@"Продолжить правку"];
+  NSModalResponse response = [alert runModal];
+  if (response == NSAlertFirstButtonReturn) {
+    [self saveConfig:nil];
+    return NO;
+  }
+  return response == NSAlertSecondButtonReturn;
 }
 
 - (void)llmEnabledToggled:(id)sender {

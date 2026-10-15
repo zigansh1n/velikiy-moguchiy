@@ -255,6 +255,15 @@ static void bridge_on_rewrite_text_ready(uint64_t token, const char *text) {
     sp_core_reload_config();
 }
 
+- (NSDictionary *)configProblem {
+    char *json = sp_core_config_problem_json();
+    if (!json) return nil;
+    NSData *data = [NSData dataWithBytes:json length:strlen(json)];
+    sp_core_free_string(json);
+    id problem = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [problem isKindOfClass:[NSDictionary class]] ? problem : @{};
+}
+
 // ─── Model Management ──────────────────────────────────────────────
 
 - (NSArray<NSString *> *)supportedLocalProviders {

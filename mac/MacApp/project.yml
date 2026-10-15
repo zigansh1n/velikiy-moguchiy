@@ -149,6 +149,8 @@ targets:
       - path: VelikiyMoguchiy/Paste/SPTextEditPolicy.m
       - path: VelikiyMoguchiy/Settings/SPQwenModelChoice.m
       - path: VelikiyMoguchiy/Settings/SPQwenModelChoiceTests.m
+      - path: VelikiyMoguchiy/Settings/SPSettingsValidation.m
+      - path: VelikiyMoguchiy/Settings/SPSettingsValidationTests.m
       - path: VelikiyMoguchiy/Paste/SPTextEditPolicyTests.m
       - path: VelikiyMoguchiy/LipData/SPLipDataPolicy.m
       - path: VelikiyMoguchiy/LipData/SPLipDataPolicyTests.m

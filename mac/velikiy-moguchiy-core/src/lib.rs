@@ -1812,6 +1812,20 @@ pub extern "C" fn sp_core_scan_models_json() -> *mut c_char {
     CString::new(json_str).unwrap_or_default().into_raw()
 }
 
+/// JSON `{line, column, message, backup}` when config.yaml exists but cannot
+/// be read (the core then runs on defaults); null when it is fine.
+/// Caller must free a non-null result with `sp_core_free_string()`.
+#[no_mangle]
+pub extern "C" fn sp_core_config_problem_json() -> *mut c_char {
+    match config::config_problem() {
+        Some(problem) => {
+            let json = serde_json::to_string(&problem).unwrap_or_else(|_| "{}".into());
+            CString::new(json).unwrap_or_default().into_raw()
+        }
+        None => std::ptr::null_mut(),
+    }
+}
+
 /// Get a config value by dot-separated key path (e.g. "asr.doubao.app_key").
 /// Returns a heap-allocated C string that must be freed with sp_core_free_string().
 /// Returns an empty string if the key is not found.
