@@ -99,6 +99,22 @@ final class AppConfiguration: ObservableObject {
     }
   }
 
+  /// "Буква «ё»" (default: on): еще -> ещё on space where «е» makes no word.
+  @Published var yoEnabled: Bool {
+    didSet {
+      defaults.set(yoEnabled, forKey: KeyboardPreferences.yoKey)
+      relayStore.yoEnabled = yoEnabled
+    }
+  }
+
+  /// "Ряд цифр" (default: off): digits above the letters.
+  @Published var numberRowEnabled: Bool {
+    didSet {
+      defaults.set(numberRowEnabled, forKey: KeyboardPreferences.numberRowKey)
+      relayStore.numberRowEnabled = numberRowEnabled
+    }
+  }
+
   init(
     defaults: UserDefaults = .standard,
     credentialStore: APIKeyStore = APIKeyStore(),
@@ -119,6 +135,9 @@ final class AppConfiguration: ObservableObject {
       (defaults.object(forKey: Key.stopInLowPowerMode) as? NSNumber)?.boolValue ?? true
     self.autocorrectEnabled = KeyboardPreferences.isAutocorrectEnabled(
       defaults.object(forKey: KeyboardPreferences.autocorrectKey))
+    self.yoEnabled = KeyboardPreferences.isYoEnabled(defaults.object(forKey: KeyboardPreferences.yoKey))
+    self.numberRowEnabled = KeyboardPreferences.isNumberRowEnabled(
+      defaults.object(forKey: KeyboardPreferences.numberRowKey))
     self.noteLanguageCode = DictationLanguage.resolve(
       defaults.string(forKey: Key.noteLanguageCode)
         ?? Locale.preferredLanguages.first
@@ -154,6 +173,8 @@ final class AppConfiguration: ObservableObject {
     self.relayStore.keyHapticsEnabled = keyHapticsEnabled
     self.relayStore.keyClickSoundEnabled = keyClickSoundEnabled
     self.relayStore.autocorrectEnabled = autocorrectEnabled
+    self.relayStore.yoEnabled = yoEnabled
+    self.relayStore.numberRowEnabled = numberRowEnabled
   }
 
   var apiKey: String {

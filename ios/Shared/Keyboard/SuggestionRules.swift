@@ -106,12 +106,14 @@ enum WordBoundary {
 enum SuggestionComposer {
   /// Up to three cells: the typed word first (quoted when it is not a word),
   /// then the best candidates. The second cell is the automatic correction.
+  /// `preferred` leads whatever the word is: the «ё» spelling of what was typed.
   static func compose(
     typed: String,
     isValidWord: Bool,
     guesses: [String],
     completions: [String],
-    lexiconMatches: [String]
+    lexiconMatches: [String],
+    preferred: [String] = []
   ) -> [Suggestion] {
     guard !typed.isEmpty else { return [] }
     var seen: Set<String> = [typed.lowercased()]
@@ -131,6 +133,7 @@ enum SuggestionComposer {
     let lowered = typed.lowercased()
     let continuing = guesses.filter { $0.lowercased().hasPrefix(lowered) }
     let corrections = guesses.filter { !$0.lowercased().hasPrefix(lowered) }
+    add(preferred)
     if isValidWord {
       add(completions)
       add(continuing)

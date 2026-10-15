@@ -5,7 +5,8 @@
 - mac/MacApp/VelikiyMoguchiy/Licenses/ThirdPartyNotices.txt: this project's license, koe, the
   bundled helpers and ported code, and every Rust crate linked into the shipped core library and
   CLI (aarch64-apple-darwin, the release feature set) with the license files from the crate itself.
-- ios/App/ThirdPartyNotices.txt: the Apache-2.0 base of the keyboard and the KeyboardKit port.
+- ios/App/ThirdPartyNotices.txt: the Apache-2.0 base of the keyboard, the KeyboardKit port and the
+  AOSP word lists of the Russian keyboard.
 
 Run it again after changing Rust dependencies or the release features (needs cargo; it runs
 `cargo fetch` for the macOS target first).
@@ -172,6 +173,9 @@ def main():
     kk_body = kk.split("## KeyboardKit 9.9.1", 1)[1]
     kk_body = re.sub(r"^> ?", "", kk_body, flags=re.M).strip()
     ios.append(section("KeyboardKit 9.9.1 by Daniel Saidi — MIT License", kk_body))
+    ios.append(section("AOSP LatinIME word lists — Apache License 2.0\n"
+                       "The Russian keyboard's words (completions and «ё») come from these lists.",
+                       markdown_block(ROOT / "android/THIRD_PARTY.md", "## AOSP LatinIME NOTICE")))
     dest = ROOT / "ios/App/ThirdPartyNotices.txt"
     dest.write_text("".join(ios).rstrip() + "\n", encoding="utf-8")
     print(f"{dest.relative_to(ROOT)}: {dest.stat().st_size // 1024} KiB")

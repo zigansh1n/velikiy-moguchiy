@@ -53,15 +53,47 @@ final class SuggestionEngine {
   }
 
   private let language: KeyboardLayoutLanguage
+  private let loadWordList: () -> WordFrequencyList?
+  private var loadedWordList: WordFrequencyList??
 
-  init(language: KeyboardLayoutLanguage, checker: TextChecking? = nil) {
+  /// Read and written only on `queue`; loads on first use.
+  private var wordList: WordFrequencyList? {
+    if let loadedWordList { return loadedWordList }
+    let list = loadWordList()
+    loadedWordList = .some(list)
+    return list
+  }
+
+  /// Kept for the life of the extension process, which iOS reuses when the
+  /// globe switches back. Two keyboard instances (and their queues) can be
+  /// alive at once, hence the lock.
+  private static let russianWordsLock = NSLock()
+  private static var cachedRussianWords: WordFrequencyList?
+
+  init(
+    language: KeyboardLayoutLanguage,
+    checker: TextChecking? = nil,
+    wordList: (() -> WordFrequencyList?)? = nil
+  ) {
     self.language = language
     self.checker =
       checker ?? SystemTextChecker(language: Self.languageIdentifier(for: language))
+    loadWordList = wordList ?? { language == .russian ? Self.bundledRussianWords() : nil }
     // The first call loads the lexicon (slow, and its completions can come back
     // empty); do it off the main thread before the first keystroke needs it.
     let warmUp = self.checker
     queue.async { _ = warmUp?.completions(for: "a") }
+    // The word list waits until the keyboard is on screen: a launching
+    // extension that is starved of CPU is replaced by the system keyboard.
+    queue.asyncAfter(deadline: .now() + 1) { [weak self] in _ = self?.wordList }
+  }
+
+  private static func bundledRussianWords() -> WordFrequencyList? {
+    russianWordsLock.lock()
+    defer { russianWordsLock.unlock() }
+    if let cachedRussianWords { return cachedRussianWords }
+    cachedRussianWords = WordFrequencyList.russian()
+    return cachedRussianWords
   }
 
   var hasDictionary: Bool { checker != nil }
@@ -79,9 +111,10 @@ final class SuggestionEngine {
     guard !typed.isEmpty else {
       return SentenceStarters.suggestions(for: language, contextBefore: contextBefore)
     }
-    guard checker != nil || !replacements.isEmpty else { return [] }
-    let isValid = checker?.isValidWord(typed) ?? true
-    let completions = checker?.completions(for: typed) ?? []
+    guard checker != nil || wordList != nil || !replacements.isEmpty else { return [] }
+    let isValid = isKnownWord(typed)
+    let completions =
+      (wordList?.completions(for: typed, limit: 3) ?? []) + (checker?.completions(for: typed) ?? [])
     // Guesses are the slow call; ask only when the word looks wrong or is short.
     let guesses = (isValid && typed.count > 3) ? [] : (checker?.guesses(for: typed) ?? [])
     return SuggestionComposer.compose(
@@ -89,25 +122,38 @@ final class SuggestionEngine {
       isValidWord: isValid,
       guesses: guesses,
       completions: completions,
-      lexiconMatches: replacements.documentTexts(withPrefix: typed)
+      lexiconMatches: replacements.documentTexts(withPrefix: typed),
+      preferred: wordList?.yoVariants(of: typed) ?? []
     )
+  }
+
+  private func isKnownWord(_ word: String) -> Bool {
+    if wordList?.contains(word) == true { return true }
+    return checker?.isValidWord(word) ?? (wordList == nil)
   }
 
   /// What typing `boundary` should do to the text before the cursor, if anything.
   func replacement(
     contextBefore: String?,
-    autocorrectEnabled: Bool
+    autocorrectEnabled: Bool,
+    yoEnabled: Bool = false
   ) -> BoundaryReplacement? {
     let token = WordBoundary.lastToken(contextBefore: contextBefore)
     guard !token.isEmpty else { return nil }
     if let expanded = replacements.replacement(forToken: token) {
       return BoundaryReplacement(original: token, replacement: expanded, isAutocorrect: false)
     }
-    guard autocorrectEnabled, let checker else { return nil }
     let word = WordBoundary.partialWord(contextBefore: contextBefore)
+    if yoEnabled, word == token, !rejectedWords.contains(word.lowercased()),
+      let spelling = wordList?.yoSpelling(of: word)
+    {
+      return BoundaryReplacement(
+        original: word, replacement: CasePreservation.apply(to: spelling, like: word),
+        isAutocorrect: true)
+    }
+    guard autocorrectEnabled, let checker else { return nil }
     guard word == token else { return nil }
-    let isValid = checker.isValidWord(word)
-    guard !isValid else { return nil }
+    guard !isKnownWord(word) else { return nil }
     guard
       let corrected = AutocorrectRules.correction(
         for: word, guesses: checker.guesses(for: word), isValidWord: false,

@@ -103,6 +103,8 @@ enum KeyTouchOutput: Equatable {
   case trackpadBegan(touch: Int)
   case trackpadMoved(touch: Int, point: CGPoint)
   case trackpadEnded(touch: Int)
+  /// A function key was held long enough for its second action; its release does nothing.
+  case held(touch: Int, key: KeyID)
 }
 
 struct KeyTouchTracker {
@@ -273,6 +275,16 @@ struct KeyTouchTracker {
       .released(touch: touch, key: state.origin.id),
       .trackpadBegan(touch: touch),
     ]
+  }
+
+  /// The finger has rested on a function key long enough (the microphone's emoji panel).
+  mutating func holdFunction(touch: Int) -> [KeyTouchOutput] {
+    guard var state = touches[touch], state.mode == .normal, !state.committed,
+      state.origin.kind == .function, state.current?.id == state.origin.id
+    else { return [] }
+    state.committed = true
+    touches[touch] = state
+    return [.released(touch: touch, key: state.origin.id), .held(touch: touch, key: state.origin.id)]
   }
 
   mutating func reset() {

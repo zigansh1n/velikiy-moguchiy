@@ -79,6 +79,9 @@ final class KeyboardSurfaceView: UIView {
 
   var bottomPadding: CGFloat { CGFloat(geometry.bottomPadding) }
   var topAdjustment: CGFloat { 0 }
+  var topRowHeight: CGFloat { CGFloat(geometry.keyHeight) }
+  /// The KeyboardKit variant has no digit row.
+  func setShowsNumberRow(_ shows: Bool) {}
 
   func attach(to controller: KeyboardInputViewController) {
     self.controller = controller
