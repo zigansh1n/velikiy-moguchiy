@@ -125,6 +125,8 @@ targets:
       - path: VelikiyMoguchiy/AppDelegate/SPAppDelegateLogicTests.m
       - path: VelikiyMoguchiy/AppDelegate/SPOutputModes.m
       - path: VelikiyMoguchiy/AppDelegate/SPOutputModesTests.m
+      - path: VelikiyMoguchiy/AppDelegate/SPVoiceKeyPolicy.m
+      - path: VelikiyMoguchiy/AppDelegate/SPVoiceKeyPolicyTests.m
       - path: VelikiyMoguchiy/Support/SPErrorExplainer.m
       - path: VelikiyMoguchiy/Support/SPErrorExplainerTests.m
       - path: VelikiyMoguchiy/Support/SPHotkeyNames.m

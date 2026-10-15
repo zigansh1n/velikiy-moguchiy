@@ -1,5 +1,6 @@
 #import "SPOnboardingWindowController.h"
 #import "SPHotkeyNames.h"
+#import "SPVoiceKeyPolicy.h"
 #import "SPLocalAsrOffer.h"
 #import "SPLocalAsrPolicy.h"
 #import "SPPermissionManager.h"
@@ -57,6 +58,7 @@ static BOOL recognitionReady(void) {
 @property (nonatomic, strong) NSButton *fnWarningButton;
 @property (nonatomic, strong) NSTextView *tryTextView;
 @property (nonatomic, strong) NSTextField *tryResult;
+@property (nonatomic, strong) NSTextField *voiceKeysLine;
 @property (nonatomic, strong) NSMutableArray<NSView *> *sectionCaptions;
 @end
 
@@ -189,6 +191,9 @@ static BOOL recognitionReady(void) {
     fnLine.alignment = NSLayoutAttributeFirstBaseline;
     fnLine.spacing = 8;
     [sections addObject:fnLine];
+    self.voiceKeysLine = [self labelWithString:@"" font:SPTheme.descriptionFont color:SPTheme.secondaryLabel];
+    self.voiceKeysLine.preferredMaxLayoutWidth = kWindowWidth - 2 * kContentInset;
+    [sections addObject:self.voiceKeysLine];
 
     CGFloat fieldWidth = kWindowWidth - 2 * kContentInset;
     NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, fieldWidth, 76)];
@@ -323,6 +328,10 @@ static BOOL recognitionReady(void) {
                                                  @"поле ниже.", keyName];
     }
     self.tryInstruction.stringValue = instruction;
+    NSString *voiceKeys = SPVoiceKeysSummary(configString("hotkey.translate_key"), configString("hotkey.ask_key"),
+                                             configString("asr.qwen.translate_to"));
+    self.voiceKeysLine.stringValue = voiceKeys ?: @"";
+    self.voiceKeysLine.hidden = voiceKeys == nil;
 
     NSString *conflict = [[triggerValue lowercaseString] isEqualToString:@"fn"] ? SPFnUsageConflict(SPFnUsageType()) : nil;
     self.fnWarning.stringValue = conflict ? [NSString stringWithFormat:@"Сейчас 🌐 при нажатии ещё и %@.", conflict] : @"";

@@ -2784,6 +2784,10 @@ hotkey:
   # Можно указать код клавиши macOS для обычной клавиши, например 122 (F1), 120 (F2), 99 (F3)
   trigger_key: "fn"
   trigger_mode: "hold"                 # hold | toggle | double_tap | auto
+  # Перевод на язык asr.qwen.translate_to и вопрос по выделенному тексту: работают
+  # как клавиша диктовки, нужен ключ DashScope (Qwen Omni); "" — выключено
+  translate_key: "right_option"
+  ask_key: "left_control"
   # Отменить текущую диктовку без вставки: escape | название клавиши или её код | "" (выключено)
   abort_key: "escape"
   # Переключать режим текста (raw → light → structured → formal); пишется как trigger_key; "" — выключено
@@ -3298,11 +3302,28 @@ mod tests {
         assert_eq!(root["recording"]["max_duration_s"].as_u64(), Some(600));
         assert_eq!(root["feedback"]["start_sound"].as_bool(), Some(true));
         assert_eq!(root["hotkey"]["mode_key"].as_str(), Some(""));
+        assert_eq!(root["hotkey"]["translate_key"].as_str(), Some("right_option"));
+        assert_eq!(root["hotkey"]["ask_key"].as_str(), Some("left_control"));
         for key in ["edit_key", "undo_key", "repaste_key"] {
             assert_eq!(root["hotkey"][key].as_str(), Some(""), "{key}");
         }
         assert_eq!(root["hotkey"]["mouse_button"].as_u64(), Some(0));
         assert!(root["snippets"].as_sequence().unwrap().is_empty());
+    }
+
+    #[test]
+    fn translate_and_ask_keys_are_on_only_in_new_configs() {
+        let new: Config = serde_yaml::from_str(DEFAULT_CONFIG_YAML).unwrap();
+        assert!(new.hotkey.resolve_translate().is_some());
+        assert!(new.hotkey.resolve_ask().is_some());
+
+        // A config from before keeps them off: the serde default stays empty.
+        let existing: Config =
+            serde_yaml::from_str("hotkey:\n  trigger_key: right_command\n").unwrap();
+        assert_eq!(existing.hotkey.translate_key, "");
+        assert_eq!(existing.hotkey.ask_key, "");
+        assert!(existing.hotkey.resolve_translate().is_none());
+        assert!(existing.hotkey.resolve_ask().is_none());
     }
 
     #[test]

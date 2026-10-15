@@ -37,6 +37,7 @@
 #import "SPErrorExplainer.h"
 #import "SPFileTranscriptionWindowController.h"
 #import "SPHotkeyNames.h"
+#import "SPVoiceKeyPolicy.h"
 #import "SPTriggerKeyPolicy.h"
 #import "SPCorrectionWatcher.h"
 #import "SPDictionaryOfferPanel.h"
@@ -61,6 +62,8 @@
 @interface SPHotkeyPurposeProxy : NSObject <SPHotkeyMonitorDelegate>
 @property (nonatomic, weak) SPAppDelegate *target;
 @property (nonatomic, assign) SPSessionPurpose purpose;
+/// Reset to idle when the key is refused, so its release ends nothing.
+@property (nonatomic, weak) SPHotkeyMonitor *monitor;
 @end
 
 /// Forwards the lips key's hold to the app delegate (experimental.lips).
@@ -96,6 +99,8 @@
 @property (nonatomic, strong) SPModeHotkeyProxy *undoHotkeyProxy;
 @property (nonatomic, strong) SPHotkeyMonitor *repasteHotkeyMonitor;
 @property (nonatomic, strong) SPModeHotkeyProxy *repasteHotkeyProxy;
+@property (nonatomic, strong) SPDoublePressGate *undoPressGate;
+@property (nonatomic, strong) SPDoublePressGate *repastePressGate;
 // Voice edit: the selection captured at the trigger, for the session in flight.
 @property (nonatomic, strong) SPSelectionAnchor *editAnchor;
 // The last text the app put into a field (undo), and the last dictation text
@@ -180,6 +185,7 @@
 @property (nonatomic, assign) NSUInteger recognitionMetricActivationSequence;
 @property (nonatomic, assign) uint64_t recognitionMetricSessionToken;
 - (void)beginTriggerForPurpose:(SPSessionPurpose)purpose;
+- (void)refuseAssistantPurpose:(SPSessionPurpose)purpose;
 - (void)discardArmedLipClip;
 - (void)lipsKeyDown;
 - (void)lipsHoldStarted;
@@ -210,6 +216,8 @@ static NSString *const kHandsFreeHintCountKey = @"SPHandsFreeHintCount";
 static const NSInteger kEscapeKeyCode = 53;
 static const NSTimeInterval kAbortResultLingerDuration = 0.8;
 static const NSTimeInterval kQuickBadgeLingerDuration = 1.8;
+/// Undo and re-paste act on two presses this close together.
+static const NSTimeInterval kRiskyKeyDoublePressWindow = 0.45;
 
 static BOOL configFlagEnabled(const char *keyPath) {
     char *rawValue = sp_config_get(keyPath);
@@ -886,6 +894,7 @@ static BOOL SPLabFlag(const char *name) {
     monitor.targetModifierFlag = config.trigger_modifier_flag;
     monitor.targetMatchKind = config.trigger_match_kind;
     monitor.triggerMode = (SPHotkeyTriggerMode)config.trigger_mode;
+    proxy.monitor = monitor;
     [monitor start];
     return monitor;
 }
@@ -987,10 +996,22 @@ static BOOL SPLabFlag(const char *name) {
     if (!self.undoHotkeyProxy) {
         self.undoHotkeyProxy = [[SPModeHotkeyProxy alloc] init];
         self.undoHotkeyProxy.target = self;
-        self.undoHotkeyProxy.onPress = ^{ [weakSelf undoLastInsertion]; };
+        self.undoPressGate = [[SPDoublePressGate alloc] initWithWindow:kRiskyKeyDoublePressWindow];
+        self.undoHotkeyProxy.onPress = ^{
+            [weakSelf riskyKeyPressedWithGate:weakSelf.undoPressGate
+                                      hasWork:weakSelf.lastInsertion != nil
+                                         hint:@"Нажмите ещё раз, чтобы отменить вставку"
+                                       action:^{ [weakSelf undoLastInsertion]; }];
+        };
         self.repasteHotkeyProxy = [[SPModeHotkeyProxy alloc] init];
         self.repasteHotkeyProxy.target = self;
-        self.repasteHotkeyProxy.onPress = ^{ [weakSelf repasteLastDictation]; };
+        self.repastePressGate = [[SPDoublePressGate alloc] initWithWindow:kRiskyKeyDoublePressWindow];
+        self.repasteHotkeyProxy.onPress = ^{
+            [weakSelf riskyKeyPressedWithGate:weakSelf.repastePressGate
+                                      hasWork:weakSelf.lastDictationText.length > 0
+                                         hint:@"Нажмите ещё раз, чтобы вставить последнюю диктовку"
+                                       action:^{ [weakSelf repasteLastDictation]; }];
+        };
     }
     self.undoHotkeyMonitor = [self pressHotkeyMonitorForConfig:sp_core_get_extra_hotkey_config(6)
                                                          proxy:self.undoHotkeyProxy];
@@ -2939,6 +2960,32 @@ static BOOL SPLabFlag(const char *name) {
 /// Pastes the last dictation of this run (or the newest successful history row)
 /// at the cursor, through the normal paste path with its clipboard
 /// backup / restore rules.
+/// Undo and re-paste sit on modifier keys that get touched by accident, so
+/// one press only arms them; the pill says so when there is something to do.
+- (void)riskyKeyPressedWithGate:(SPDoublePressGate *)gate
+                        hasWork:(BOOL)hasWork
+                           hint:(NSString *)hint
+                         action:(void (^)(void))action {
+    if ([gate pressAt:NSProcessInfo.processInfo.systemUptime]) {
+        action();
+        return;
+    }
+    if (hasWork && !self.quitting && sessionStateAllowsConfigReload(self.sessionState)) {
+        [self.statusBarManager updateState:@"idle"];
+        [self.overlayPanel showMessage:hint icon:SPOverlayMessageIconNotice];
+    }
+}
+
+/// Translate, ask and edit run on Qwen Omni, which needs a DashScope key.
+/// Without one the key says so instead of quietly dictating.
+- (void)refuseAssistantPurpose:(SPSessionPurpose)purpose {
+    NSString *message = SPAssistantNeedsKeyMessage(purpose);
+    NSLog(@"[VelikiyMoguchiy] %@ (purpose %d)", message, (int)purpose);
+    if (!message || self.quitting || !sessionStateAllowsConfigReload(self.sessionState)) return;
+    [self.statusBarManager updateState:@"idle"];
+    [self.overlayPanel showMessage:message icon:SPOverlayMessageIconNotice];
+}
+
 - (void)repasteLastDictation {
     if (self.quitting) return;
     if (!sessionStateAllowsConfigReload(self.sessionState)) {
@@ -3569,8 +3616,19 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)hotkeyMonitorDidDetectHoldStart {
+    if ([self refusedForMissingKey]) return;
     self.target.pendingSessionPurpose = self.purpose;
     [self.target hotkeyMonitorDidDetectHoldStart];
+}
+
+/// Checked when the press is confirmed, not on every key-down: the key is
+/// often a modifier pressed for typing.
+- (BOOL)refusedForMissingKey {
+    if (self.purpose == SPSessionPurposeDictate || sp_core_edit_supported()) return NO;
+    [self.monitor resetToIdle];
+    [self.target hotkeyMonitorDidCancelTrigger];
+    [self.target refuseAssistantPurpose:self.purpose];
+    return YES;
 }
 
 - (void)hotkeyMonitorDidDetectHoldEnd {
@@ -3582,6 +3640,7 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)hotkeyMonitorDidDetectTapStart {
+    if ([self refusedForMissingKey]) return;
     self.target.pendingSessionPurpose = self.purpose;
     [self.target hotkeyMonitorDidDetectTapStart];
 }
