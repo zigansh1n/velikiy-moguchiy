@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+use velikiy_moguchiy_core::chatgpt_account::{self, SealedFileStore};
 use velikiy_moguchiy_core::config;
 use velikiy_moguchiy_win32::form::{Field, Form, FormEvent, Value};
 use velikiy_moguchiy_win32::hook::{KeyEvent, KeyboardHook};
@@ -26,7 +27,8 @@ use velikiy_moguchiy_windows::hotkey::{Gesture, HotkeyFilter, TriggerKey, Trigge
 use velikiy_moguchiy_windows::keys::{self, Vault};
 use velikiy_moguchiy_windows::logfile;
 use velikiy_moguchiy_windows::settings::{
-    self, Settings, LANGUAGES, PROVIDER_LOCAL, PROVIDER_QWEN, QWEN_MODELS,
+    self, Settings, CHATGPT_TITLE, CHATGPT_WARNING, KEY_CHATGPT_RISK_ACCEPTED, LANGUAGES,
+    PROVIDER_CHATGPT, PROVIDER_LOCAL, PROVIDER_QWEN, QWEN_MODELS,
 };
 
 #[cfg(feature = "smoke")]
@@ -52,6 +54,10 @@ const F_MODE: usize = 5;
 const F_STATUS: usize = 6;
 /// Only in builds with local recognition.
 const F_DOWNLOAD: usize = 7;
+const F_CHATGPT_STATUS: usize = if LOCAL { 8 } else { 7 };
+const F_CHATGPT_LOGIN: usize = F_CHATGPT_STATUS + 1;
+const F_CHATGPT_LOGOUT: usize = F_CHATGPT_STATUS + 2;
+const F_CHATGPT_CHECK: usize = F_CHATGPT_STATUS + 3;
 
 /// Local recognition is compiled in (the `sherpa-onnx` feature).
 const LOCAL: bool = cfg!(feature = "sherpa-onnx");
@@ -61,6 +67,8 @@ enum AppEvent {
     Bridge(BridgeEvent),
     MicFailed(String),
     Form(FormEvent),
+    /// A ChatGPT sign-in or check finished: the text for the settings window.
+    ChatGpt(String),
 }
 
 #[derive(Clone)]
@@ -295,6 +303,9 @@ impl Host for WinHost {
                 "В этой сборке нет локального распознавания: выберите Qwen в настройках.".into(),
             );
         }
+        if s.provider == PROVIDER_CHATGPT && !chatgpt_account::status().signed_in {
+            return Some("Войдите в ChatGPT: откройте настройки в меню значка в трее.".into());
+        }
         if s.provider == PROVIDER_LOCAL && core_bridge::model_status(&local_model()) != 2 {
             return Some(
                 "Локальная модель ещё не скачана: откройте настройки в меню значка в трее.".into(),
@@ -318,6 +329,26 @@ impl Vault for Dpapi {
 
     fn open(&self, sealed: &[u8]) -> Result<Vec<u8>, String> {
         velikiy_moguchiy_win32::secret::unprotect(sealed)
+    }
+}
+
+impl chatgpt_account::Vault for Dpapi {
+    fn seal(&self, plain: &[u8]) -> Result<Vec<u8>, String> {
+        velikiy_moguchiy_win32::secret::protect(plain)
+    }
+
+    fn open(&self, sealed: &[u8]) -> Result<Vec<u8>, String> {
+        velikiy_moguchiy_win32::secret::unprotect(sealed)
+    }
+}
+
+fn chatgpt_status_text() -> String {
+    let status = chatgpt_account::status();
+    match (status.signed_in, status.email, status.error) {
+        (true, Some(email), _) => format!("ChatGPT: вход выполнен ({email})."),
+        (true, None, _) => "ChatGPT: вход выполнен.".into(),
+        (false, _, Some(_)) => "ChatGPT: не удалось прочитать сохранённый вход.".into(),
+        (false, _, None) => "ChatGPT: вход не выполнен.".into(),
     }
 }
 
@@ -448,7 +479,43 @@ impl App {
                 self.controller.on_mic_failed(&mut self.host, &e, now);
             }
             AppEvent::Form(e) => self.on_form(e),
+            AppEvent::ChatGpt(text) => {
+                if let Some(w) = &self.settings_window {
+                    w.form.set_note(F_CHATGPT_STATUS, &text);
+                }
+            }
         }
+    }
+
+    /// Opens the ChatGPT sign-in in the browser after the one-time warning;
+    /// the result arrives as [`AppEvent::ChatGpt`].
+    fn chatgpt_login(&self, w: &SettingsWindow) {
+        if !core_bridge::config_flag(KEY_CHATGPT_RISK_ACCEPTED) {
+            if !window::confirm(&format!("{APP_NAME}: {CHATGPT_TITLE}"), CHATGPT_WARNING) {
+                return;
+            }
+            if let Err(e) = config::config_set(KEY_CHATGPT_RISK_ACCEPTED, "true") {
+                log::warn!("{KEY_CHATGPT_RISK_ACCEPTED}: {e}");
+            }
+        }
+        let url = match chatgpt_account::start_login() {
+            Ok(url) => url,
+            Err(e) => {
+                w.form.set_note(F_CHATGPT_STATUS, &e.sentence());
+                return;
+            }
+        };
+        w.form
+            .set_note(F_CHATGPT_STATUS, "Завершите вход в открывшемся браузере…");
+        window::open_path(&url);
+        let queue = self.host.queue.clone();
+        std::thread::spawn(move || {
+            let text = match chatgpt_account::wait_login() {
+                Ok(_) => chatgpt_status_text(),
+                Err(e) => e.sentence(),
+            };
+            queue.send(AppEvent::ChatGpt(text));
+        });
     }
 
     fn update_timer(&mut self) {
@@ -478,6 +545,8 @@ impl App {
             providers.push(PROVIDER_LOCAL.to_string());
             provider_titles.push("Локально, без интернета (sherpa-onnx, процессор)".to_string());
         }
+        providers.push(PROVIDER_CHATGPT.to_string());
+        provider_titles.push(CHATGPT_TITLE.to_string());
         if !providers.contains(&s.provider) {
             providers.push(s.provider.clone());
             provider_titles.push(format!("{} (задан в config.yaml)", s.provider));
@@ -542,6 +611,15 @@ impl App {
         if LOCAL {
             fields.push(Field::Button("Скачать локальную модель".into()));
         }
+        fields.push(Field::Note(chatgpt_status_text()));
+        fields.push(Field::Button("Войти через ChatGPT".into()));
+        fields.push(Field::Button("Выйти из ChatGPT".into()));
+        fields.push(Field::Button("Проверить ChatGPT".into()));
+        fields.push(Field::Note(
+            "ChatGPT — неофициально: может перестать работать в любой момент, \
+             голос уходит в OpenAI. Используйте на свой риск."
+                .into(),
+        ));
         fields.push(Field::Note(
             "Держите клавишу и говорите — текст вставится туда, где мигает курсор. \
              Ключ хранится зашифрованным для вашей учётной записи Windows. \
@@ -628,6 +706,28 @@ impl App {
                     );
                 }
             }
+            FormEvent::Button(F_CHATGPT_LOGIN) => self.chatgpt_login(&w),
+            FormEvent::Button(F_CHATGPT_LOGOUT) => {
+                let text = match chatgpt_account::logout() {
+                    Ok(()) => chatgpt_status_text(),
+                    Err(e) => {
+                        log::error!("ChatGPT sign-out: {e}");
+                        "Не удалось удалить вход из этого компьютера.".into()
+                    }
+                };
+                w.form.set_note(F_CHATGPT_STATUS, &text);
+            }
+            FormEvent::Button(F_CHATGPT_CHECK) => {
+                w.form.set_note(F_CHATGPT_STATUS, "Проверка…");
+                let queue = self.host.queue.clone();
+                std::thread::spawn(move || {
+                    let text = match chatgpt_account::check() {
+                        Ok(()) => "ChatGPT работает: тестовая запись принята.".into(),
+                        Err(e) => e.sentence(),
+                    };
+                    queue.send(AppEvent::ChatGpt(text));
+                });
+            }
             FormEvent::Button(_) => {}
             FormEvent::Closed => return,
         }
@@ -693,6 +793,7 @@ pub fn run() {
     if let Err(e) = keys::secure(&Dpapi) {
         log::error!("encrypting the DashScope keys: {e}");
     }
+    chatgpt_account::install_store(Arc::new(SealedFileStore::new(Box::new(Dpapi))));
 
     let shell = match Shell::create() {
         Ok(s) => s,

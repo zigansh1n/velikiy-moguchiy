@@ -83,3 +83,20 @@ pub fn message_box(title: &str, text: &str) {
         );
     }
 }
+
+/// A blocking OK/Cancel question with a warning icon; true on OK.
+pub fn confirm(title: &str, text: &str) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        MessageBoxW, IDOK, MB_DEFBUTTON2, MB_ICONWARNING, MB_OKCANCEL,
+    };
+    let title = crate::wide::Wide::new(title);
+    let text = crate::wide::Wide::new(text);
+    unsafe {
+        MessageBoxW(
+            None,
+            text.pcwstr(),
+            title.pcwstr(),
+            MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2,
+        ) == IDOK
+    }
+}

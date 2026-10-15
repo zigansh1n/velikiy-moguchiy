@@ -15,6 +15,18 @@ pub const KEY_LOCAL_MODEL: &str = "asr.sherpa-onnx.model";
 
 pub const PROVIDER_QWEN: &str = "qwen";
 pub const PROVIDER_LOCAL: &str = "sherpa-onnx";
+pub const PROVIDER_CHATGPT: &str = "chatgpt";
+/// Set once the user has read the warning about the unofficial ChatGPT provider.
+pub const KEY_CHATGPT_RISK_ACCEPTED: &str = "windows.chatgpt_risk_accepted";
+
+pub const CHATGPT_TITLE: &str = "ChatGPT (ваша подписка) — неофициально";
+pub const CHATGPT_WARNING: &str =
+    "Этот способ использует внутренний адрес, через который работает \
+голосовой ввод в приложениях ChatGPT, и вход, как у Codex от OpenAI. OpenAI не документирует его \
+и не поддерживает для сторонних приложений: он может перестать работать в любой момент.\n\n\
+Используйте его на свой риск и в рамках условий использования OpenAI.\n\n\
+Ваш голос отправляется в OpenAI и обрабатывается по их правилам. «Великий & Могучий» его не \
+получает и не хранит; вход хранится зашифрованным для вашей учётной записи Windows.";
 
 /// The streaming sherpa-onnx model that knows Russian; the core's default
 /// (`bilingual-zh-en`) does not.
