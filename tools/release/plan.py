@@ -57,6 +57,8 @@ GROUPS = (
 )
 OTHER = "Проект"
 PREFIX_ALIASES = {"mac": {"mac", "macos"}, "ios": {"ios", "iphone"}, "lipread": {"lipread", "губы"}}
+# names whose own spelling wins over capitalising the first letter of a title
+BRANDS = {"ios": "iOS", "iphone": "iPhone", "ipad": "iPad", "macos": "macOS", "github": "GitHub", "dashscope": "DashScope"}
 
 
 def git(*args) -> str:
@@ -157,6 +159,9 @@ def clean_title(title: str, group: str) -> str:
         if prefix in PREFIX_ALIASES.get(key, {key}) or prefix == group.lower():
             title = m.group(2).strip()
     title = " ".join(title.split())
+    first, rest = re.match(r"^(\w*)(.*)$", title, re.S).groups()
+    if first.lower() in BRANDS:
+        return BRANDS[first.lower()] + rest
     return title[:1].upper() + title[1:]
 
 
@@ -328,6 +333,8 @@ def selftest():
     assert clean_title("Клавиатура iPhone: эмодзи", "iPhone") == "Клавиатура iPhone: эмодзи"
     assert clean_title("iPhone: регион DashScope", "iPhone") == "Регион DashScope"
     assert clean_title("«Помочь обучить»: экзамен", "«Помочь обучить»") == "Экзамен"
+    assert clean_title("ios parity: ждать клавиатуру", "iPhone") == "iOS parity: ждать клавиатуру"
+    assert clean_title("macos 26: окно", "Mac") == "macOS 26: окно"
     print("plan.py selftest: ok")
 
 
