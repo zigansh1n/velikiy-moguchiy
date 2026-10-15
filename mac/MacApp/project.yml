@@ -134,6 +134,8 @@ targets:
       - path: VelikiyMoguchiy/Accessibility/SPAccessibilityManager.m
       - path: VelikiyMoguchiy/Accessibility/SPAccessibilityManagerTests.m
       - path: VelikiyMoguchiy/Hotkey/SPHotkeyMonitor.m
+      - path: VelikiyMoguchiy/Hotkey/SPReleaseTail.m
+      - path: VelikiyMoguchiy/Hotkey/SPReleaseTailTests.m
       - path: VelikiyMoguchiy/History/SPHistoryManager.m
       - path: VelikiyMoguchiy/History/SPHistoryManagerTests.m
       - path: VelikiyMoguchiy/History/SPRetranscriber.m

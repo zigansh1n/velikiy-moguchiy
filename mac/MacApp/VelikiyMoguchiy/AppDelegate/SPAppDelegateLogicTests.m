@@ -2,6 +2,7 @@
 #import <AppKit/AppKit.h>
 #import <objc/runtime.h>
 #import "SPHotkeyMonitor.h"
+#import "SPReleaseTail.h"
 
 @interface SPAppDelegateSessionStateTestProxy : NSObject
 @property (nonatomic, copy) NSString *sessionState;
@@ -84,6 +85,20 @@ static BOOL sessionStateAllowsConfigReloadForTest(NSString *state) {
 
 - (void)hotkeyMonitorDidCancelHoldForCompanionInput {
     self.holdCompanionCancelCount += 1;
+}
+
+@end
+
+/// Takes the release time of a hold end, as the app does.
+@interface SPHotkeyMonitorReleaseTimeDelegate : SPHotkeyMonitorTestDelegate
+@property (nonatomic, assign) NSTimeInterval releaseUptime;
+@end
+
+@implementation SPHotkeyMonitorReleaseTimeDelegate
+
+- (void)hotkeyMonitorDidDetectHoldEndReleasedAt:(NSTimeInterval)releaseUptime {
+    self.holdEndCount += 1;
+    self.releaseUptime = releaseUptime;
 }
 
 @end
@@ -535,7 +550,7 @@ static NSInteger SPAuxData1(uint16_t keyType, uint8_t state) {
     [monitor scheduleModifierRelease];
 
     XCTestExpectation *expectation = [self expectationWithDescription:@"release debounce window"];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SPStubbedCurrentModifierFlags = monitor.targetModifierFlag;
         [monitor setTriggerDown:YES];
         [monitor handleTriggerDown];
@@ -569,6 +584,37 @@ static NSInteger SPAuxData1(uint16_t keyType, uint8_t state) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         XCTAssertEqual(delegate.holdStartCount, 1);
         XCTAssertEqual(delegate.holdEndCount, 1);
+        [expectation fulfill];
+    });
+
+    [self waitForExpectations:@[expectation] timeout:1.0];
+}
+
+- (void)testModifierReleaseReportsWhenTheKeyWentUpNotWhenTheDebounceEnded {
+    SPInstallCurrentModifierFlagsStub();
+
+    SPHotkeyMonitorReleaseTimeDelegate *delegate = [SPHotkeyMonitorReleaseTimeDelegate new];
+    SPHotkeyMonitor *monitor = [[SPHotkeyMonitor alloc] initWithDelegate:delegate];
+    [monitor setRunning:YES];
+    monitor.triggerMode = SPHotkeyTriggerModeHold;
+    SPStubbedCurrentModifierFlags = 0;
+
+    [monitor setTriggerDown:YES];
+    [monitor handleTriggerDown];
+    [monitor holdTimerFired];
+
+    NSTimeInterval releasedAt = NSProcessInfo.processInfo.systemUptime;
+    [monitor setTriggerDown:NO];
+    [monitor scheduleModifierRelease];
+
+    XCTestExpectation *expectation = [self expectationWithDescription:@"release debounce fires"];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        XCTAssertEqual(delegate.holdEndCount, 1);
+        XCTAssertEqualWithAccuracy(delegate.releaseUptime, releasedAt, 0.05);
+        // The app then records only what is left of the tail.
+        NSTimeInterval elapsedAtReport = SPReleaseTail.modifierReleaseDebounce;
+        XCTAssertLessThanOrEqual(elapsedAtReport + [SPReleaseTail remainingTailAfter:elapsedAtReport],
+                                 SPReleaseTail.recordingTail + 1e-9);
         [expectation fulfill];
     });
 

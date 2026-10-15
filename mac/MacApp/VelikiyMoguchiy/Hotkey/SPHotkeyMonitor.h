@@ -21,6 +21,10 @@
 /// In hold mode the trigger was pressed and let go too quickly to record
 /// (after hotkeyMonitorDidCancelTrigger): the user may not know to hold it.
 - (void)hotkeyMonitorDidIgnoreShortPress;
+/// Called instead of hotkeyMonitorDidDetectHoldEnd when implemented.
+/// `releaseUptime` (NSProcessInfo.systemUptime) is when the key went up: a
+/// modifier-only trigger reports its release only after SPReleaseTail's debounce.
+- (void)hotkeyMonitorDidDetectHoldEndReleasedAt:(NSTimeInterval)releaseUptime;
 @end
 
 /// Stamped (kCGEventSourceUserData) on every key event the app itself posts —

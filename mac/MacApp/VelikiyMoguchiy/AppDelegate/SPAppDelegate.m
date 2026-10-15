@@ -23,6 +23,7 @@
 #import "SPLipsPolicy.h"
 #import "SPLipsService.h"
 #import "SPLipsRuntime.h"
+#import "SPReleaseTail.h"
 #import "SPLocalAsrOffer.h"
 #import "SPOnboardingWindowController.h"
 #import "SPAppUpdateChecker.h"
@@ -1350,15 +1351,27 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)hotkeyMonitorDidDetectHoldEnd {
-    NSLog(@"[VelikiyMoguchiy] Hold end detected");
+    [self endHoldRecordingAfterTail:SPReleaseTail.recordingTail];
+}
+
+- (void)hotkeyMonitorDidDetectHoldEndReleasedAt:(NSTimeInterval)releaseUptime {
+    NSTimeInterval elapsed = NSProcessInfo.processInfo.systemUptime - releaseUptime;
+    [self endHoldRecordingAfterTail:[SPReleaseTail remainingTailAfter:elapsed]];
+}
+
+- (void)endHoldRecordingAfterTail:(NSTimeInterval)tail {
+    NSLog(@"[VelikiyMoguchiy] Hold end detected (tail %.0f ms)", tail * 1000);
     [self.cuePlayer playStop];
     [self beginProcessing];
-
-    // Keep recording for 300ms after Fn release to capture trailing speech,
-    // then stop mic and end session.  Use a cancellable block so a rapid
-    // re-press can prevent the stale endSession from killing the new session.
-    [self cancelPendingSessionEnd];
     self.preCaptureInterruptedPendingSessionEnd = NO;
+    [self endSessionAfterTail:tail];
+}
+
+/// Keeps recording for `tail` to catch the end of the last word, then stops
+/// the mic and ends the session. The block is cancellable so a rapid re-press
+/// can keep the stale endSession from killing the new session.
+- (void)endSessionAfterTail:(NSTimeInterval)tail {
+    [self cancelPendingSessionEnd];
     dispatch_block_t block = dispatch_block_create(0, ^{
         self.pendingSessionEndBlock = nil;
         self.sessionWantsAudioCapture = NO;
@@ -1368,7 +1381,7 @@ static BOOL SPLabFlag(const char *name) {
         [self.rustBridge endSession];
     });
     self.pendingSessionEndBlock = block;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(300 * NSEC_PER_MSEC)),
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(tail * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), block);
 }
 
@@ -1650,21 +1663,7 @@ static BOOL SPLabFlag(const char *name) {
     NSLog(@"[VelikiyMoguchiy] Tap end detected");
     [self.cuePlayer playStop];
     [self beginProcessing];
-
-    // Keep recording for 300ms after tap-end to capture trailing speech,
-    // then stop mic and end session.  Use a cancellable block (same as hold).
-    [self cancelPendingSessionEnd];
-    dispatch_block_t block = dispatch_block_create(0, ^{
-        self.pendingSessionEndBlock = nil;
-        self.sessionWantsAudioCapture = NO;
-        [self.audioCaptureManager stopCapture];
-        [[SPRecordingManager sharedManager] endRecording];
-        [[SPLipCaptureManager sharedManager] endClip:self.sessionLipClip];
-        [self.rustBridge endSession];
-    });
-    self.pendingSessionEndBlock = block;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(300 * NSEC_PER_MSEC)),
-                   dispatch_get_main_queue(), block);
+    [self endSessionAfterTail:SPReleaseTail.recordingTail];
 }
 
 #pragma mark - Audio Capture Start with Retry
@@ -3534,6 +3533,10 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)hotkeyMonitorDidDetectHoldEnd {
     [self.target hotkeyMonitorDidDetectHoldEnd];
+}
+
+- (void)hotkeyMonitorDidDetectHoldEndReleasedAt:(NSTimeInterval)releaseUptime {
+    [self.target hotkeyMonitorDidDetectHoldEndReleasedAt:releaseUptime];
 }
 
 - (void)hotkeyMonitorDidDetectTapStart {

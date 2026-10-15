@@ -1,4 +1,5 @@
 #import "SPHotkeyMonitor.h"
+#import "SPReleaseTail.h"
 #import <Cocoa/Cocoa.h>
 #import <Carbon/Carbon.h>
 #import <QuartzCore/QuartzCore.h>
@@ -257,7 +258,6 @@ static const NSUInteger SPHotkeyRelevantModifierMask =
     NSEventModifierFlagControl |
     NSEventModifierFlagShift |
     NSEventModifierFlagFunction;
-static const CFTimeInterval SPModifierOnlyReleaseDebounceSeconds = 0.35;
 
 // C callback for CGEventTap
 static CGEventRef hotkeyEventCallback(CGEventTapProxy proxy,
@@ -1352,6 +1352,7 @@ static CGEventRef hotkeyEventCallback(CGEventTapProxy proxy,
         return;
     }
 
+    NSTimeInterval releasedAt = NSProcessInfo.processInfo.systemUptime;
     // The debounce timer fires on a global queue and hops back to the main
     // thread in common modes. dispatch_after onto the main queue would not
     // fire while a modal loop runs (Sparkle update prompt, NSAlert) — the
@@ -1368,11 +1369,11 @@ static CGEventRef hotkeyEventCallback(CGEventTapProxy proxy,
                 return;
             }
             self.triggerDown = NO;
-            [self handleTriggerUp];
+            [self handleTriggerUpReleasedAt:releasedAt];
         });
     });
     self.pendingModifierReleaseBlock = scheduled;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(SPModifierOnlyReleaseDebounceSeconds * NSEC_PER_SEC)),
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(SPReleaseTail.modifierReleaseDebounce * NSEC_PER_SEC)),
                    dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0),
                    scheduled);
 }
@@ -1415,6 +1416,11 @@ static CGEventRef hotkeyEventCallback(CGEventTapProxy proxy,
 }
 
 - (void)handleTriggerUp {
+    [self handleTriggerUpReleasedAt:NSProcessInfo.processInfo.systemUptime];
+}
+
+/// `releasedAt` (systemUptime) is when the key went up, before any debounce.
+- (void)handleTriggerUpReleasedAt:(NSTimeInterval)releasedAt {
     if (!self.running) return;
     NSLog(@"[VelikiyMoguchiy] Trigger UP (state=%ld)", (long)self.state);
     BOOL unconfirmed = self.state == SPHotkeyStatePending ||
@@ -1461,7 +1467,11 @@ static CGEventRef hotkeyEventCallback(CGEventTapProxy proxy,
 
         case SPHotkeyStateRecordingHold:
             self.state = SPHotkeyStateIdle;
-            [self.delegate hotkeyMonitorDidDetectHoldEnd];
+            if ([self.delegate respondsToSelector:@selector(hotkeyMonitorDidDetectHoldEndReleasedAt:)]) {
+                [self.delegate hotkeyMonitorDidDetectHoldEndReleasedAt:releasedAt];
+            } else {
+                [self.delegate hotkeyMonitorDidDetectHoldEnd];
+            }
             break;
 
         case SPHotkeyStateDoubleTapStopPending:
