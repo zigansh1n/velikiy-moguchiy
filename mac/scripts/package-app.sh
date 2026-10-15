@@ -5,9 +5,14 @@
 # Usage: package-app.sh <app-path> <cli-path> <output-zip> [<mic-warm-path>]
 #
 # Behavior is controlled by environment variables:
-#   CODESIGN_IDENTITY                        Developer ID identity used for signing.
+#   CODESIGN_IDENTITY                        Identity used for signing (name or SHA-1).
 #                                            Falls back to ad-hoc signing when unset
-#                                            (CI and release builds without certificates).
+#                                            (builds without the signing secrets, e.g. forks).
+#   CODESIGN_LEAF_SHA1                       SHA-1 of a self-signed CODESIGN_IDENTITY: every
+#                                            piece of code gets a designated requirement
+#                                            pinning this certificate, so macOS keeps the
+#                                            privacy permissions across builds; no timestamp.
+#   CODESIGN_KEYCHAIN                        Keychain that holds CODESIGN_IDENTITY.
 #   APPLE_ID, APPLE_APP_PASSWORD,
 #   APPLE_TEAM_ID                            When all set (and CODESIGN_IDENTITY is set),
 #                                            the app is notarized and stapled before zipping.
@@ -35,26 +40,52 @@ fi
 
 if [ -n "${CODESIGN_IDENTITY:-}" ]; then
   echo "Signing with identity: $CODESIGN_IDENTITY"
-  SIGN_FLAGS=(--force --options runtime --timestamp --sign "$CODESIGN_IDENTITY")
+  SIGN_FLAGS=(--force --options runtime --sign "$CODESIGN_IDENTITY")
+  if [ -n "${CODESIGN_KEYCHAIN:-}" ]; then SIGN_FLAGS+=(--keychain "$CODESIGN_KEYCHAIN"); fi
+  if [ -n "${CODESIGN_LEAF_SHA1:-}" ]; then SIGN_FLAGS+=(--timestamp=none); else SIGN_FLAGS+=(--timestamp); fi
+
+  # sign <path> <identifier> [codesign options]. The default requirement of a
+  # self-signed certificate is not guaranteed to stay the same, and TCC compares
+  # it on every launch, so it is written out.
+  sign() {
+    local path="$1" ident="$2"
+    shift 2
+    local req=()
+    if [ -n "${CODESIGN_LEAF_SHA1:-}" ]; then
+      req=(--identifier "$ident" "-r=designated => identifier \"$ident\" and certificate leaf = H\"$CODESIGN_LEAF_SHA1\"")
+    fi
+    codesign "${SIGN_FLAGS[@]}" ${req[@]+"${req[@]}"} "$@" "$path"
+  }
 
   # Sign nested code first (frameworks and dylibs, if any), then embedded
   # helper binaries, then the outer bundle. The entitlements are applied to
   # every executable that may capture audio under the hardened runtime.
   while IFS= read -r -d '' nested; do
-    codesign "${SIGN_FLAGS[@]}" "$nested"
+    if [ -d "$nested" ]; then
+      ident=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$nested/Resources/Info.plist")
+    else
+      ident=$(basename "$nested" .dylib)
+    fi
+    sign "$nested" "$ident"
   done < <(find "$APP_PATH/Contents" -depth \( -name "*.dylib" -o -name "*.framework" \) -print0)
 
-  codesign "${SIGN_FLAGS[@]}" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/velikiy-moguchiy-cli"
+  sign "$APP_PATH/Contents/MacOS/velikiy-moguchiy-cli" velikiy-moguchiy-cli --entitlements "$ENTITLEMENTS"
   if [ -f "$APP_PATH/Contents/MacOS/mic-warm" ]; then
-    codesign "${SIGN_FLAGS[@]}" --entitlements "$ENTITLEMENTS" "$APP_PATH/Contents/MacOS/mic-warm"
+    sign "$APP_PATH/Contents/MacOS/mic-warm" mic-warm --entitlements "$ENTITLEMENTS"
   fi
-  codesign "${SIGN_FLAGS[@]}" --entitlements "$ENTITLEMENTS" "$APP_PATH"
+  sign "$APP_PATH" "$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Contents/Info.plist")" \
+    --entitlements "$ENTITLEMENTS"
 else
   echo "CODESIGN_IDENTITY not set; using ad-hoc signature"
   codesign --force --deep --sign - "$APP_PATH"
 fi
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+if [ -n "${CODESIGN_LEAF_SHA1:-}" ]; then
+  codesign --verify --deep --strict -R="certificate leaf = H\"$CODESIGN_LEAF_SHA1\"" "$APP_PATH"
+fi
+codesign -d -r- "$APP_PATH"
+codesign -dvv "$APP_PATH" 2>&1 | grep -E '^(Identifier|Authority|CodeDirectory)'
 
 if [ -n "${CODESIGN_IDENTITY:-}" ] && [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_APP_PASSWORD:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ]; then
   echo "Submitting $APP_PATH for notarization"
@@ -84,7 +115,7 @@ if [ -n "${CODESIGN_IDENTITY:-}" ] && [ -n "${APPLE_ID:-}" ] && [ -n "${APPLE_AP
   xcrun stapler staple "$APP_PATH"
   xcrun stapler validate "$APP_PATH"
   spctl --assess --type execute --verbose=2 "$APP_PATH"
-elif [ -n "${CODESIGN_IDENTITY:-}" ]; then
+elif [ -n "${CODESIGN_IDENTITY:-}" ] && [ -z "${CODESIGN_LEAF_SHA1:-}" ]; then
   echo "Notarization credentials not set; skipping notarization" >&2
 fi
 

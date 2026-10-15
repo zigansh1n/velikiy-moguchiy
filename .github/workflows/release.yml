@@ -164,6 +164,8 @@ jobs:
     name: Build
     needs: [plan, privacy]
     uses: ./.github/workflows/build-apple.yml
+    # The Mac app is signed with the MAC_SIGNING_* secrets.
+    secrets: inherit
     with:
       mac: true
       ios: true

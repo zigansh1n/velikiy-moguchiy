@@ -1,7 +1,12 @@
 name: Build Apple apps
 
-# Builds the macOS app (Rust core + XcodeGen + xcodebuild, ad-hoc signed, zipped)
-# and the unsigned iOS IPA, and uploads both as artifacts.
+# Builds the macOS app (Rust core + XcodeGen + xcodebuild, zipped) and the unsigned
+# iOS IPA, and uploads both as artifacts. The Mac app is signed with the project's
+# self-signed certificate (secrets MAC_SIGNING_P12_BASE64 and MAC_SIGNING_P12_PASSWORD,
+# public part in mac/scripts/release-signing-certificate.crt): its designated
+# requirement stays the same from build to build, so macOS keeps the permissions
+# after an update. Without the secrets (forks, pull requests from forks) it is
+# signed ad hoc.
 #
 # macOS runner minutes are scarce, so this never runs on ordinary pushes:
 #   - pull request: add the label "build" (remove and add it again to rebuild);
@@ -120,8 +125,8 @@ jobs:
 
       - name: Build app
         # The pre-build script of the target builds the Rust core (static library).
-        # The app is signed ad hoc by package-app.sh after the CLI and mic-warm
-        # are embedded, so Xcode does not sign here.
+        # The app is signed by package-app.sh after the CLI and mic-warm are
+        # embedded, so Xcode does not sign here.
         working-directory: mac/MacApp
         run: |
           set -euo pipefail
@@ -163,6 +168,24 @@ jobs:
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
+      - name: Signing identity
+        env:
+          MAC_SIGNING_P12_BASE64: ${{ secrets.MAC_SIGNING_P12_BASE64 }}
+          MAC_SIGNING_P12_PASSWORD: ${{ secrets.MAC_SIGNING_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MAC_SIGNING_P12_BASE64" ] || [ -z "$MAC_SIGNING_P12_PASSWORD" ]; then
+            echo "No signing secrets: the app is signed ad hoc"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          SHA1=$(scripts/import-signing-identity.sh "$KEYCHAIN")
+          {
+            echo "CODESIGN_IDENTITY=$SHA1"
+            echo "CODESIGN_LEAF_SHA1=$SHA1"
+            echo "CODESIGN_KEYCHAIN=$KEYCHAIN"
+          } >> "$GITHUB_ENV"
+
       - name: Package app
         run: |
           scripts/package-app.sh \
@@ -171,6 +194,11 @@ jobs:
             "VelikiyMoguchiy-macOS-arm64.zip" \
             "vendor/mic-warm/.build/release/mic-warm"
           ls -la VelikiyMoguchiy-macOS-arm64.zip
+
+      - name: Remove the signing keychain
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/signing.keychain-db" ]; then security delete-keychain "$RUNNER_TEMP/signing.keychain-db"; fi
 
       - uses: actions/upload-artifact@v4
         with:
