@@ -90,7 +90,11 @@ Bundle id сборок — `io.github.zigansh1n.velikiy-moguchiy` (`MacApp/Confi
 
 Провайдеры:
 
-- **облачные:** Qwen (DashScope), Doubao и другие из `velikiy-moguchiy-asr/`;
+- **облачные:** Qwen (DashScope), Doubao, GLM, MiMo по вашему ключу;
+- **ChatGPT (ваша подписка) — неофициально:** без ключа API, через вход в ваш аккаунт ChatGPT (как в Codex) и
+  внутренний адрес голосового ввода приложений ChatGPT. Звук уходит в OpenAI одним файлом после конца записи. OpenAI
+  может изменить этот адрес в любой момент, и тогда способ перестанет работать; перед первым выбором приложение
+  предупреждает об этом. Вход хранится в связке ключей, «Проверить» отправляет секунду тишины;
 - **локальные:** Apple Speech (macOS 26+, без ключа), MLX (модели Qwen3-ASR на Apple Silicon), sherpa-onnx (CPU);
 - **LLM для исправления:** OpenAI Chat Completions и Responses, Anthropic Messages, совместимые шлюзы, локальные
   модели MLX.
