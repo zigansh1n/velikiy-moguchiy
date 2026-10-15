@@ -21,7 +21,7 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
 };
 
 /// Small status pill displayed at bottom-center of screen, above the Dock:
-/// mic bars while recording, dots while processing, then a checkmark
+/// mic bars while recording, pulsing lozenges while processing, then a checkmark
 /// (delivered), a clipboard (copied only), an xmark (cancelled) or a red xmark
 /// (error) before it hides. Transcripts never appear on it; only a short
 /// message (an error, "nothing heard") widens it for a few seconds.
@@ -55,6 +55,12 @@ typedef NS_ENUM(NSInteger, SPOverlayMessageIcon) {
 
 /// While recording: a line next to the level bars ("Микрофон молчит"), nil to drop it.
 - (void)setRecordingHint:(NSString *)hint;
+
+/// While processing: a line next to the pulsing lozenges ("Распознаю…"), nil to drop it.
+- (void)setProcessingHint:(NSString *)hint;
+
+/// Shake the pill sideways: a key press that starts nothing.
+- (void)shake;
 
 /// Whether a message from showMessage:icon: is on screen.
 @property (nonatomic, readonly, getter=isShowingMessage) BOOL showingMessage;

@@ -165,6 +165,8 @@ targets:
       - path: VelikiyMoguchiy/Clipboard/SPClipboardRestorePolicy.m
       - path: VelikiyMoguchiy/Clipboard/SPClipboardRestorePolicyTests.m
       - path: VelikiyMoguchiy/Clipboard/SPClipboardManagerTests.m
+      - path: VelikiyMoguchiy/Overlay/SPDictationProgress.m
+      - path: VelikiyMoguchiy/Overlay/SPDictationProgressTests.m
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

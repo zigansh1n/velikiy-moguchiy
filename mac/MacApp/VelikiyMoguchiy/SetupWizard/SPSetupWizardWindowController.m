@@ -984,7 +984,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSStepper *recordingsRetentionStepper;
 @property(nonatomic, assign) NSInteger loadedRecordingsRetentionDays;
 @property(nonatomic, strong) NSSwitch *startSoundCheckbox;
-@property(nonatomic, strong) NSSwitch *stopSoundCheckbox;
 @property(nonatomic, strong) NSSwitch *errorSoundCheckbox;
 @property(nonatomic, strong) NSSwitch *muteSystemOutputCheckbox;
 // Paste behavior
@@ -2987,16 +2986,13 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
   // ── Feedback Sounds ──
   self.startSoundCheckbox = [self settingsSwitchWithAction:NULL];
-  self.stopSoundCheckbox = [self settingsSwitchWithAction:NULL];
   self.errorSoundCheckbox = [self settingsSwitchWithAction:NULL];
 
   NSView *feedbackCard =
       [self cardWithTitle:@"Звуки"
                      rows:@[
-                       [self cardRowWithLabel:@"Начало записи"
+                       [self cardRowWithLabel:@"Начало и конец записи"
                                       control:self.startSoundCheckbox],
-                       [self cardRowWithLabel:@"Конец записи"
-                                      control:self.stopSoundCheckbox],
                        [self cardRowWithLabel:@"Ошибка"
                                       control:self.errorSoundCheckbox],
                      ]
@@ -7169,8 +7165,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
 
     BOOL startSound =
         configBooleanValue(configGet(@"feedback.start_sound"), NO);
-    BOOL stopSound =
-        configBooleanValue(configGet(@"feedback.stop_sound"), NO);
     BOOL errorSound =
         configBooleanValue(configGet(@"feedback.error_sound"), NO);
     BOOL muteSystemOutput =
@@ -7284,8 +7278,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     self.loadedRecordingsRetentionDays = [self recordingsRetentionValue];
     self.startSoundCheckbox.state =
         startSound ? NSControlStateValueOn : NSControlStateValueOff;
-    self.stopSoundCheckbox.state =
-        stopSound ? NSControlStateValueOn : NSControlStateValueOff;
     self.errorSoundCheckbox.state =
         errorSound ? NSControlStateValueOn : NSControlStateValueOff;
     self.muteSystemOutputCheckbox.state =
@@ -7294,8 +7286,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
         autoReturn ? NSControlStateValueOn : NSControlStateValueOff;
     [self rememberLoadedBooleanValue:startSound
                               forKey:@"feedback.start_sound"];
-    [self rememberLoadedBooleanValue:stopSound
-                              forKey:@"feedback.stop_sound"];
     [self rememberLoadedBooleanValue:errorSound
                               forKey:@"feedback.error_sound"];
     [self rememberLoadedBooleanValue:muteSystemOutput
@@ -7745,9 +7735,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     NSString *startSound =
         (self.startSoundCheckbox.state == NSControlStateValueOn) ? @"true"
                                                                  : @"false";
-    NSString *stopSound =
-        (self.stopSoundCheckbox.state == NSControlStateValueOn) ? @"true"
-                                                                : @"false";
     NSString *errorSound =
         (self.errorSoundCheckbox.state == NSControlStateValueOn) ? @"true"
                                                                  : @"false";
@@ -7755,11 +7742,9 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
                   self.startSoundCheckbox.state == NSControlStateValueOn
                                 forKey:@"feedback.start_sound"]) {
       saveOk &= configSet(@"feedback.start_sound", startSound);
-    }
-    if ([self shouldPersistBooleanValue:
-                  self.stopSoundCheckbox.state == NSControlStateValueOn
-                                forKey:@"feedback.stop_sound"]) {
-      saveOk &= configSet(@"feedback.stop_sound", stopSound);
+      // One switch for both cues; an old separate stop_sound would keep the
+      // stop cue playing after the switch is turned off.
+      saveOk &= configSet(@"feedback.stop_sound", startSound);
     }
     if ([self shouldPersistBooleanValue:
                   self.errorSoundCheckbox.state == NSControlStateValueOn

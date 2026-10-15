@@ -15,6 +15,7 @@
 #import "SPCuePlayer.h"
 #import "SPStatusBarManager.h"
 #import "SPOverlayPanel.h"
+#import "SPDictationProgress.h"
 #import "SPHistoryManager.h"
 #import "SPRetranscriber.h"
 #import "SPRecordingManager.h"
@@ -123,6 +124,10 @@
 @property (nonatomic, assign) BOOL hotkeyRestartPending;
 // Ends a recording that has gone on for recording.max_duration_s.
 @property (nonatomic, strong) NSTimer *recordingCapTimer;
+// Recording, then processing until the text, an error or a cancel; the pill follows it.
+@property (nonatomic, strong) SPDictationProgress *dictationProgress;
+// While processing: the long-wait hint and the give-up deadline.
+@property (nonatomic, strong) NSTimer *processingTimer;
 // Judges the focused element before a paste (password field, no field at all).
 @property (nonatomic, strong) SPAccessibilityManager *accessibilityManager;
 @property (nonatomic, strong) SPOnboardingWindowController *onboarding;
@@ -475,9 +480,12 @@ static BOOL SPLabFlag(const char *name) {
                                                [NSString stringWithFormat:@"menu%@.png", pair[1]]]);
         }
     }
-    for (NSString *state in @[ @"recording_hold", @"correcting", @"completed_letter", @"error" ]) {
+    for (NSString *state in @[ @"recording_hold", @"correcting", @"processing_hint", @"completed_letter", @"error" ]) {
         if ([state isEqualToString:@"completed_letter"]) {
             [self.overlayPanel showModeIndicator:@"Р"];
+        } else if ([state isEqualToString:@"processing_hint"]) {
+            [self.overlayPanel updateState:@"finalizing_asr"];
+            [self.overlayPanel setProcessingHint:SPDictationProgress.hintText];
         } else {
             [self.overlayPanel updateState:state];
         }
@@ -499,6 +507,7 @@ static BOOL SPLabFlag(const char *name) {
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     NSLog(@"[VelikiyMoguchiy] Application launching...");
     self.sessionState = @"idle";
+    self.dictationProgress = [[SPDictationProgress alloc] init];
 
     if ([NSUserDefaults.standardUserDefaults boolForKey:@"VMDesignPreview"]) {
         [self startDesignPreview];
@@ -1170,6 +1179,10 @@ static BOOL SPLabFlag(const char *name) {
 }
 
 - (void)beginTriggerForPurpose:(SPSessionPurpose)purpose {
+    if (self.dictationProgress.shouldIgnoreTrigger) {
+        [self refusePressDuringProcessing];
+        return;
+    }
     // Without the microphone the hold / tap decision only explains why nothing starts.
     if (![self.permissionManager isMicrophoneGranted]) return;
     // This callback occurs on the initial key-down, before the 180ms hold/tap
@@ -1257,6 +1270,7 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)hotkeyMonitorDidDetectHoldStart {
     NSLog(@"[VelikiyMoguchiy] Hold start detected");
+    if ([self ignoreTriggerDuringProcessing]) return;
     if ([self refuseTriggerWithoutMicrophone]) return;
     [self deactivateRawAsrFallbackInteraction];
     [self.audioCaptureManager logActivationMilestone:@"hold decision"];
@@ -1273,6 +1287,7 @@ static BOOL SPLabFlag(const char *name) {
 
     self.recordingStartTime = [NSDate date];
     self.sessionState = @"recording_hold";
+    [self.dictationProgress recordingStarted];
     [self armAbortKey];
     [self.cuePlayer reloadFeedbackConfig];
     [self.cuePlayer playStart];
@@ -1289,6 +1304,7 @@ static BOOL SPLabFlag(const char *name) {
 - (void)hotkeyMonitorDidDetectHoldEnd {
     NSLog(@"[VelikiyMoguchiy] Hold end detected");
     [self.cuePlayer playStop];
+    [self beginProcessing];
 
     // Keep recording for 300ms after Fn release to capture trailing speech,
     // then stop mic and end session.  Use a cancellable block so a rapid
@@ -1317,6 +1333,7 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)hotkeyMonitorDidDetectTapStart {
     NSLog(@"[VelikiyMoguchiy] Tap start detected");
+    if ([self ignoreTriggerDuringProcessing]) return;
     if ([self refuseTriggerWithoutMicrophone]) return;
     [self deactivateRawAsrFallbackInteraction];
     [self.audioCaptureManager logActivationMilestone:@"tap decision"];
@@ -1333,6 +1350,7 @@ static BOOL SPLabFlag(const char *name) {
 
     self.recordingStartTime = [NSDate date];
     self.sessionState = @"recording_toggle";
+    [self.dictationProgress recordingStarted];
     [self armAbortKey];
     [self.cuePlayer reloadFeedbackConfig];
     [self.cuePlayer playStart];
@@ -1345,6 +1363,77 @@ static BOOL SPLabFlag(const char *name) {
     [self startMicSilenceWatch];
     [self startRecordingCap];
     [self showHandsFreeHintIfNeeded];
+}
+
+#pragma mark - Processing (recording stopped, no text yet)
+
+/// The recording has stopped: until the text is in, an error is shown or the
+/// session is cancelled, the pill shows that it is being recognized. Batch
+/// providers upload and recognize before the core reports anything, so this
+/// cannot wait for the core.
+- (void)beginProcessing {
+    if (![self.dictationProgress recordingStoppedAt:NSProcessInfo.processInfo.systemUptime]) return;
+    self.sessionState = @"processing";
+    [self.statusBarManager updateState:@"processing"];
+    [self.overlayPanel updateState:@"processing"];
+
+    [self.processingTimer invalidate];
+    __weak typeof(self) weakSelf = self;
+    self.processingTimer = [NSTimer scheduledTimerWithTimeInterval:0.5
+                                                           repeats:YES
+                                                             block:^(NSTimer *timer) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf || strongSelf.dictationProgress.phase != SPDictationPhaseProcessing) {
+            [timer invalidate];
+            return;
+        }
+        NSTimeInterval now = NSProcessInfo.processInfo.systemUptime;
+        if ([strongSelf.dictationProgress hasTimedOutAt:now]) {
+            [timer invalidate];
+            [strongSelf giveUpProcessing];
+            return;
+        }
+        NSString *hint = [strongSelf.dictationProgress hintAt:now];
+        if (hint) [strongSelf.overlayPanel setProcessingHint:hint];
+    }];
+}
+
+- (void)finishDictationWithOutcome:(SPDictationOutcome)outcome {
+    [self.dictationProgress finishWithOutcome:outcome];
+    [self stopProcessingTimerUnlessProcessing];
+}
+
+- (void)stopProcessingTimerUnlessProcessing {
+    if (self.dictationProgress.phase == SPDictationPhaseProcessing) return;
+    [self.processingTimer invalidate];
+    self.processingTimer = nil;
+}
+
+/// Nothing came back long after every provider's own timeout: the session is
+/// dropped as a timed-out one instead of leaving the pill pulsing.
+- (void)giveUpProcessing {
+    NSLog(@"[VelikiyMoguchiy] No result %.0fs after the recording stopped; giving the session up",
+          SPDictationProgress.giveUpDelay);
+    [self.rustBridge cancelSession];
+    [self.rustBridge discardSessionCallbacks];
+    [self rustBridgeDidEncounterError:@"Recognition timed out: no result after the recording stopped"];
+}
+
+/// A trigger pressed while the last dictation is still being recognized
+/// starts nothing; the pill shakes and says why.
+- (void)refusePressDuringProcessing {
+    NSLog(@"[VelikiyMoguchiy] Trigger pressed during processing; ignored");
+    [self.overlayPanel setProcessingHint:SPDictationProgress.hintText];
+    [self.overlayPanel shake];
+}
+
+/// The hold / tap confirmation of a press refused at key-down: the trigger
+/// state machines go back to idle so the key's release ends nothing.
+- (BOOL)ignoreTriggerDuringProcessing {
+    if (!self.dictationProgress.shouldIgnoreTrigger) return NO;
+    self.pendingSessionPurpose = SPSessionPurposeDictate;
+    [self resetAllHotkeyMonitorsToIdle];
+    return YES;
 }
 
 #pragma mark - Recording limit and first-use hints
@@ -1447,6 +1536,7 @@ static BOOL SPLabFlag(const char *name) {
     BOOL micSilent = longEnough && sp_core_mic_peak() < kSilentMicPeak;
     [self.micSilenceTimer invalidate];
     self.sessionState = @"idle";
+    [self finishDictationWithOutcome:SPDictationOutcomeNothing];
     [self disarmAbortKey];
     [self deactivateRawAsrFallbackInteraction];
     self.sessionPurpose = SPSessionPurposeDictate;
@@ -1511,6 +1601,7 @@ static BOOL SPLabFlag(const char *name) {
 - (void)hotkeyMonitorDidDetectTapEnd {
     NSLog(@"[VelikiyMoguchiy] Tap end detected");
     [self.cuePlayer playStop];
+    [self beginProcessing];
 
     // Keep recording for 300ms after tap-end to capture trailing speech,
     // then stop mic and end session.  Use a cancellable block (same as hold).
@@ -1588,6 +1679,7 @@ static BOOL SPLabFlag(const char *name) {
 - (void)rustBridgeDidReceiveFinalText:(NSString *)text {
     if (self.quitting) return;
     self.sessionState = @"idle";
+    [self finishDictationWithOutcome:SPDictationOutcomeInserted];
     [self disarmAbortKey];
     NSLog(@"[VelikiyMoguchiy] Final text received (%lu chars)", (unsigned long)text.length);
     self.llmCorrectionInProgress = NO;
@@ -1798,6 +1890,7 @@ static BOOL SPLabFlag(const char *name) {
 - (void)rustBridgeDidEncounterError:(NSString *)message {
     if (self.quitting) return;
     self.sessionState = @"failed";
+    [self finishDictationWithOutcome:SPDictationOutcomeError];
     [self disarmAbortKey];
     os_log_with_type(OS_LOG_DEFAULT, OS_LOG_TYPE_ERROR, "[VelikiyMoguchiy] Session error: %{public}@", message ?: @"unknown error");
     NSLog(@"[VelikiyMoguchiy] Session error: %@", message);
@@ -2085,6 +2178,10 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)rustBridgeDidChangeState:(NSString *)state {
     if (self.quitting || self.showingError) return;
+    BOOL showState = [self.dictationProgress applyCoreState:state];
+    [self stopProcessingTimerUnlessProcessing];
+    // The core's own report of the recording can come after a quick stop.
+    if (!showState) return;
     if ([state isEqualToString:@"no_speech"]) {
         [self finishSessionWithoutSpeech];
         return;
@@ -2229,6 +2326,7 @@ static BOOL SPLabFlag(const char *name) {
     self.editAnchor = nil;
     self.showingError = NO;
     self.sessionState = @"idle";
+    [self finishDictationWithOutcome:SPDictationOutcomeCancelled];
     [self resetAllHotkeyMonitorsToIdle];
     [self.statusBarManager updateState:@"idle"];
     [self.overlayPanel updateState:@"cancelled"];
@@ -2397,6 +2495,7 @@ static BOOL SPLabFlag(const char *name) {
     [self recordUnfinishedSessionWithStatus:@"error"
                                       error:[SPHistoryManager errorReasonWithSummary:reason providerMessage:nil]];
     self.sessionState = @"error";
+    [self finishDictationWithOutcome:SPDictationOutcomeError];
     self.showingError = YES;
     [self.cuePlayer playError];
     self.sessionWantsAudioCapture = NO;
@@ -2510,6 +2609,10 @@ static BOOL SPLabFlag(const char *name) {
     // Reuse the hotkey toggle path verbatim so a menu-driven session is
     // indistinguishable from a tap-started one, and keep the hotkey state
     // machine in sync so the trigger key stops (not restarts) this session.
+    if (self.dictationProgress.shouldIgnoreTrigger) {
+        [self refusePressDuringProcessing];
+        return;
+    }
     if ([self.sessionState hasPrefix:@"recording"]) {
         NSLog(@"[VelikiyMoguchiy] Voice input stopped from menu");
         [self endHandsFreeRecordingLikeSecondTap];

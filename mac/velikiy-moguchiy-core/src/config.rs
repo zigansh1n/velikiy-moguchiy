@@ -2726,7 +2726,7 @@ llm:
         model: "mlx/Qwen3-0.6B-4bit"      # relative to ~/.velikiy-moguchiy/models/, or absolute path
 
 feedback:
-  start_sound: true                    # a short sound when recording starts
+  start_sound: true                    # a short sound when recording starts, a softer one when it stops
   stop_sound: false
   error_sound: false
   mute_system_output: false

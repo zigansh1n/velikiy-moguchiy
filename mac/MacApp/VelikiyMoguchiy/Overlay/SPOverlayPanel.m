@@ -23,10 +23,12 @@ static const CGFloat   kBarMinH    = 3.0;
 static const CGFloat   kBarMaxH    = 18.0;
 static const NSInteger kMicLevelBuckets = 16;
 
-// Processing dots
-static const NSInteger kDotCount      = 3;
-static const CGFloat   kDotBaseRadius = 2.5;
-static const CGFloat   kDotSpacing    = 8.0;
+// Processing: gilt lozenges like the clasp studs, lit one after another
+static const NSInteger kLozengeCount   = 3;
+static const CGFloat   kLozengeHalfW   = 2.6;
+static const CGFloat   kLozengeHalfH   = 3.6;
+static const CGFloat   kLozengeSpacing = 9.0;
+static const NSTimeInterval kLozengePulsePeriod = 1.4;
 
 // Animation
 static const NSTimeInterval kAnimInterval      = 1.0 / 30.0;
@@ -40,6 +42,8 @@ static const CGFloat kBaseShadowOpacity = 0.11;
 static const CGFloat kBaseShadowRadius = 4.0;
 static const CGFloat kEntranceShadowOpacity = 0.17;
 static const CGFloat kEntranceShadowRadius = 8.0;
+static const NSTimeInterval kShakeDuration = 0.36;
+static const CGFloat kShakeOffset = 5.0;
 
 // How long each result icon stays before the pill hides
 static const NSTimeInterval kSuccessLingerDuration   = 0.6;
@@ -134,6 +138,8 @@ typedef NS_ENUM(NSInteger, SPOverlayMode) {
 /// Width the icon of `mode` takes on the left of a message.
 static CGFloat SPOverlayIconSlotWidth(SPOverlayMode mode) {
     if (mode == SPOverlayModeWaveform) return 6 * 3.0 + 5 * 3.0;
+    // The extra room keeps the first lozenge clear of the clasp stud at the edge.
+    if (mode == SPOverlayModeProcessing) return 2 * (kLozengeSpacing + kLozengeHalfW) + 6.0;
     return 18.0;
 }
 
@@ -251,7 +257,7 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
             [self drawWaveformAtX:centerX centerY:centerY];
             break;
         case SPOverlayModeProcessing:
-            [self drawDotsAtX:centerX centerY:centerY];
+            [self drawLozengesAtX:centerX centerY:centerY];
             break;
         case SPOverlayModeSuccess:
             [self drawCheckmarkAtX:centerX centerY:centerY];
@@ -305,23 +311,31 @@ static CGFloat SPOverlayWidthForMessage(NSString *message, SPOverlayMode mode, C
     }
 }
 
-#pragma mark - Processing dots
+#pragma mark - Processing lozenges
 
-- (void)drawDotsAtX:(CGFloat)centerX centerY:(CGFloat)centerY {
-    CGFloat totalW = (kDotCount - 1) * kDotSpacing;
-    CGFloat startX = centerX - totalW / 2.0;
+- (void)drawLozengesAtX:(CGFloat)centerX centerY:(CGFloat)centerY {
+    CGFloat startX = centerX - (kLozengeCount - 1) * kLozengeSpacing / 2.0;
+    double seconds = (double)self.tick * kAnimInterval;
+    BOOL still = SPOverlayShouldReduceMotion();
 
-    for (NSInteger i = 0; i < kDotCount; i++) {
-        double phase = (double)(self.tick) * 0.15 - (double)i * 0.9;
-        CGFloat bounce = (CGFloat)fmax(0.0, sin(phase));
-        CGFloat r = kDotBaseRadius + bounce * 1.5;
-        CGFloat alpha = 0.35 + 0.65 * bounce;
-        CGFloat offsetY = bounce * 3.0;
+    for (NSInteger i = 0; i < kLozengeCount; i++) {
+        double phase = seconds * 2.0 * M_PI / kLozengePulsePeriod - (double)i * 0.9;
+        CGFloat glow = (CGFloat)(0.5 + 0.5 * sin(phase));
+        // Reduce Motion keeps the glow but not the swelling.
+        CGFloat scale = still ? 1.0 : 0.8 + 0.3 * glow;
+        CGFloat halfW = kLozengeHalfW * scale;
+        CGFloat halfH = kLozengeHalfH * scale;
+        NSColor *gilt = [SPOverlayOchreColor() blendedColorWithFraction:glow * 0.35 ofColor:SPOverlayInkColor()];
+        [[gilt colorWithAlphaComponent:0.3 + 0.7 * glow] setFill];
 
-        [[SPOverlayOchreColor() colorWithAlphaComponent:alpha] setFill];
-        CGFloat x = startX + i * kDotSpacing;
-        NSRect dotRect = NSMakeRect(x - r, centerY - r + offsetY, r * 2, r * 2);
-        [[NSBezierPath bezierPathWithOvalInRect:dotRect] fill];
+        CGFloat x = startX + i * kLozengeSpacing;
+        NSBezierPath *lozenge = [NSBezierPath bezierPath];
+        [lozenge moveToPoint:NSMakePoint(x, centerY + halfH)];
+        [lozenge lineToPoint:NSMakePoint(x + halfW, centerY)];
+        [lozenge lineToPoint:NSMakePoint(x, centerY - halfH)];
+        [lozenge lineToPoint:NSMakePoint(x - halfW, centerY)];
+        [lozenge closePath];
+        [lozenge fill];
     }
 }
 
@@ -744,6 +758,15 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
 
 - (void)setRecordingHint:(NSString *)hint {
     if (![self.currentState hasPrefix:@"recording"] || self.contentView.mode != SPOverlayModeWaveform) return;
+    [self applyHint:hint];
+}
+
+- (void)setProcessingHint:(NSString *)hint {
+    if (self.isShowingMessage || self.contentView.mode != SPOverlayModeProcessing) return;
+    [self applyHint:hint];
+}
+
+- (void)applyHint:(NSString *)hint {
     NSString *current = self.contentView.message ?: @"";
     if ([current isEqualToString:hint ?: @""]) return;
     [self applyMessage:hint];
@@ -762,18 +785,6 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
         [self restoreConfiguredAppearanceIfNeeded];
     }
 
-    [self clearLingerTimer];
-    [self setRawAsrFallbackClickEnabled:NO];
-
-    self.currentState = state;
-    [self stopAnimation];
-
-    if ([state isEqualToString:@"idle"] || [state isEqualToString:@"completed"]) {
-        self.contentView.message = nil;
-        [self hide];
-        return;
-    }
-
     SPOverlayMode mode;
     if ([state hasPrefix:@"recording"]) {
         mode = SPOverlayModeWaveform;
@@ -785,6 +796,26 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
         mode = SPOverlayModeError;
     } else {
         mode = SPOverlayModeProcessing;
+    }
+
+    // Processing reported again by a later stage (finalizing, correcting)
+    // keeps the pulse and the hint running instead of restarting them.
+    if (mode == SPOverlayModeProcessing && self.contentView.mode == SPOverlayModeProcessing &&
+        self.animationTimer && !self.isShowingMessage) {
+        self.currentState = state;
+        return;
+    }
+
+    [self clearLingerTimer];
+    [self setRawAsrFallbackClickEnabled:NO];
+
+    self.currentState = state;
+    [self stopAnimation];
+
+    if ([state isEqualToString:@"idle"] || [state isEqualToString:@"completed"]) {
+        self.contentView.message = nil;
+        [self hide];
+        return;
     }
 
     if (mode == SPOverlayModeWaveform) {
@@ -841,6 +872,32 @@ static void SPOrderFrontOnActiveSpace(NSWindow *window) {
     [self positionPanel];
     self.contentView.tick = 0;
     [self.contentView setNeedsDisplay:YES];
+}
+
+- (void)shake {
+    if (!self.panel.isVisible || self.panel.alphaValue <= 0.01 || SPOverlayShouldReduceMotion()) return;
+    NSPoint origin = self.panel.frame.origin;
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGPathMoveToPoint(path, NULL, origin.x, origin.y);
+    for (NSInteger i = 0; i < 4; i++) {
+        CGFloat offset = kShakeOffset * (1.0 - i * 0.25) * (i % 2 == 0 ? -1.0 : 1.0);
+        CGPathAddLineToPoint(path, NULL, origin.x + offset, origin.y);
+    }
+    CGPathAddLineToPoint(path, NULL, origin.x, origin.y);
+    CAKeyframeAnimation *animation = [CAKeyframeAnimation animation];
+    animation.path = path;
+    animation.duration = kShakeDuration;
+    CGPathRelease(path);
+
+    // The animation is installed only for this move: the pill's own frame
+    // changes (entrance, widening) keep their default animations.
+    self.panel.animations = @{ @"frameOrigin" : animation };
+    [NSAnimationContext runAnimationGroup:^(NSAnimationContext *ctx) {
+        ctx.duration = kShakeDuration;
+        [self.panel.animator setFrameOrigin:origin];
+    } completionHandler:^{
+        self.panel.animations = @{};
+    }];
 }
 
 - (void)reloadAppearanceFromConfig {
