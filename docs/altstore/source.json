@@ -20,6 +20,15 @@
       "screenshots": [],
       "versions": [
         {
+          "version": "0.1.1",
+          "buildVersion": "1",
+          "minOSVersion": "26.0",
+          "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.1/VelikiyMoguchiy-iOS-unsigned.ipa",
+          "size": 3323595,
+          "date": "2026-10-15T21:29:02Z",
+          "localizedDescription": "Mac\n\n- Провайдер «ChatGPT (ваша подписка)» — неофициально, по выбору (#70)\n\niPhone\n\n- IOS parity: ждать готовую клавиатуру и переснимать плохие кадры (#68)\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.0...v0.1.1"
+        },
+        {
           "version": "0.1.0",
           "buildVersion": "1",
           "minOSVersion": "26.0",
@@ -38,11 +47,11 @@
           "NSMicrophoneUsageDescription": "«Великий & Могучий» держит микрофон наготове для диктовки с клавиатуры, передаёт звук в Alibaba Cloud DashScope для распознавания и хранит временную запись на случай сбоя связи."
         }
       },
-      "version": "0.1.0",
-      "versionDate": "2026-10-14T23:26:06Z",
-      "versionDescription": "Mac\n\n- Перевод и вопрос через Qwen Omni, диктовка дословная (#3)\n- Этап 2: приложение самодостаточное (губы, локальное распознавание, bundle id, сообщения о проблемах, обновления) (#1)\n- «Помочь обучить» без клона репозитория: клиент в окружении режима «губы» (#8)\n- Ошибки говорят, что делать; «Не расслышал» на плашке (A5, A6) (#11)\n- Разрешения без перезапуска, понятная потеря доступа после обновления (A8) (#15)\n- Страховка hands-free — автостоп, предел записи, звук старта, подсказки (A7) (#16)\n- «Проверить ключ» DashScope, регион, понятные ошибки ключа (A2) (#20)\n- Вставка проверяет цель, не в поле пароля, честный буфер (A9) (#21)\n- Окно «Начало работы» (A1) и CHANGELOG серии (#23)\n- Sherpa-onnx закреплён на версии библиотек, которые линкует приложение (#66)\n\niPhone\n\n- Понятные ошибки диктовки и никаких «сохранённых записей» из тишины (#10)\n- Регион DashScope и настоящая проверка ключа (#14)\n- «Начало работы» с живыми проверками и экран настройки клавиатур (#17)\n\nAndroid\n\n- Клавиатура RU/EN с подсказками и диктовкой DashScope (#5)\n- Тесты клавиатуры на эмуляторе в CI (#54)\n\nWindows\n\n- Голосовой ввод в любом приложении (этап 1) (#2)\n- Релизы сами: раз в день, когда изменился продукт и main зелёный (#53)\n- Смоук-тест Windows-версии на настоящем раннере (#51)\n\nЧтение по губам\n\n- Нестабильный тест охранника памяти (#18)\n- Безопасность: закреплённые версии на GPU-подах (lipread) (#60)\n\n«Помочь обучить»\n\n- Этап 3: «Помочь обучить» — сервер приёма, агрегатор, клиент, карточка в…",
-      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.0/VelikiyMoguchiy-iOS-unsigned.ipa",
-      "size": 3323593
+      "version": "0.1.1",
+      "versionDate": "2026-10-15T21:29:02Z",
+      "versionDescription": "Mac\n\n- Провайдер «ChatGPT (ваша подписка)» — неофициально, по выбору (#70)\n\niPhone\n\n- IOS parity: ждать готовую клавиатуру и переснимать плохие кадры (#68)\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.0...v0.1.1",
+      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.1/VelikiyMoguchiy-iOS-unsigned.ipa",
+      "size": 3323595
     }
   ],
   "news": []
