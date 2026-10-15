@@ -2842,6 +2842,9 @@ experimental:
   # Silent dictation by the lips (hotkey.lips_key, settings in the lips section).
   # Russian only, experimental; expect a rough transcript.
   lips: false
+  # Keep the microphone open between dictations: recording starts at once,
+  # but the orange microphone indicator in the menu bar stays on.
+  keep_mic_warm: false
 
 # Lip-reading service for experimental.lips: a Python process from lipread/
 # that keeps the model loaded and exits after idle_minutes without clips.

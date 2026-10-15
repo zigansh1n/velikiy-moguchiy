@@ -3009,7 +3009,9 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                      rows:@[
                        [self cardRowWithLabel:@"Приглушать звук системы во время записи"
                                       control:self.muteSystemOutputCheckbox],
-                       [self cardRowWithLabel:@"Держать микрофон включённым (без задержки старта)"
+                       [self cardRowWithLabel:@"Держать микрофон включённым"
+                                       detail:@"Держит микрофон открытым: запись начинается мгновенно, "
+                                              @"но значок микрофона в строке меню горит постоянно."
                                       control:self.keepMicWarmSwitch],
                        [self cardRowWithLabel:@"Запускать Lipflow (чтение по губам)"
                                       control:self.lipflowSwitch],
@@ -5350,10 +5352,10 @@ static const CGFloat kSnippetRowHeight = 58.0;
 - (NSView *)cardWithTitle:(NSString *)title
                      rows:(NSArray<NSView *> *)rows
                     width:(CGFloat)width {
-  CGFloat rowHeight = 44.0;
   CGFloat cardPad = SPTheme.cardPadding;
 
-  CGFloat cardHeight = rows.count * rowHeight;
+  CGFloat cardHeight = 0.0;
+  for (NSView *row in rows) cardHeight += NSHeight(row.frame);
   // Section heading → card is 12; the caption itself is 20 tall.
   CGFloat titleHeight = title.length > 0 ? 20.0 + SPTheme.sectionHeadingGap : 0.0;
   CGFloat totalHeight = titleHeight + cardHeight;
@@ -5374,9 +5376,11 @@ static const CGFloat kSnippetRowHeight = 58.0;
       [self surfaceCardViewWithFrame:NSMakeRect(0, 0, width, cardHeight)];
   [container addSubview:card];
 
+  CGFloat rowY = cardHeight;
   for (NSUInteger i = 0; i < rows.count; i++) {
     NSView *row = rows[i];
-    CGFloat rowY = cardHeight - (i + 1) * rowHeight;
+    CGFloat rowHeight = NSHeight(row.frame);
+    rowY -= rowHeight;
     row.frame = NSMakeRect(0, rowY, width, rowHeight);
     [card addSubview:row];
 
@@ -5416,6 +5420,34 @@ static const CGFloat kSnippetRowHeight = 58.0;
   control.autoresizingMask = NSViewMinXMargin;
   [row addSubview:control];
 
+  return row;
+}
+
+/// A row with a second, smaller line under the label: what turning the control on costs.
+- (NSView *)cardRowWithLabel:(NSString *)label detail:(NSString *)detail control:(NSView *)control {
+  CGFloat rowHeight = 64.0;
+  CGFloat pad = SPTheme.cardPadding;
+  NSView *row = [self cardRowWithLabel:label control:control];
+  row.frame = NSMakeRect(0, 0, NSWidth(row.frame), rowHeight);
+
+  NSTextField *detailLabel = [NSTextField wrappingLabelWithString:detail];
+  detailLabel.font = SPTheme.descriptionFont;
+  detailLabel.textColor = SPTheme.secondaryLabel;
+  detailLabel.maximumNumberOfLines = 2;
+  detailLabel.lineBreakMode = NSLineBreakByTruncatingTail;
+  detailLabel.frame = NSMakeRect(pad, 8.0, 200, 30.0);
+  [row addSubview:detailLabel];
+
+  for (NSView *sub in row.subviews) {
+    if (sub == detailLabel) continue;
+    NSRect frame = sub.frame;
+    if ([sub isKindOfClass:[NSTextField class]]) {
+      frame.origin.y = rowHeight - 10.0 - NSHeight(frame);
+    } else {
+      frame.origin.y = (rowHeight - NSHeight(frame)) / 2.0;
+    }
+    sub.frame = frame;
+  }
   return row;
 }
 

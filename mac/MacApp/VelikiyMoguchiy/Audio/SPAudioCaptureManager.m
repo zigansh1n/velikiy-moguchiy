@@ -10,7 +10,8 @@ static const NSUInteger kFrameSamples = 3200; // 200ms at 16kHz
 
 // Retain enough trigger-down audio to cover the hotkey decision window and a
 // Bluetooth input route transition without losing the user's first word.
-static const NSUInteger kMaxPreRollSamples = 4800; // 300ms at 16kHz
+// Longer than the slowest hold decision (350 ms in auto mode), so speech from key-down is kept.
+static const NSUInteger kMaxPreRollSamples = 8000; // 500ms at 16kHz
 
 // 3 buffers x 50ms each — enough to absorb scheduling jitter without latency.
 static const int kNumBuffers = 3;
