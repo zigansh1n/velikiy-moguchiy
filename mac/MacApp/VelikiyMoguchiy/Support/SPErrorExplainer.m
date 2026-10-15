@@ -103,7 +103,8 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
         mentionsHttpStatus(lower, @"403")) {
         return SPErrorKindAccessDenied;
     }
-    if (containsAny(lower, @[ @"model not found", @"tokens.txt", @"read model dir" ])) {
+    if (containsAny(lower, @[ @"model not found", @"tokens.txt", @"read model dir",
+                              @"sherpa-onnx recognizer", @"sherpa-onnx offline recognizer" ])) {
         return SPErrorKindLocalModel;
     }
     if (containsAny(lower, @[ @"microphone", @"audio device", @"audio capture", @"audio buffer" ])) {

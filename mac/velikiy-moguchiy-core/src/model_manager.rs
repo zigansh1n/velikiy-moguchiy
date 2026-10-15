@@ -240,6 +240,27 @@ fn scan_dir_recursive(dir: &Path, models: &mut Vec<DiscoveredModel>) {
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
 
 fn load_manifest(model_dir: &Path) -> Option<DiscoveredModel> {
+    let manifest: ModelManifest = serde_json::from_str(&read_manifest_text(model_dir)?).ok()?;
+    Some(DiscoveredModel {
+        path: model_dir.to_path_buf(),
+        manifest,
+    })
+}
+
+/// The sherpa-onnx `model_type` of a non-streaming model, from the optional
+/// `sherpa_model_type` key of its manifest. `None` for streaming models.
+pub fn sherpa_offline_model_type(model_dir: &Path) -> Option<String> {
+    #[derive(Deserialize)]
+    struct Engine {
+        sherpa_model_type: Option<String>,
+    }
+    serde_json::from_str::<Engine>(&read_manifest_text(model_dir)?)
+        .ok()?
+        .sherpa_model_type
+        .filter(|t| !t.is_empty())
+}
+
+fn read_manifest_text(model_dir: &Path) -> Option<String> {
     let manifest_path = model_dir.join(MANIFEST_FILE);
     // Read only a regular file, and check the descriptor actually opened
     // rather than the path: a manifest symlinked to /dev/zero or replaced by
@@ -251,7 +272,7 @@ fn load_manifest(model_dir: &Path) -> Option<DiscoveredModel> {
     {
         return None;
     }
-    let mut file = std::fs::File::open(&manifest_path).ok()?;
+    let file = std::fs::File::open(&manifest_path).ok()?;
     let meta = file.metadata().ok()?;
     if !meta.is_file() || meta.len() > MAX_MANIFEST_BYTES {
         return None;
@@ -261,11 +282,7 @@ fn load_manifest(model_dir: &Path) -> Option<DiscoveredModel> {
     file.take(MAX_MANIFEST_BYTES)
         .read_to_string(&mut content)
         .ok()?;
-    let manifest: ModelManifest = serde_json::from_str(&content).ok()?;
-    Some(DiscoveredModel {
-        path: model_dir.to_path_buf(),
-        manifest,
-    })
+    Some(content)
 }
 
 // ─── Status ─────────────────────────────────────────────────────────
@@ -1029,6 +1046,36 @@ mod tests {
         fs::write(tmp.join("model.bin"), corrupt_content).unwrap();
 
         (tmp, correct_sha)
+    }
+
+    #[test]
+    fn bundled_gigaam_manifest_declares_an_offline_model() {
+        let tmp = std::env::temp_dir().join(format!(
+            "velikiy-moguchiy-offline-type-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&tmp).unwrap();
+
+        fs::write(
+            tmp.join(MANIFEST_FILE),
+            include_str!("manifests/sherpa-onnx/ru-gigaam-v3.json"),
+        )
+        .unwrap();
+        assert_eq!(sherpa_offline_model_type(&tmp).as_deref(), Some("nemo_transducer"));
+        let gigaam = load_manifest(&tmp).expect("GigaAM manifest parses").manifest;
+        assert!(gigaam.files.iter().all(|f| f.url.contains("/resolve/a6039be")));
+
+        fs::write(
+            tmp.join(MANIFEST_FILE),
+            include_str!("manifests/sherpa-onnx/ru-vosk-small.json"),
+        )
+        .unwrap();
+        assert_eq!(sherpa_offline_model_type(&tmp), None);
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 
     #[test]

@@ -128,6 +128,7 @@ async fn main() -> Result<(), velikiy_moguchiy_asr::AsrError> {
         hotwords: vec!["custom term".into()],
         hotwords_score: 1.5,
         endpoint_silence: 0.8,
+        offline_model_type: None, // Some("nemo_transducer".into()) for GigaAM
     };
 
     let mut asr = SherpaOnnxProvider::new(sherpa_config);

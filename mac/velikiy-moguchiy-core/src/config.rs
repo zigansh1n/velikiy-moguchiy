@@ -2878,6 +2878,7 @@ const DEFAULT_MANIFESTS: &[(&str, &str)] = &[
     manifest!("mlx/Qwen3-ASR-1.7B-4bit"),
     manifest!("mlx/Qwen3-0.6B-4bit"),
     manifest!("mlx/Qwen3-1.7B-4bit"),
+    manifest!("sherpa-onnx/ru-gigaam-v3"),
     manifest!("sherpa-onnx/ru-vosk-small"),
     manifest!("sherpa-onnx/bilingual-zh-en"),
     manifest!("sherpa-onnx/multilingual-8lang"),

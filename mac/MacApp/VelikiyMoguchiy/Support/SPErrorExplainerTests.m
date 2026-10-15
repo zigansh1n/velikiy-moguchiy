@@ -18,6 +18,7 @@
         @"ASR protocol error: Throttling.RateQuota" : @(SPErrorKindRateLimit),
         @"ASR connection failed: HTTP error: 403 Forbidden" : @(SPErrorKindAccessDenied),
         @"ASR connection failed: model not found: models/vosk-ru" : @(SPErrorKindLocalModel),
+        @"ASR error: failed to create sherpa-onnx offline recognizer" : @(SPErrorKindLocalModel),
         @"audio buffer error: overflow" : @(SPErrorKindMicrophone),
         @"ASR connection failed: connection timed out" : @(SPErrorKindTimeout),
         @"ASR result timed out" : @(SPErrorKindTimeout),

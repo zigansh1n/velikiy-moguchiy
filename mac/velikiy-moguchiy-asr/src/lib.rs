@@ -39,6 +39,7 @@
 //! ```
 
 pub mod app_dir;
+pub mod audio_split;
 #[cfg(feature = "apple-speech")]
 pub mod apple_speech;
 pub mod chatgpt;
