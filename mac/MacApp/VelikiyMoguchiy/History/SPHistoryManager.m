@@ -14,6 +14,28 @@
 @end
 
 NSNotificationName const SPHistoryDidChangeNotification = @"SPHistoryDidChangeNotification";
+NSString *const SPHistoryPurposeDictate = @"dictate";
+NSString *const SPHistoryPurposeTranslate = @"translate";
+NSString *const SPHistoryPurposeAsk = @"ask";
+NSString *const SPHistoryPurposeEdit = @"edit";
+
+/// sp_contains(haystack, needle): 1 when `needle` occurs in `haystack`
+/// ignoring case and diacritics. SQLite's own LIKE folds ASCII only, so it
+/// would miss «Привет» for «привет».
+static void sqliteContains(sqlite3_context *context, int argc, sqlite3_value **argv) {
+    const unsigned char *haystack = sqlite3_value_text(argv[0]);
+    const unsigned char *needle = sqlite3_value_text(argv[1]);
+    if (!haystack || !needle) {
+        sqlite3_result_int(context, 0);
+        return;
+    }
+    NSString *text = [NSString stringWithUTF8String:(const char *)haystack];
+    NSString *query = [NSString stringWithUTF8String:(const char *)needle];
+    BOOL found = text && query.length > 0 &&
+        [text rangeOfString:query
+                    options:NSCaseInsensitiveSearch | NSDiacriticInsensitiveSearch].location != NSNotFound;
+    sqlite3_result_int(context, found ? 1 : 0);
+}
 
 @implementation SPHistoryManager
 
@@ -81,6 +103,8 @@ NSNotificationName const SPHistoryDidChangeNotification = @"SPHistoryDidChangeNo
     }
 
     [self migrateSchema];
+    sqlite3_create_function_v2(_db, "sp_contains", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, NULL,
+                               sqliteContains, NULL, NULL, NULL);
 }
 
 /// Add columns introduced after the initial release. Databases created before
@@ -100,6 +124,7 @@ NSNotificationName const SPHistoryDidChangeNotification = @"SPHistoryDidChangeNo
         @"error" : @"TEXT",
         @"app_bundle_id" : @"TEXT",
         @"original_text" : @"TEXT",
+        @"purpose" : @"TEXT",
     };
 
     for (NSString *column in wanted) {
@@ -201,6 +226,30 @@ static void bindOptionalText(sqlite3_stmt *stmt, int index, NSString *value) {
                                  error:(NSString *)error
                            appBundleId:(NSString *)appBundleId
                           originalText:(NSString *)originalText {
+    return [self recordSessionWithDurationMs:durationMs
+                                        text:text
+                                     asrText:asrText
+                                 asrProvider:asrProvider
+                                  llmApplied:llmApplied
+                                      status:status
+                                   audioPath:audioPath
+                                       error:error
+                                 appBundleId:appBundleId
+                                originalText:originalText
+                                     purpose:nil];
+}
+
+- (int64_t)recordSessionWithDurationMs:(NSInteger)durationMs
+                                  text:(NSString *)text
+                               asrText:(NSString *)asrText
+                           asrProvider:(NSString *)asrProvider
+                            llmApplied:(BOOL)llmApplied
+                                status:(NSString *)status
+                             audioPath:(NSString *)audioPath
+                                 error:(NSString *)error
+                           appBundleId:(NSString *)appBundleId
+                          originalText:(NSString *)originalText
+                               purpose:(NSString *)purpose {
     if (!_db) return 0;
     text = text ?: @"";
     status = status.length > 0 ? status : @"ok";
@@ -213,8 +262,8 @@ static void bindOptionalText(sqlite3_stmt *stmt, int index, NSString *value) {
 
     const char *sql = "INSERT INTO sessions (timestamp, duration_ms, text, char_count, word_count, "
                       "asr_text, asr_provider, llm_applied, audio_path, status, error, app_bundle_id, "
-                      "original_text) "
-                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                      "original_text, purpose) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     sqlite3_stmt *stmt = NULL;
     int64_t rowId = 0;
 
@@ -232,6 +281,7 @@ static void bindOptionalText(sqlite3_stmt *stmt, int index, NSString *value) {
         bindOptionalText(stmt, 11, [SPHistoryManager scrubbedSecrets:error]);
         bindOptionalText(stmt, 12, appBundleId);
         bindOptionalText(stmt, 13, originalText);
+        bindOptionalText(stmt, 14, [purpose isEqualToString:SPHistoryPurposeDictate] ? nil : purpose);
 
         if (sqlite3_step(stmt) == SQLITE_DONE) {
             rowId = (int64_t)sqlite3_last_insert_rowid(_db);
@@ -336,6 +386,22 @@ static NSString *truncated(NSString *text, NSUInteger limit) {
     return [NSString stringWithFormat:@"%@\n%@", head, detail];
 }
 
++ (NSString *)purposeForCode:(NSInteger)code {
+    switch (code) {
+        case 1: return SPHistoryPurposeTranslate;
+        case 2: return SPHistoryPurposeAsk;
+        case 3: return SPHistoryPurposeEdit;
+        default: return SPHistoryPurposeDictate;
+    }
+}
+
++ (NSString *)titleForPurpose:(NSString *)purpose {
+    if ([purpose isEqualToString:SPHistoryPurposeTranslate]) return @"перевод";
+    if ([purpose isEqualToString:SPHistoryPurposeAsk]) return @"вопрос";
+    if ([purpose isEqualToString:SPHistoryPurposeEdit]) return @"правка";
+    return @"диктовка";
+}
+
 + (NSString *)shortErrorReason:(NSString *)error {
     if (error.length == 0) return @"";
     NSRange newline = [error rangeOfCharacterFromSet:[NSCharacterSet newlineCharacterSet]];
@@ -387,7 +453,7 @@ static NSString *truncated(NSString *text, NSUInteger limit) {
 
     const char *sql = "SELECT COUNT(*), COALESCE(SUM(duration_ms),0), "
                       "COALESCE(SUM(char_count),0), COALESCE(SUM(word_count),0) "
-                      "FROM sessions WHERE status = 'ok';";
+                      "FROM sessions WHERE status = 'ok' AND COALESCE(purpose, 'dictate') NOT IN ('ask', 'edit');";
     sqlite3_stmt *stmt = NULL;
 
     if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
@@ -403,42 +469,80 @@ static NSString *truncated(NSString *text, NSUInteger limit) {
     return stats;
 }
 
-- (NSArray<NSDictionary *> *)recentSessionsWithLimit:(NSUInteger)limit {
+static NSString *const kSessionColumns =
+    @"id, timestamp, duration_ms, text, status, audio_path, error, app_bundle_id, original_text, purpose";
+
+static NSString *columnString(sqlite3_stmt *stmt, int column, NSString *fallback) {
+    const char *value = (const char *)sqlite3_column_text(stmt, column);
+    return value ? ([NSString stringWithUTF8String:value] ?: fallback) : fallback;
+}
+
+/// Rows of a prepared SELECT of `kSessionColumns`.
+static NSArray<NSDictionary *> *sessionRows(sqlite3_stmt *stmt) {
     NSMutableArray<NSDictionary *> *sessions = [NSMutableArray array];
-    if (!_db) return sessions;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (!sqlite3_column_text(stmt, 3)) continue;
+        NSTimeInterval ts = (NSTimeInterval)sqlite3_column_int64(stmt, 1);
+        NSString *purpose = columnString(stmt, 9, @"");
+        [sessions addObject:@{
+            @"id" : @(sqlite3_column_int64(stmt, 0)),
+            @"timestamp" : [NSDate dateWithTimeIntervalSince1970:ts],
+            @"duration_ms" : @(sqlite3_column_int64(stmt, 2)),
+            @"text" : columnString(stmt, 3, @""),
+            @"status" : columnString(stmt, 4, @"ok"),
+            @"audio_path" : columnString(stmt, 5, @""),
+            @"error" : columnString(stmt, 6, @""),
+            @"app_bundle_id" : columnString(stmt, 7, @""),
+            @"original_text" : columnString(stmt, 8, @""),
+            @"purpose" : purpose.length > 0 ? purpose : SPHistoryPurposeDictate,
+        }];
+    }
+    return sessions;
+}
 
-    const char *sql = "SELECT id, timestamp, duration_ms, text, status, audio_path, "
-                      "error, app_bundle_id, original_text "
-                      "FROM sessions ORDER BY id DESC LIMIT ?;";
+- (NSArray<NSDictionary *> *)recentSessionsWithLimit:(NSUInteger)limit {
+    if (!_db) return @[];
+    NSString *sql = [NSString stringWithFormat:@"SELECT %@ FROM sessions ORDER BY id DESC LIMIT ?;",
+                     kSessionColumns];
     sqlite3_stmt *stmt = NULL;
-
-    if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+    NSArray<NSDictionary *> *sessions = @[];
+    if (sqlite3_prepare_v2(_db, sql.UTF8String, -1, &stmt, NULL) == SQLITE_OK) {
         sqlite3_bind_int64(stmt, 1, (sqlite3_int64)limit);
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            const char *text = (const char *)sqlite3_column_text(stmt, 3);
-            if (!text) continue;
-            const char *status = (const char *)sqlite3_column_text(stmt, 4);
-            const char *audioPath = (const char *)sqlite3_column_text(stmt, 5);
-            const char *error = (const char *)sqlite3_column_text(stmt, 6);
-            const char *appBundleId = (const char *)sqlite3_column_text(stmt, 7);
-            const char *originalText = (const char *)sqlite3_column_text(stmt, 8);
-            NSTimeInterval ts = (NSTimeInterval)sqlite3_column_int64(stmt, 1);
-            [sessions addObject:@{
-                @"id" : @(sqlite3_column_int64(stmt, 0)),
-                @"timestamp" : [NSDate dateWithTimeIntervalSince1970:ts],
-                @"duration_ms" : @(sqlite3_column_int64(stmt, 2)),
-                @"text" : [NSString stringWithUTF8String:text] ?: @"",
-                @"status" : status ? ([NSString stringWithUTF8String:status] ?: @"ok") : @"ok",
-                @"audio_path" : audioPath ? ([NSString stringWithUTF8String:audioPath] ?: @"") : @"",
-                @"error" : error ? ([NSString stringWithUTF8String:error] ?: @"") : @"",
-                @"app_bundle_id" : appBundleId ? ([NSString stringWithUTF8String:appBundleId] ?: @"") : @"",
-                @"original_text" : originalText ? ([NSString stringWithUTF8String:originalText] ?: @"") : @"",
-            }];
-        }
+        sessions = sessionRows(stmt);
     }
     sqlite3_finalize(stmt);
-
     return sessions;
+}
+
+- (NSArray<NSDictionary *> *)sessionsMatchingQuery:(NSString *)query limit:(NSUInteger)limit {
+    if (!_db || query.length == 0) return @[];
+    NSString *sql = [NSString stringWithFormat:
+        @"SELECT %@ FROM sessions "
+        @"WHERE sp_contains(text, ?1) OR sp_contains(original_text, ?1) "
+        @"ORDER BY id DESC LIMIT ?2;", kSessionColumns];
+    sqlite3_stmt *stmt = NULL;
+    NSArray<NSDictionary *> *sessions = @[];
+    if (sqlite3_prepare_v2(_db, sql.UTF8String, -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, query.UTF8String, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 2, (sqlite3_int64)limit);
+        sessions = sessionRows(stmt);
+    } else {
+        NSLog(@"[VelikiyMoguchiy] History search failed: %s", sqlite3_errmsg(_db));
+    }
+    sqlite3_finalize(stmt);
+    return sessions;
+}
+
+- (NSInteger)sessionCount {
+    if (!_db) return 0;
+    sqlite3_stmt *stmt = NULL;
+    NSInteger count = 0;
+    if (sqlite3_prepare_v2(_db, "SELECT COUNT(*) FROM sessions;", -1, &stmt, NULL) == SQLITE_OK &&
+        sqlite3_step(stmt) == SQLITE_ROW) {
+        count = (NSInteger)sqlite3_column_int64(stmt, 0);
+    }
+    sqlite3_finalize(stmt);
+    return count;
 }
 
 - (void)deleteSessionWithId:(int64_t)sessionId {
@@ -451,6 +555,17 @@ static NSString *truncated(NSString *text, NSUInteger limit) {
         }
     }
     sqlite3_finalize(stmt);
+    [self postChangeNotification];
+}
+
+- (void)deleteAllSessions {
+    if (!_db) return;
+    char *errMsg = NULL;
+    // VACUUM rewrites the file, so the deleted texts do not linger in free pages.
+    if (sqlite3_exec(_db, "DELETE FROM sessions; VACUUM;", NULL, NULL, &errMsg) != SQLITE_OK) {
+        NSLog(@"[VelikiyMoguchiy] Failed to clear history: %s", errMsg);
+        sqlite3_free(errMsg);
+    }
     [self postChangeNotification];
 }
 

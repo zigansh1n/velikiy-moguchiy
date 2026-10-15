@@ -137,6 +137,8 @@
 @property (nonatomic, assign) BOOL onboardingAtLaunch;
 @property (nonatomic, assign) SPSessionPurpose pendingSessionPurpose;
 @property (nonatomic, assign) SPSessionPurpose sessionPurpose;
+// The selection an Ask session is about, kept for its history row.
+@property (nonatomic, copy) NSString *askSelectedText;
 // Session result metadata delivered just before the final text; consumed
 // (and cleared) when the final text arrives and history is recorded.
 @property (nonatomic, copy) NSString *pendingMetaAsrText;
@@ -1286,6 +1288,7 @@ static BOOL SPLabFlag(const char *name) {
         NSLog(@"[VelikiyMoguchiy] Ask session: %lu selected chars", (unsigned long)selectedText.length);
     }
     self.sessionPurpose = requested;
+    self.askSelectedText = requested == SPSessionPurposeAsk ? selectedText : nil;
     sp_core_set_next_session_purpose(self.sessionPurpose, selectedText.UTF8String);
     // The overlay's level bars must not start from the previous recording's tail.
     sp_core_reset_mic_levels();
@@ -1729,8 +1732,11 @@ static BOOL SPLabFlag(const char *name) {
     NSString *appBundleId = self.sessionAppBundleId;
     self.sessionAppBundleId = nil;
     SPSessionPurpose purpose = self.sessionPurpose;
-    // A voice edit keeps the replaced selection as the row's original text.
-    NSString *editOriginal = purpose == SPSessionPurposeEdit ? self.editAnchor.selectedText : nil;
+    // A voice edit keeps the replaced selection as the row's original text, an
+    // Ask the selection it was about.
+    NSString *editOriginal = purpose == SPSessionPurposeEdit ? self.editAnchor.selectedText
+                           : purpose == SPSessionPurposeAsk ? self.askSelectedText : nil;
+    self.askSelectedText = nil;
     int64_t historyRowId = [[SPHistoryManager sharedManager] recordSessionWithDurationMs:durationMs
                                                                                    text:text
                                                                                 asrText:self.pendingMetaAsrText
@@ -1740,7 +1746,8 @@ static BOOL SPLabFlag(const char *name) {
                                                                               audioPath:[self takeFinishedSessionAudioPath]
                                                                                   error:text.length > 0 ? nil : @"в записи не было речи"
                                                                             appBundleId:appBundleId
-                                                                           originalText:editOriginal];
+                                                                           originalText:editOriginal
+                                                                                purpose:[SPHistoryManager purposeForCode:purpose]];
     if (text.length > 0 && [SPTextEditPolicy purposeCountsAsDictation:purpose]) {
         self.lastDictationText = text;
     }
