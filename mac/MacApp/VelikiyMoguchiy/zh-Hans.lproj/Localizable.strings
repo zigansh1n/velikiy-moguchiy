@@ -40,7 +40,7 @@
 "statusBar.menu.systemDefault" = "系统默认";
 "statusBar.menu.unavailable" = "%@（不可用）";
 
-"statusBar.menu.recentDictations" = "最近的听写…";
+"statusBar.menu.recentDictations" = "所有听写…";
 "statusBar.menu.setupWizard" = "设置向导...";
 "statusBar.menu.openConfig" = "打开配置文件夹...";
 "statusBar.menu.checkUpdates" = "检查更新...";

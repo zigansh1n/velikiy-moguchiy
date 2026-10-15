@@ -40,7 +40,7 @@
 "statusBar.menu.systemDefault" = "Системный по умолчанию";
 "statusBar.menu.unavailable" = "%@ (недоступен)";
 
-"statusBar.menu.recentDictations" = "Последние диктовки…";
+"statusBar.menu.recentDictations" = "Все диктовки…";
 "statusBar.menu.setupWizard" = "Настройки…";
 "statusBar.menu.openConfig" = "Открыть папку настроек…";
 "statusBar.menu.checkUpdates" = "Проверить обновления…";

@@ -40,7 +40,7 @@
 "statusBar.menu.systemDefault" = "System Default";
 "statusBar.menu.unavailable" = "%@ (Unavailable)";
 
-"statusBar.menu.recentDictations" = "Recent Dictations…";
+"statusBar.menu.recentDictations" = "All Dictations…";
 "statusBar.menu.setupWizard" = "Setup Wizard...";
 "statusBar.menu.openConfig" = "Open Config Folder...";
 "statusBar.menu.checkUpdates" = "Check for Updates...";

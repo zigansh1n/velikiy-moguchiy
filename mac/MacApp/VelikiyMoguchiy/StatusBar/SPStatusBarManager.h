@@ -11,6 +11,9 @@
 /// "Начало работы…".
 - (void)statusBarDidSelectOnboarding;
 - (void)statusBarDidSelectRecentDictations;
+/// A dictation picked in «Последние диктовки»: copy it, or paste it at the
+/// cursor when ⌥ was held.
+- (void)statusBarDidSelectRecentDictationText:(nonnull NSString *)text paste:(BOOL)paste;
 - (void)statusBarMenuDidOpen;
 - (void)statusBarMenuDidClose;
 - (void)statusBarDidSelectAudioDeviceWithUID:(nullable NSString *)uid;

@@ -2,6 +2,7 @@
 #import "SPPermissionManager.h"
 #import "SPAudioDeviceManager.h"
 #import "SPHistoryManager.h"
+#import "SPRecentDictationsMenuPolicy.h"
 #import "SPLocalization.h"
 #import "SPOutputModes.h"
 #import "SPLipCaptureManager.h"
@@ -30,6 +31,8 @@ static const NSInteger kHeaderItemTag = 1001;
 @property (nonatomic, strong) NSMenuItem *outputModeItem;
 @property (nonatomic, strong) NSMenuItem *appUpdateItem;
 @property (nonatomic, strong) NSMenuItem *lipsModelUpdateItem;
+@property (nonatomic, strong) NSMenuItem *recentHeaderItem;
+@property (nonatomic, strong) NSMutableArray<NSMenuItem *> *recentItems;
 @property (nonatomic, strong) NSTimer *animationTimer;
 @property (nonatomic, assign) NSInteger animationFrame;
 @property (nonatomic, copy) NSString *currentState;
@@ -90,6 +93,12 @@ static const NSInteger kHeaderItemTag = 1001;
     self.voiceInputItem.target = self;
     self.voiceInputItem.image = [self menuSymbol:@"mic"];
     [menu addItem:self.voiceInputItem];
+
+    // Filled in menuNeedsUpdate: from the history.
+    self.recentHeaderItem = [NSMenuItem sectionHeaderWithTitle:@"Последние диктовки"];
+    self.recentHeaderItem.hidden = YES;
+    [menu addItem:self.recentHeaderItem];
+    self.recentItems = [NSMutableArray array];
 
     NSMenuItem *recentDictations = [[NSMenuItem alloc] initWithTitle:SPLocalizedString(@"statusBar.menu.recentDictations")
                                                               action:@selector(openRecentDictations:)
@@ -342,6 +351,10 @@ static const NSInteger kHeaderItemTag = 1001;
 
 #pragma mark - NSMenuDelegate
 
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    if (menu == self.menu) [self refreshRecentDictations];
+}
+
 - (void)menuWillOpen:(NSMenu *)menu {
     [self refreshPermissionStatus];
     [self refreshStats];
@@ -447,6 +460,61 @@ static const NSInteger kHeaderItemTag = 1001;
 - (void)selectOutputMode:(NSMenuItem *)sender {
     if ([self.delegate respondsToSelector:@selector(statusBarDidSelectOutputMode:)]) {
         [self.delegate statusBarDidSelectOutputMode:sender.representedObject];
+    }
+}
+
+#pragma mark - Recent dictations
+
+- (void)refreshRecentDictations {
+    for (NSMenuItem *item in self.recentItems) [self.menu removeItem:item];
+    [self.recentItems removeAllObjects];
+
+    // A margin over the limit: failed and cancelled sessions are skipped.
+    NSArray<NSDictionary *> *rows = [SPRecentDictationsMenuPolicy
+        menuRowsFromHistoryRows:[[SPHistoryManager sharedManager] recentSessionsWithLimit:50]
+                          limit:SPRecentDictationsMenuPolicy.itemLimit];
+    self.recentHeaderItem.hidden = rows.count == 0;
+    NSDate *now = [NSDate date];
+    NSInteger index = [self.menu indexOfItem:self.recentHeaderItem] + 1;
+    for (NSDictionary *row in rows) {
+        NSMenuItem *item = [self recentDictationItemWithText:row[@"text"] date:row[@"timestamp"] now:now];
+        [self.menu insertItem:item atIndex:index++];
+        [self.recentItems addObject:item];
+    }
+}
+
+- (NSMenuItem *)recentDictationItemWithText:(NSString *)text date:(NSDate *)date now:(NSDate *)now {
+    NSString *preview = [SPRecentDictationsMenuPolicy previewForText:text
+                                                              length:SPRecentDictationsMenuPolicy.previewLength];
+    NSString *time = [date isKindOfClass:[NSDate class]]
+        ? [SPRecentDictationsMenuPolicy relativeTimeForDate:date now:now] : @"";
+    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:preview
+                                                  action:@selector(selectRecentDictation:)
+                                           keyEquivalent:@""];
+    item.target = self;
+    item.representedObject = text;
+    item.toolTip = @"Скопировать; с ⌥ — вставить";
+    if (time.length > 0) {
+        NSMutableAttributedString *title = [[NSMutableAttributedString alloc]
+            initWithString:preview
+                attributes:@{ NSFontAttributeName : [NSFont menuFontOfSize:0] }];
+        [title appendAttributedString:[[NSAttributedString alloc]
+            initWithString:[@"   " stringByAppendingString:time]
+                attributes:@{
+                    NSFontAttributeName : [NSFont menuFontOfSize:NSFont.smallSystemFontSize],
+                    NSForegroundColorAttributeName : NSColor.secondaryLabelColor,
+                }]];
+        item.attributedTitle = title;
+    }
+    return item;
+}
+
+- (void)selectRecentDictation:(NSMenuItem *)sender {
+    NSString *text = sender.representedObject;
+    if (![text isKindOfClass:[NSString class]] || text.length == 0) return;
+    BOOL paste = (NSApp.currentEvent.modifierFlags & NSEventModifierFlagOption) != 0;
+    if ([self.delegate respondsToSelector:@selector(statusBarDidSelectRecentDictationText:paste:)]) {
+        [self.delegate statusBarDidSelectRecentDictationText:text paste:paste];
     }
 }
 

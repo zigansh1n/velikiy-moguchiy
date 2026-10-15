@@ -1692,16 +1692,16 @@ static BOOL SPLabFlag(const char *name) {
     SPSessionPurpose purpose = self.sessionPurpose;
     // A voice edit keeps the replaced selection as the row's original text.
     NSString *editOriginal = purpose == SPSessionPurposeEdit ? self.editAnchor.selectedText : nil;
-    [[SPHistoryManager sharedManager] recordSessionWithDurationMs:durationMs
-                                                             text:text
-                                                          asrText:self.pendingMetaAsrText
-                                                      asrProvider:self.pendingMetaAsrProvider
-                                                       llmApplied:self.pendingMetaLlmApplied
-                                                           status:text.length > 0 ? @"ok" : @"empty"
-                                                        audioPath:[self takeFinishedSessionAudioPath]
-                                                            error:text.length > 0 ? nil : @"в записи не было речи"
-                                                      appBundleId:appBundleId
-                                                     originalText:editOriginal];
+    int64_t historyRowId = [[SPHistoryManager sharedManager] recordSessionWithDurationMs:durationMs
+                                                                                   text:text
+                                                                                asrText:self.pendingMetaAsrText
+                                                                            asrProvider:self.pendingMetaAsrProvider
+                                                                             llmApplied:self.pendingMetaLlmApplied
+                                                                                 status:text.length > 0 ? @"ok" : @"empty"
+                                                                              audioPath:[self takeFinishedSessionAudioPath]
+                                                                                  error:text.length > 0 ? nil : @"в записи не было речи"
+                                                                            appBundleId:appBundleId
+                                                                           originalText:editOriginal];
     if (text.length > 0 && [SPTextEditPolicy purposeCountsAsDictation:purpose]) {
         self.lastDictationText = text;
     }
@@ -1794,8 +1794,11 @@ static BOOL SPLabFlag(const char *name) {
 
     SPPasteTarget target = canAutoPaste ? [self.accessibilityManager pasteTargetForFocusedElement] : SPPasteTargetPaste;
     if (target == SPPasteTargetSecure) {
-        // Dictated text never goes into a password field, nor onto the clipboard for one.
+        // Dictated text never goes into a password field, nor onto the clipboard
+        // for one, and is not kept in the history or offered for re-pasting.
         NSLog(@"[VelikiyMoguchiy] Focus is a password field; the text is not pasted");
+        if (historyRowId > 0) [[SPHistoryManager sharedManager] deleteSessionWithId:historyRowId];
+        if ([self.lastDictationText isEqualToString:text]) self.lastDictationText = nil;
         [self.statusBarManager updateState:@"idle"];
         [self.overlayPanel showMessage:@"Поле пароля — текст не вставлен" icon:SPOverlayMessageIconNotice];
         [self applyDeferredConfigReloadIfNeeded];
@@ -3049,6 +3052,20 @@ static BOOL SPLabFlag(const char *name) {
 
 - (void)statusBarDidSelectRepasteLastDictation {
     [self repasteLastDictation];
+}
+
+/// A dictation from the menu's «Последние диктовки». While a session runs the
+/// pill is busy: the text is only copied, without a badge.
+- (void)statusBarDidSelectRecentDictationText:(NSString *)text paste:(BOOL)paste {
+    if (self.quitting || text.length == 0) return;
+    BOOL idle = sessionStateAllowsConfigReload(self.sessionState);
+    if (paste && idle) {
+        [self pasteTextAtCursor:text];
+        return;
+    }
+    [self.clipboardManager cancelPendingRestore];
+    [self.clipboardManager writeText:text];
+    if (idle) [self showQuickBadge:@"✓ Скопировано"];
 }
 
 #pragma mark - Output mode (hotkey.mode_key, menu)
