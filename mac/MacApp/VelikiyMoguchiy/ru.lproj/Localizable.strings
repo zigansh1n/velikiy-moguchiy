@@ -43,7 +43,6 @@
 "statusBar.menu.recentDictations" = "Все диктовки…";
 "statusBar.menu.setupWizard" = "Настройки…";
 "statusBar.menu.openConfig" = "Открыть папку настроек…";
-"statusBar.menu.checkUpdates" = "Проверить обновления…";
 "statusBar.menu.launchAtLogin" = "Запускать при входе";
 "statusBar.menu.quit" = "Завершить «Великий & Могучий»";
 

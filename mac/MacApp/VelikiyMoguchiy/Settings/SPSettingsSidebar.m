@@ -194,7 +194,7 @@
            symbol:@"PictKey"];
   [self addItemTo:top
        identifier:@"overlay"
-            title:@"Оверлей"
+            title:@"Плашка"
            symbol:@"PictWindow"];
 
   [self addHeaderTo:top text:@"Текст"];
@@ -204,10 +204,6 @@
        identifier:@"system_prompt"
             title:@"Промпт"
            symbol:@"PictInkwell"];
-  [self addItemTo:top
-       identifier:@"templates"
-            title:@"Шаблоны"
-           symbol:@"PictSeal"];
 
   [self addItemTo:bottom
        identifier:@"about"

@@ -30,32 +30,17 @@ extern uint8_t *sp_apple_speech_supported_locales(uint32_t *outLen);
 
 static NSString *const kDictionaryFile = @"dictionary.txt";
 static NSString *const kSystemPromptFile = @"system_prompt.txt";
-static NSString *const kTemplateEditablePromptKey = @"__editable_prompt";
-static NSString *const kTemplateOriginalPromptKey = @"__original_prompt";
 static NSString *const kDefaultLlmChatCompletionsPath = @"/chat/completions";
 static NSString *const kDefaultLlmResponsesPath = @"/responses";
 static NSString *const kDefaultLlmAnthropicMessagesPath = @"/messages";
 static NSString *const kLlmProtocolOpenAIChat = @"openai_chat";
 static NSString *const kLlmProtocolOpenAIResponses = @"openai_responses";
 static NSString *const kLlmProtocolAnthropicMessages = @"anthropic_messages";
-static NSString *const kOverlayFontFamilyDefault = @"system";
-static NSString *const kOverlayFontFamilySystemLabel = @"Системный по умолчанию";
-static const NSInteger kOverlayFontSizeDefault = 13;
 static const NSInteger kRecordingsRetentionMin = 1;
 static const NSInteger kRecordingsRetentionMax = 365;
 static const NSInteger kRecordingsRetentionDefault = 30;
-static const NSInteger kOverlayFontSizeMin = 12;
-static const NSInteger kOverlayFontSizeMax = 28;
 static const NSInteger kOverlayBottomMarginDefault = 10;
 static const NSInteger kOverlayBottomMarginMax = 180;
-static const BOOL kOverlayLimitVisibleLinesDefault = YES;
-static const NSInteger kOverlayMaxVisibleLinesDefault = 3;
-static const NSInteger kOverlayMaxVisibleLinesMin = 3;
-static const NSInteger kOverlayMaxVisibleLinesMax = 5;
-static NSString *const kOverlayPreviewSampleText =
-    @"Только что попробовал этот голосовой ввод, очень удобно: после "
-    @"слов текст сам приводится в порядок, знаки препинания тоже "
-    @"расставлены, и это куда быстрее, чем печатать.";
 
 // Toolbar item identifiers
 // Draws a view (and its subviews) into a PNG at the window's backing scale.
@@ -76,7 +61,6 @@ static NSToolbarItemIdentifier const kToolbarHotkey = @"hotkey";
 static NSToolbarItemIdentifier const kToolbarDictionary = @"dictionary";
 static NSToolbarItemIdentifier const kToolbarSnippets = @"snippets";
 static NSToolbarItemIdentifier const kToolbarSystemPrompt = @"system_prompt";
-static NSToolbarItemIdentifier const kToolbarTemplates = @"templates";
 static NSToolbarItemIdentifier const kToolbarAbout = @"about";
 
 // ─── Config helpers (backed by sp_config_get / sp_config_set) ───────
@@ -204,17 +188,8 @@ asrCustomHeaders(NSString *providerKey) {
   return out.count > 0 ? out : nil;
 }
 
-static NSInteger clampedOverlayFontSizeValue(NSInteger value) {
-  return MAX(kOverlayFontSizeMin, MIN(kOverlayFontSizeMax, value));
-}
-
 static NSInteger clampedOverlayBottomMarginValue(NSInteger value) {
   return MAX(0, MIN(kOverlayBottomMarginMax, value));
-}
-
-static NSInteger clampedOverlayMaxVisibleLinesValue(NSInteger value) {
-  return MAX(kOverlayMaxVisibleLinesMin,
-             MIN(kOverlayMaxVisibleLinesMax, value));
 }
 
 static BOOL configBooleanValue(NSString *value, BOOL fallback) {
@@ -241,58 +216,6 @@ static BOOL configBooleanValue(NSString *value, BOOL fallback) {
   }
 
   return fallback;
-}
-
-static NSString *normalizedOverlayFontFamilyValue(NSString *value) {
-  NSString *normalized = [[value ?: @""
-      stringByTrimmingCharactersInSet:[NSCharacterSet
-                                          whitespaceAndNewlineCharacterSet]]
-      copy];
-  if (normalized.length == 0) {
-    return kOverlayFontFamilyDefault;
-  }
-  return normalized;
-}
-
-static BOOL overlayUsesSystemFontFamily(NSString *value) {
-  return [normalizedOverlayFontFamilyValue(value)
-             caseInsensitiveCompare:kOverlayFontFamilyDefault] == NSOrderedSame;
-}
-
-static NSFont *overlayFontForFamily(NSString *fontFamily, CGFloat fontSize) {
-  CGFloat clampedFontSize = clampedOverlayFontSizeValue(lround(fontSize));
-  NSString *normalized = normalizedOverlayFontFamilyValue(fontFamily);
-
-  if (overlayUsesSystemFontFamily(normalized)) {
-    return [NSFont systemFontOfSize:clampedFontSize weight:NSFontWeightMedium];
-  }
-
-  NSFont *font = [NSFont fontWithName:normalized size:clampedFontSize];
-  if (font) {
-    return font;
-  }
-
-  NSFontManager *fontManager = [NSFontManager sharedFontManager];
-  font = [fontManager fontWithFamily:normalized
-                              traits:0
-                              weight:5
-                                size:clampedFontSize];
-  if (font) {
-    return font;
-  }
-
-  for (NSArray *member in
-       [fontManager availableMembersOfFontFamily:normalized]) {
-    if (member.count == 0)
-      continue;
-    NSString *memberName = member[0];
-    font = [NSFont fontWithName:memberName size:clampedFontSize];
-    if (font) {
-      return font;
-    }
-  }
-
-  return [NSFont systemFontOfSize:clampedFontSize weight:NSFontWeightMedium];
 }
 
 static BOOL isNumericKeycode(NSString *value) {
@@ -731,29 +654,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   return condensed;
 }
 
-@interface SPTemplateRowView : NSTableRowView
-@end
-
-@implementation SPTemplateRowView
-
-- (void)drawSelectionInRect:(NSRect)dirtyRect {
-  if (!self.isSelected)
-    return;
-
-  NSRect selectionRect = NSInsetRect(self.bounds, 2.0, 2.0);
-  NSBezierPath *selectionPath =
-      [NSBezierPath bezierPathWithRoundedRect:selectionRect
-                                      xRadius:8.0
-                                      yRadius:8.0];
-  [SPTheme.selectionBackground setFill];
-  [selectionPath fill];
-}
-
-- (void)drawSeparatorInRect:(NSRect)dirtyRect {
-}
-
-@end
-
 // Row view for the LLM profile list. Draws a prominent accent-colored
 // selection background that stays visible even when the table view is not
 // the first responder (the detail form on the right steals focus every time
@@ -990,14 +890,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSSwitch *autoReturnSwitch;
 
 // Overlay
-@property(nonatomic, strong) NSPopUpButton *overlayFontFamilyPopup;
-@property(nonatomic, copy) NSArray<NSString *> *overlayAvailableFontFamilies;
-@property(nonatomic, strong) NSSlider *overlayFontSizeSlider;
-@property(nonatomic, strong) NSTextField *overlayFontSizeValueLabel;
 @property(nonatomic, strong) NSSlider *overlayBottomMarginSlider;
 @property(nonatomic, strong) NSTextField *overlayBottomMarginValueLabel;
-@property(nonatomic, strong) NSSwitch *overlayLimitVisibleLinesSwitch;
-@property(nonatomic, strong) NSPopUpButton *overlayMaxVisibleLinesPopup;
 
 // Dictionary
 @property(nonatomic, strong) NSTextView *dictionaryTextView;
@@ -1012,20 +906,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 // System Prompt
 @property(nonatomic, strong) NSTextView *systemPromptTextView;
 
-// Templates
-@property(nonatomic, strong)
-    NSMutableArray<NSMutableDictionary *> *templatesData;
-@property(nonatomic, strong) NSTableView *templatesTableView;
-@property(nonatomic, strong) NSSwitch *templatesEnabledSwitch;
-@property(nonatomic, strong) NSSegmentedControl *templatePrimaryActionsControl;
-@property(nonatomic, strong) NSSegmentedControl *templateReorderActionsControl;
-@property(nonatomic, strong) NSTextField *templateNameField;
-@property(nonatomic, strong) NSSwitch *templateItemEnabledSwitch;
-@property(nonatomic, strong) NSTextView *templatePromptTextView;
-@property(nonatomic, assign) NSInteger selectedTemplateIndex;
-@property(nonatomic, assign) BOOL suppressTemplateSync;
-@property(nonatomic, assign) BOOL templateEditorDirty;
-
 // Values captured when a pane is loaded. Saving only writes controls whose
 // semantic value changed, so visiting Settings cannot normalize or overwrite
 // config that the user did not edit.
@@ -1035,8 +915,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     NSMutableDictionary<NSString *, NSString *> *loadedStringValues;
 @property(nonatomic, copy) NSString *loadedDictionaryContent;
 @property(nonatomic, copy) NSString *loadedSystemPromptContent;
-@property(nonatomic, copy)
-    NSArray<NSDictionary *> *loadedTemplatesSnapshot;
 
 @end
 
@@ -1091,7 +969,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 - (void)writeDesignSnapshotsToDirectory:(NSString *)directory suffix:(NSString *)suffix {
   for (NSString *pane in @[ kToolbarASR, kToolbarLLM, kToolbarHotkey, kToolbarOverlay,
                             kToolbarDictionary, kToolbarSnippets, kToolbarSystemPrompt,
-                            kToolbarTemplates, kToolbarAbout ]) {
+                            kToolbarAbout ]) {
     [self switchToPane:pane];
     [self loadCurrentValues];
     NSString *path = [directory
@@ -1290,7 +1168,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   if ([identifier isEqualToString:kToolbarLLM])
     return @"Языковая модель";
   if ([identifier isEqualToString:kToolbarOverlay])
-    return @"Оверлей";
+    return @"Плашка";
   if ([identifier isEqualToString:kToolbarHotkey])
     return @"Управление";
   if ([identifier isEqualToString:kToolbarDictionary])
@@ -1299,8 +1177,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     return @"Сниппеты";
   if ([identifier isEqualToString:kToolbarSystemPrompt])
     return @"Промпт";
-  if ([identifier isEqualToString:kToolbarTemplates])
-    return @"Шаблоны";
   if ([identifier isEqualToString:kToolbarAbout])
     return @"О программе";
   return @"";
@@ -1318,10 +1194,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   if ([self.currentPaneIdentifier isEqualToString:identifier])
     return;
 
-  // Save template edits before switching away
-  if ([self.currentPaneIdentifier isEqualToString:kToolbarTemplates]) {
-    [self saveCurrentTemplateEdits];
-  } else if ([self.currentPaneIdentifier isEqualToString:kToolbarOverlay]) {
+  if ([self.currentPaneIdentifier isEqualToString:kToolbarOverlay]) {
     [self hideRuntimeOverlayPreview];
   }
   [self endHotkeyRecording];
@@ -1348,8 +1221,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
     paneView = [self buildSnippetsPane];
   } else if ([identifier isEqualToString:kToolbarSystemPrompt]) {
     paneView = [self buildSystemPromptPane];
-  } else if ([identifier isEqualToString:kToolbarTemplates]) {
-    paneView = [self buildTemplatesPane];
   } else if ([identifier isEqualToString:kToolbarAbout]) {
     paneView = [self buildAboutPane];
   }
@@ -2709,22 +2580,9 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   CGFloat contentX = SPTheme.pageMargin;
   CGFloat contentW = paneWidth - 2.0 * contentX;
   NSString *descriptionText =
-      @"Настройте нижнюю панель с живой расшифровкой: системный шрифт, "
-      @"размер текста, отступ от низа экрана и то, ограничивать ли "
-      @"длинный текст несколькими строками или показывать целиком. "
-      @"Каждое изменение сразу видно на реальном месте панели.";
-
-  self.overlayFontFamilyPopup = [self overlayFontFamilyPopupControl];
-
-  self.overlayFontSizeSlider =
-      [self overlaySliderWithMin:kOverlayFontSizeMin
-                             max:kOverlayFontSizeMax
-                          action:@selector(overlayControlChanged:)];
-  self.overlayFontSizeValueLabel = [self overlayValueLabel];
-  NSView *fontSliderControl =
-      [self sliderControlWithSlider:self.overlayFontSizeSlider
-                         valueLabel:self.overlayFontSizeValueLabel
-                              width:290.0];
+      @"Плашка записи появляется внизу экрана, пока вы диктуете. Здесь можно "
+      @"поднять её выше, например над Dock или строкой ввода. Каждое "
+      @"изменение сразу видно на реальном месте плашки.";
 
   self.overlayBottomMarginSlider =
       [self overlaySliderWithMin:0
@@ -2736,10 +2594,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                          valueLabel:self.overlayBottomMarginValueLabel
                               width:290.0];
 
-  self.overlayLimitVisibleLinesSwitch =
-      [self settingsSwitchWithAction:@selector(overlayControlChanged:)];
-  self.overlayMaxVisibleLinesPopup = [self overlayMaxVisibleLinesPopupControl];
-
   NSButton *resetButton =
       [NSButton buttonWithTitle:@"Сбросить"
                          target:self
@@ -2748,17 +2602,10 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   resetButton.frame = NSMakeRect(0, 0, 126.0, 28.0);
 
   NSView *controlsCard = [self
-      cardWithTitle:@"Оформление"
+      cardWithTitle:@"Положение"
                rows:@[
-                 [self cardRowWithLabel:@"Шрифт"
-                                control:self.overlayFontFamilyPopup],
-                 [self cardRowWithLabel:@"Размер текста" control:fontSliderControl],
                  [self cardRowWithLabel:@"Отступ от низа"
                                 control:bottomSliderControl],
-                 [self cardRowWithLabel:@"Ограничить число строк"
-                                control:self.overlayLimitVisibleLinesSwitch],
-                 [self cardRowWithLabel:@"Максимум строк"
-                                control:self.overlayMaxVisibleLinesPopup],
                  [self cardRowWithLabel:@"По умолчанию" control:resetButton],
                ]
               width:contentW];
@@ -2788,16 +2635,11 @@ static NSString *SPCondensedProviderError(NSString *raw) {
                                  ? controlsCard.subviews[1]
                                  : controlsCard.subviews[0];
   [self layoutCardRowControls:controlsCardBody width:contentW];
-  [self updateOverlayLineLimitControlsEnabled];
-
 
   return pane;
 }
 
 - (void)updateOverlayControlValueLabels {
-  self.overlayFontSizeValueLabel.stringValue = [NSString
-      stringWithFormat:@"%ld пт", (long)clampedOverlayFontSizeValue(lround(
-                                      self.overlayFontSizeSlider.doubleValue))];
   self.overlayBottomMarginValueLabel.stringValue = [NSString
       stringWithFormat:@"%ld пт",
                        (long)clampedOverlayBottomMarginValue(
@@ -2828,20 +2670,14 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   if (!overlayPanel)
     return;
 
-  NSInteger fontSize = clampedOverlayFontSizeValue(
-      lround(self.overlayFontSizeSlider.doubleValue));
   NSInteger bottomMargin = clampedOverlayBottomMarginValue(
       lround(self.overlayBottomMarginSlider.doubleValue));
-  NSString *fontFamily = [self selectedOverlayFontFamilyValue];
-  BOOL limitVisibleLines =
-      self.overlayLimitVisibleLinesSwitch.state == NSControlStateValueOn;
-  NSInteger maxVisibleLines = [self selectedOverlayMaxVisibleLinesValue];
-  [overlayPanel showPreviewWithText:kOverlayPreviewSampleText
-                           fontSize:(CGFloat)fontSize
-                         fontFamily:fontFamily
+  [overlayPanel showPreviewWithText:@""
+                           fontSize:0
+                         fontFamily:@""
                        bottomMargin:(CGFloat)bottomMargin
-                  limitVisibleLines:limitVisibleLines
-                    maxVisibleLines:maxVisibleLines];
+                  limitVisibleLines:NO
+                    maxVisibleLines:0];
 }
 
 - (void)hideRuntimeOverlayPreview {
@@ -2849,7 +2685,6 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 }
 
 - (void)syncOverlayPreviewFromControls {
-  [self updateOverlayLineLimitControlsEnabled];
   [self updateOverlayControlValueLabels];
   [self showRuntimeOverlayPreview];
 }
@@ -2859,13 +2694,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 }
 
 - (void)resetOverlaySettings:(id)sender {
-  [self selectOverlayFontFamilyValue:kOverlayFontFamilyDefault];
-  self.overlayFontSizeSlider.integerValue = kOverlayFontSizeDefault;
   self.overlayBottomMarginSlider.integerValue = kOverlayBottomMarginDefault;
-  self.overlayLimitVisibleLinesSwitch.state = kOverlayLimitVisibleLinesDefault
-                                                  ? NSControlStateValueOn
-                                                  : NSControlStateValueOff;
-  [self selectOverlayMaxVisibleLinesValue:kOverlayMaxVisibleLinesDefault];
   [self syncOverlayPreviewFromControls];
 }
 
@@ -4023,215 +3852,9 @@ static const CGFloat kSnippetRowHeight = 58.0;
   return pane;
 }
 
-// ─── Templates Pane ────────────────────────────────────────────────
-
-- (NSView *)buildTemplatesPane {
-  CGFloat paneWidth = [self paneContentWidth];
-  CGFloat contentHeight = [self paneViewportHeight];
-  NSView *pane =
-      [[NSView alloc] initWithFrame:NSMakeRect(0, 0, paneWidth, contentHeight)];
-
-  CGFloat contentX = SPTheme.pageMargin;
-  CGFloat contentW = paneWidth - 2.0 * contentX;
-  CGFloat y = contentHeight - 30.0;
-
-  NSTextField *desc =
-      [self addSettingsDescriptionText:
-                @"Управляйте шаблонами оверлея: меняйте порядок, видимость и "
-                @"редактируйте промпт каждого шаблона."
-                                toPane:pane
-                                  topY:y
-                                     x:contentX
-                                 width:contentW];
-  y = NSMinY(desc.frame) - 16.0;
-
-  self.templatesEnabledSwitch = [self settingsSwitchWithAction:NULL];
-  NSView *visibilityCard = [self
-      settingsToggleCardWithFrame:NSMakeRect(contentX, y - 48, contentW, 48)
-                            title:@"Показывать кнопки шаблонов в оверлее"
-                           toggle:self.templatesEnabledSwitch];
-  [pane addSubview:visibilityCard];
-
-  CGFloat sectionTitleY = NSMinY(visibilityCard.frame) - 44.0;
-  CGFloat mainCardY = SPTheme.pageMargin;
-  CGFloat mainCardH = sectionTitleY - mainCardY - 12.0;
-  CGFloat listW = 260.0;
-  CGFloat cardGap = 16.0;
-  CGFloat editorW = contentW - listW - cardGap;
-  CGFloat editorX = contentX + listW + cardGap;
-
-  NSTextField *listTitle =
-      [self sectionTitleLabel:@"Список шаблонов"
-                        frame:NSMakeRect(contentX, sectionTitleY, listW, 20)];
-  [pane addSubview:listTitle];
-
-  NSTextField *editorTitle =
-      [self sectionTitleLabel:@"Редактор шаблона"
-                        frame:NSMakeRect(editorX, sectionTitleY, editorW, 20)];
-  [pane addSubview:editorTitle];
-
-  NSView *listCard =
-      [self surfaceCardViewWithFrame:NSMakeRect(contentX, mainCardY, listW,
-                                                mainCardH)];
-  [pane addSubview:listCard];
-
-  NSView *editorCard =
-      [self surfaceCardViewWithFrame:NSMakeRect(editorX, mainCardY, editorW,
-                                                mainCardH)];
-  [pane addSubview:editorCard];
-
-  CGFloat headerH = 34.0;
-  CGFloat footerH = 34.0;
-
-  NSTextField *libraryCaption = [NSTextField labelWithString:@"Шаблоны"];
-  libraryCaption.font = SPTheme.cardTitleFont;
-  libraryCaption.textColor = SPTheme.primaryText;
-  libraryCaption.frame = NSMakeRect(14, mainCardH - headerH + 9, 120, 18);
-  [listCard addSubview:libraryCaption];
-
-  NSBox *headerSeparator = [[NSBox alloc]
-      initWithFrame:NSMakeRect(0, mainCardH - headerH, listW, 1)];
-  headerSeparator.boxType = NSBoxSeparator;
-  [listCard addSubview:headerSeparator];
-
-  NSBox *footerSeparator =
-      [[NSBox alloc] initWithFrame:NSMakeRect(0, footerH, listW, 1)];
-  footerSeparator.boxType = NSBoxSeparator;
-  [listCard addSubview:footerSeparator];
-
-  self.templatePrimaryActionsControl =
-      [self templateActionSegmentedControlWithSymbols:@[ @"plus", @"minus" ]
-                                             toolTips:@[
-                                               @"Добавить шаблон",
-                                               @"Удалить выбранный шаблон"
-                                             ]
-                                               action:@selector
-                                               (handleTemplatePrimaryActions:)];
-  self.templatePrimaryActionsControl.frame = NSMakeRect(12, 5, 50, 24);
-  [listCard addSubview:self.templatePrimaryActionsControl];
-
-  self.templateReorderActionsControl = [self
-      templateActionSegmentedControlWithSymbols:@[ @"arrow.up", @"arrow.down" ]
-                                       toolTips:@[
-                                         @"Поднять выбранный шаблон выше",
-                                         @"Опустить выбранный шаблон ниже"
-                                       ]
-                                         action:@selector
-                                         (handleTemplateReorderActions:)];
-  self.templateReorderActionsControl.frame =
-      NSMakeRect(listW - 12 - 50, 5, 50, 24);
-  [listCard addSubview:self.templateReorderActionsControl];
-
-  NSScrollView *scrollView = [[NSScrollView alloc]
-      initWithFrame:NSMakeRect(10, footerH + 10, listW - 20,
-                               mainCardH - headerH - footerH - 20)];
-  scrollView.hasVerticalScroller = YES;
-  scrollView.autohidesScrollers = YES;
-  scrollView.borderType = NSNoBorder;
-  scrollView.drawsBackground = NO;
-  scrollView.wantsLayer = YES;
-  scrollView.layer.cornerRadius = 8.0;
-  scrollView.layer.borderWidth = 1.0;
-  scrollView.layer.borderColor = NSColor.separatorColor.CGColor;
-  scrollView.scrollerStyle = NSScrollerStyleOverlay;
-  [listCard addSubview:scrollView];
-
-  self.templatesTableView =
-      [[NSTableView alloc] initWithFrame:scrollView.bounds];
-  NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:@"name"];
-  col.title = @"Шаблон";
-  col.width = scrollView.bounds.size.width;
-  col.resizingMask = NSTableColumnAutoresizingMask;
-  [self.templatesTableView addTableColumn:col];
-  self.templatesTableView.headerView = nil;
-  self.templatesTableView.rowHeight = 34.0;
-  self.templatesTableView.intercellSpacing = NSMakeSize(0, 0);
-  self.templatesTableView.backgroundColor = [NSColor clearColor];
-  self.templatesTableView.selectionHighlightStyle =
-      NSTableViewSelectionHighlightStyleRegular;
-  self.templatesTableView.focusRingType = NSFocusRingTypeNone;
-  self.templatesTableView.columnAutoresizingStyle =
-      NSTableViewFirstColumnOnlyAutoresizingStyle;
-  self.templatesTableView.delegate = (id)self;
-  self.templatesTableView.dataSource = (id)self;
-  scrollView.documentView = self.templatesTableView;
-
-  NSTextField *nameLabel =
-      [self sectionTitleLabel:@"Название"
-                        frame:NSMakeRect(16, mainCardH - 34, editorW - 32, 18)];
-  [editorCard addSubview:nameLabel];
-
-  self.templateNameField =
-      [self formTextField:NSMakeRect(16, mainCardH - 64, editorW - 32, 24)
-              placeholder:@"Название шаблона"];
-  self.templateNameField.delegate = self;
-  [editorCard addSubview:self.templateNameField];
-
-  self.templateItemEnabledSwitch =
-      [self settingsSwitchWithAction:@selector(toggleSelectedTemplateEnabled:)
-                         controlSize:NSControlSizeSmall];
-  CGFloat templateItemToggleW = self.templateItemEnabledSwitch.frame.size.width;
-  CGFloat templateItemToggleH =
-      self.templateItemEnabledSwitch.frame.size.height;
-  CGFloat templateVisibilityCenterY = mainCardH - 86.0;
-
-  NSTextField *templateVisibilityLabel =
-      [self settingsRowLabelWithString:@"Виден в оверлее"];
-  templateVisibilityLabel.frame =
-      NSMakeRect(16, floor(templateVisibilityCenterY - 10.0),
-                 editorW - templateItemToggleW - 44.0, 20);
-  [editorCard addSubview:templateVisibilityLabel];
-
-  self.templateItemEnabledSwitch.frame =
-      NSMakeRect(editorW - 16 - templateItemToggleW,
-                 floor(templateVisibilityCenterY - (templateItemToggleH / 2.0)),
-                 templateItemToggleW, templateItemToggleH);
-  [editorCard addSubview:self.templateItemEnabledSwitch];
-
-  NSTextField *promptLabel = [self
-      sectionTitleLabel:@"Промпт"
-                  frame:NSMakeRect(16, mainCardH - 124, editorW - 32, 18)];
-  [editorCard addSubview:promptLabel];
-
-  NSScrollView *promptScroll = [[NSScrollView alloc]
-      initWithFrame:NSMakeRect(16, 16, editorW - 32, mainCardH - 146)];
-  promptScroll.hasVerticalScroller = YES;
-  promptScroll.borderType = NSNoBorder;
-  promptScroll.drawsBackground = NO;
-  promptScroll.wantsLayer = YES;
-  promptScroll.layer.cornerRadius = 8.0;
-  promptScroll.layer.borderWidth = 1.0;
-  promptScroll.layer.borderColor = NSColor.separatorColor.CGColor;
-
-  self.templatePromptTextView = [[NSTextView alloc]
-      initWithFrame:NSMakeRect(0, 0, editorW - 48, mainCardH - 146)];
-  self.templatePromptTextView.minSize = NSMakeSize(0, mainCardH - 146);
-  self.templatePromptTextView.maxSize = NSMakeSize(CGFLOAT_MAX, CGFLOAT_MAX);
-  self.templatePromptTextView.verticallyResizable = YES;
-  self.templatePromptTextView.horizontallyResizable = NO;
-  self.templatePromptTextView.textContainerInset = NSMakeSize(8, 10);
-  self.templatePromptTextView.textContainer.containerSize =
-      NSMakeSize(editorW - 48, CGFLOAT_MAX);
-  self.templatePromptTextView.textContainer.widthTracksTextView = YES;
-  self.templatePromptTextView.font =
-      [NSFont monospacedSystemFontOfSize:12 weight:NSFontWeightRegular];
-  self.templatePromptTextView.allowsUndo = YES;
-  self.templatePromptTextView.delegate = self;
-  [self styleEditorTextView:self.templatePromptTextView scrollView:promptScroll];
-  promptScroll.documentView = self.templatePromptTextView;
-  [editorCard addSubview:promptScroll];
-
-  // Save / Cancel buttons
-
-  return pane;
-}
-
-#pragma mark - Templates Table Data Source & Delegate
+#pragma mark - LLM Profile Table Data Source & Delegate
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView {
-  if (tableView == self.templatesTableView) {
-    return (NSInteger)self.templatesData.count;
-  }
   if (tableView == self.llmProfileTableView) {
     return (NSInteger)self.llmProfileOrder.count;
   }
@@ -4291,58 +3914,11 @@ static const CGFloat kSnippetRowHeight = 58.0;
     }
     return cell;
   }
-
-  if (tableView != self.templatesTableView)
-    return nil;
-
-  NSTableCellView *cell = [tableView makeViewWithIdentifier:@"TemplateCell"
-                                                      owner:self];
-  if (!cell) {
-    cell = [[NSTableCellView alloc]
-        initWithFrame:NSMakeRect(0, 0, tableColumn.width, tableView.rowHeight)];
-    cell.identifier = @"TemplateCell";
-    cell.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-
-    NSTextField *titleLabel = [NSTextField labelWithString:@""];
-    titleLabel.identifier = @"TemplateTitleLabel";
-    titleLabel.lineBreakMode = NSLineBreakByTruncatingTail;
-    titleLabel.alignment = NSTextAlignmentLeft;
-    titleLabel.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
-    titleLabel.textColor = NSColor.labelColor;
-    titleLabel.autoresizingMask = NSViewWidthSizable;
-    titleLabel.frame = NSMakeRect(12, 7, tableColumn.width - 24, 20);
-    cell.textField = titleLabel;
-    [cell addSubview:titleLabel];
-  }
-
-  if (row < (NSInteger)self.templatesData.count) {
-    NSDictionary *tmpl = self.templatesData[row];
-    NSString *name = tmpl[@"name"] ?: @"Без названия";
-    BOOL enabled = [self isTemplateEnabled:tmpl];
-
-    NSTextField *titleLabel = nil;
-    for (NSView *subview in cell.subviews) {
-      if ([subview.identifier isEqualToString:@"TemplateTitleLabel"]) {
-        titleLabel = (NSTextField *)subview;
-      }
-    }
-
-    titleLabel.stringValue = name;
-    titleLabel.frame = NSMakeRect(12, 7, tableColumn.width - 24, 20);
-    titleLabel.textColor =
-        enabled ? NSColor.labelColor : NSColor.secondaryLabelColor;
-    titleLabel.alphaValue = enabled ? 1.0 : 0.6;
-  }
-  return cell;
+  return nil;
 }
 
 - (NSTableRowView *)tableView:(NSTableView *)tableView
                 rowViewForRow:(NSInteger)row {
-  if (tableView == self.templatesTableView) {
-    return [[SPTemplateRowView alloc]
-        initWithFrame:NSMakeRect(0, 0, tableView.bounds.size.width,
-                                 tableView.rowHeight)];
-  }
   if (tableView == self.llmProfileTableView) {
     return [[SPLlmProfileRowView alloc]
         initWithFrame:NSMakeRect(0, 0, tableView.bounds.size.width,
@@ -4351,465 +3927,39 @@ static const CGFloat kSnippetRowHeight = 58.0;
   return nil;
 }
 
-- (NSString *)resolvedPromptTextForTemplate:(NSDictionary *)templateData {
-  id inlinePrompt = templateData[@"system_prompt"];
-  if ([inlinePrompt isKindOfClass:[NSString class]]) {
-    NSString *inlineText = (NSString *)inlinePrompt;
-    NSString *trimmedInlineText = [inlineText
-        stringByTrimmingCharactersInSet:[NSCharacterSet
-                                            whitespaceAndNewlineCharacterSet]];
-    if (trimmedInlineText.length > 0) {
-      return inlineText;
-    }
-  }
-
-  id promptPath = templateData[@"system_prompt_path"];
-  if ([promptPath isKindOfClass:[NSString class]] && [promptPath length] > 0) {
-    NSString *path = (NSString *)promptPath;
-    NSString *resolvedPath =
-        path.isAbsolutePath
-            ? path
-            : [configDirPath() stringByAppendingPathComponent:path];
-    NSString *filePrompt =
-        [NSString stringWithContentsOfFile:resolvedPath
-                                  encoding:NSUTF8StringEncoding
-                                     error:nil];
-    if ([filePrompt isKindOfClass:[NSString class]]) {
-      NSString *trimmedFilePrompt =
-          [filePrompt stringByTrimmingCharactersInSet:
-                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-      if (trimmedFilePrompt.length > 0) {
-        return filePrompt;
-      }
-    }
-  }
-
-  return @"";
-}
-
-- (NSString *)editablePromptTextForTemplate:
-    (NSMutableDictionary *)templateData {
-  id editablePrompt = templateData[kTemplateEditablePromptKey];
-  if ([editablePrompt isKindOfClass:[NSString class]]) {
-    return editablePrompt ?: @"";
-  }
-
-  NSString *resolvedPrompt = [self resolvedPromptTextForTemplate:templateData];
-  templateData[kTemplateEditablePromptKey] = resolvedPrompt ?: @"";
-  if (![templateData[kTemplateOriginalPromptKey]
-          isKindOfClass:[NSString class]]) {
-    templateData[kTemplateOriginalPromptKey] = resolvedPrompt ?: @"";
-  }
-  return resolvedPrompt ?: @"";
-}
-
-- (BOOL)isTemplateEnabled:(NSDictionary *)templateData {
-  id enabledValue = templateData[@"enabled"];
-  return ![enabledValue isKindOfClass:[NSNumber class]] ||
-         [enabledValue boolValue];
-}
-
-- (NSString *)trimmedResolvedPromptTextForTemplate:
-    (NSDictionary *)templateData {
-  NSString *resolvedPrompt =
-      [self resolvedPromptTextForTemplate:templateData] ?: @"";
-  return [resolvedPrompt
-      stringByTrimmingCharactersInSet:[NSCharacterSet
-                                          whitespaceAndNewlineCharacterSet]];
-}
-
-// ─── Template List: selection only loads, NEVER saves back automatically ───
-//
-// Design: templatesData is the source of truth. The editor fields are just
-// a view into one entry. We sync editor→data ONLY on explicit actions:
-// (1) user clicks Save button  (2) user clicks + to add  (3) switching tabs
-//
-// tableViewSelectionDidChange just loads the new row into the editor.
-// It first writes back the editor content for the OLD row, which is safe
-// because selectedTemplateIndex still points to the old row at that moment.
-
 - (void)tableViewSelectionDidChange:(NSNotification *)notification {
-  if (notification.object == self.llmProfileTableView) {
-    if (self.suppressLlmProfileSelection)
-      return;
-    NSInteger row = self.llmProfileTableView.selectedRow;
-    if (row < 0 || row >= (NSInteger)self.llmProfileOrder.count)
-      return;
-    NSString *newId = self.llmProfileOrder[row];
-    if ([newId isEqualToString:self.activeLlmProfileId])
-      return;
-
-    // Flush editor fields into the OLD active profile before switching
-    [self syncActiveLlmProfileFromFields];
-    self.activeLlmProfileId = newId;
-    [self applyActiveLlmProfileToFields];
-    [self updateLlmFieldsEnabled];
-    self.llmTestResultLabel.stringValue = @"";
+  if (notification.object != self.llmProfileTableView ||
+      self.suppressLlmProfileSelection)
     return;
-  }
-
-  if (notification.object != self.templatesTableView)
+  NSInteger row = self.llmProfileTableView.selectedRow;
+  if (row < 0 || row >= (NSInteger)self.llmProfileOrder.count)
     return;
-  if (self.suppressTemplateSync)
+  NSString *newId = self.llmProfileOrder[row];
+  if ([newId isEqualToString:self.activeLlmProfileId])
     return;
 
-  NSInteger newRow = self.templatesTableView.selectedRow;
-  if (newRow == self.selectedTemplateIndex)
-    return;
-
-  // Write editor content back to the OLD row before loading the new one
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-
-  self.selectedTemplateIndex = newRow;
-  [self loadEditorFromIndex:newRow];
-  [self updateTemplateActionButtons];
-}
-
-/// Write current editor fields into templatesData[index]. Safe to call with -1.
-- (void)flushEditorToIndex:(NSInteger)index {
-  if (index < 0 || index >= (NSInteger)self.templatesData.count)
-    return;
-  if (!self.templateNameField)
-    return;
-  if (!self.templateEditorDirty)
-    return;
-
-  NSMutableDictionary *templateData = self.templatesData[index];
-  NSString *editedPrompt = self.templatePromptTextView.string ?: @"";
-
-  templateData[@"name"] = self.templateNameField.stringValue ?: @"";
-  templateData[kTemplateEditablePromptKey] = editedPrompt;
-
-  NSString *originalPrompt =
-      [templateData[kTemplateOriginalPromptKey] isKindOfClass:[NSString class]]
-          ? templateData[kTemplateOriginalPromptKey]
-          : [self resolvedPromptTextForTemplate:templateData];
-  NSString *inlinePrompt =
-      [templateData[@"system_prompt"] isKindOfClass:[NSString class]]
-          ? templateData[@"system_prompt"]
-          : nil;
-  NSString *promptPath =
-      [templateData[@"system_prompt_path"] isKindOfClass:[NSString class]]
-          ? templateData[@"system_prompt_path"]
-          : nil;
-
-  // If this template references an external file, preserve that relationship.
-  // Write changes back to the file rather than silently converting to inline.
-  if (inlinePrompt.length == 0 && promptPath.length > 0) {
-    if (![editedPrompt isEqualToString:(originalPrompt ?: @"")]) {
-      NSString *resolvedPath =
-          promptPath.isAbsolutePath
-              ? promptPath
-              : [configDirPath() stringByAppendingPathComponent:promptPath];
-      NSError *writeError = nil;
-      [editedPrompt writeToFile:resolvedPath
-                     atomically:YES
-                       encoding:NSUTF8StringEncoding
-                          error:&writeError];
-      if (writeError) {
-        NSLog(@"[VelikiyMoguchiy] Failed to write template file %@: %@", resolvedPath,
-              writeError.localizedDescription);
-      }
-      templateData[kTemplateOriginalPromptKey] = editedPrompt;
-    }
-    [templateData removeObjectForKey:@"system_prompt"];
-    self.templateEditorDirty = NO;
-    return;
-  }
-
-  templateData[@"system_prompt"] = editedPrompt;
-  [templateData removeObjectForKey:@"system_prompt_path"];
-  templateData[kTemplateOriginalPromptKey] = editedPrompt;
-  self.templateEditorDirty = NO;
-}
-
-/// Load templatesData[index] into the editor fields. -1 clears everything.
-- (void)loadEditorFromIndex:(NSInteger)index {
-  BOOL previousSuppress = self.suppressTemplateSync;
-  self.suppressTemplateSync = YES;
-
-  if (index >= 0 && index < (NSInteger)self.templatesData.count) {
-    NSMutableDictionary *tmpl = self.templatesData[index];
-    self.templateNameField.stringValue = tmpl[@"name"] ?: @"";
-    self.templateItemEnabledSwitch.state = [self isTemplateEnabled:tmpl]
-                                               ? NSControlStateValueOn
-                                               : NSControlStateValueOff;
-    self.templatePromptTextView.string =
-        [self editablePromptTextForTemplate:tmpl];
-    self.templateNameField.enabled = YES;
-    self.templateItemEnabledSwitch.enabled = YES;
-    self.templatePromptTextView.editable = YES;
-  } else {
-    self.templateNameField.stringValue = @"";
-    self.templateItemEnabledSwitch.state = NSControlStateValueOff;
-    self.templatePromptTextView.string = @"";
-    self.templateNameField.enabled = NO;
-    self.templateItemEnabledSwitch.enabled = NO;
-    self.templatePromptTextView.editable = NO;
-  }
-
-  self.templateEditorDirty = NO;
-  self.suppressTemplateSync = previousSuppress;
+  // Flush editor fields into the OLD active profile before switching
+  [self syncActiveLlmProfileFromFields];
+  self.activeLlmProfileId = newId;
+  [self applyActiveLlmProfileToFields];
+  [self updateLlmFieldsEnabled];
+  self.llmTestResultLabel.stringValue = @"";
 }
 
 - (void)controlTextDidChange:(NSNotification *)notification {
-  if (notification.object == self.llmProfileNameField) {
-    NSMutableDictionary *profile = [self activeLlmProfile];
-    if (!profile)
-      return;
-    profile[@"name"] = self.llmProfileNameField.stringValue ?: @"";
-    NSInteger row =
-        [self.llmProfileOrder indexOfObject:self.activeLlmProfileId ?: @""];
-    if (row != NSNotFound) {
-      [self.llmProfileTableView
-          reloadDataForRowIndexes:[NSIndexSet indexSetWithIndex:(NSUInteger)row]
-                    columnIndexes:[NSIndexSet indexSetWithIndex:0]];
-    }
+  if (notification.object != self.llmProfileNameField)
     return;
+  NSMutableDictionary *profile = [self activeLlmProfile];
+  if (!profile)
+    return;
+  profile[@"name"] = self.llmProfileNameField.stringValue ?: @"";
+  NSInteger row =
+      [self.llmProfileOrder indexOfObject:self.activeLlmProfileId ?: @""];
+  if (row != NSNotFound) {
+    [self.llmProfileTableView
+        reloadDataForRowIndexes:[NSIndexSet indexSetWithIndex:(NSUInteger)row]
+                  columnIndexes:[NSIndexSet indexSetWithIndex:0]];
   }
-
-  if (self.suppressTemplateSync)
-    return;
-  if (notification.object != self.templateNameField)
-    return;
-  if (self.selectedTemplateIndex < 0 ||
-      self.selectedTemplateIndex >= (NSInteger)self.templatesData.count)
-    return;
-
-  self.templateEditorDirty = YES;
-  self.templatesData[self.selectedTemplateIndex][@"name"] =
-      self.templateNameField.stringValue ?: @"";
-
-  NSIndexSet *rows =
-      [NSIndexSet indexSetWithIndex:(NSUInteger)self.selectedTemplateIndex];
-  NSIndexSet *columns = [NSIndexSet indexSetWithIndex:0];
-  [self.templatesTableView reloadDataForRowIndexes:rows columnIndexes:columns];
-}
-
-- (void)textDidChange:(NSNotification *)notification {
-  if (self.suppressTemplateSync)
-    return;
-  if (notification.object != self.templatePromptTextView)
-    return;
-
-  self.templateEditorDirty = YES;
-}
-
-- (void)toggleSelectedTemplateEnabled:(id)sender {
-  if (self.selectedTemplateIndex < 0 ||
-      self.selectedTemplateIndex >= (NSInteger)self.templatesData.count)
-    return;
-
-  self.templatesData[self.selectedTemplateIndex][@"enabled"] =
-      @(self.templateItemEnabledSwitch.state == NSControlStateValueOn);
-  NSIndexSet *rows =
-      [NSIndexSet indexSetWithIndex:(NSUInteger)self.selectedTemplateIndex];
-  NSIndexSet *columns = [NSIndexSet indexSetWithIndex:0];
-  [self.templatesTableView reloadDataForRowIndexes:rows columnIndexes:columns];
-}
-
-/// Flush editor, then reload table (used by Save button & tab switch).
-- (void)saveCurrentTemplateEdits {
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-  [self reindexTemplateShortcuts];
-}
-
-- (void)updateTemplateActionButtons {
-  BOOL canAdd = self.templatesData.count < 9;
-  BOOL hasSelection = self.templatesTableView.selectedRow >= 0;
-  BOOL canMoveUp = hasSelection && self.templatesTableView.selectedRow > 0;
-  BOOL canMoveDown =
-      hasSelection && self.templatesTableView.selectedRow <
-                          (NSInteger)self.templatesData.count - 1;
-
-  [self.templatePrimaryActionsControl setEnabled:canAdd forSegment:0];
-  [self.templatePrimaryActionsControl setEnabled:hasSelection forSegment:1];
-  [self.templateReorderActionsControl setEnabled:canMoveUp forSegment:0];
-  [self.templateReorderActionsControl setEnabled:canMoveDown forSegment:1];
-}
-
-- (void)reindexTemplateShortcuts {
-  [self.templatesData
-      enumerateObjectsUsingBlock:^(NSMutableDictionary *templateData,
-                                   NSUInteger idx, BOOL *stop) {
-        templateData[@"shortcut"] = @((NSInteger)idx + 1);
-        if (![templateData[@"enabled"] isKindOfClass:[NSNumber class]]) {
-          templateData[@"enabled"] = @YES;
-        }
-      }];
-}
-
-- (void)reloadTemplateTableSelectingRow:(NSInteger)row {
-  NSInteger selectedRow =
-      (row >= 0 && row < (NSInteger)self.templatesData.count) ? row : -1;
-  self.selectedTemplateIndex = selectedRow;
-
-  self.suppressTemplateSync = YES;
-  [self.templatesTableView reloadData];
-  if (selectedRow >= 0) {
-    [self.templatesTableView
-            selectRowIndexes:[NSIndexSet
-                                 indexSetWithIndex:(NSUInteger)selectedRow]
-        byExtendingSelection:NO];
-  } else {
-    [self.templatesTableView deselectAll:nil];
-  }
-  self.suppressTemplateSync = NO;
-
-  [self loadEditorFromIndex:selectedRow];
-  [self updateTemplateActionButtons];
-}
-
-- (NSArray<NSDictionary *> *)serializedTemplatesData {
-  [self reindexTemplateShortcuts];
-  NSMutableArray<NSDictionary *> *serialized =
-      [NSMutableArray arrayWithCapacity:self.templatesData.count];
-
-  for (NSDictionary *templateData in self.templatesData) {
-    NSMutableDictionary *result = [NSMutableDictionary dictionary];
-    result[@"name"] = [templateData[@"name"] isKindOfClass:[NSString class]]
-                          ? templateData[@"name"]
-                          : @"";
-    result[@"enabled"] = @([self isTemplateEnabled:templateData]);
-    result[@"shortcut"] =
-        [templateData[@"shortcut"] isKindOfClass:[NSNumber class]]
-            ? templateData[@"shortcut"]
-            : @0;
-
-    NSString *systemPrompt =
-        [templateData[@"system_prompt"] isKindOfClass:[NSString class]]
-            ? templateData[@"system_prompt"]
-            : nil;
-    NSString *systemPromptPath =
-        [templateData[@"system_prompt_path"] isKindOfClass:[NSString class]]
-            ? templateData[@"system_prompt_path"]
-            : nil;
-    if (systemPrompt != nil) {
-      result[@"system_prompt"] = systemPrompt;
-    }
-    if (systemPromptPath.length > 0) {
-      result[@"system_prompt_path"] = systemPromptPath;
-    }
-
-    [serialized addObject:result];
-  }
-
-  return serialized;
-}
-
-- (BOOL)validateTemplatesDataWithMessage:(NSString **)message {
-  if (self.templatesData.count > 9) {
-    if (message)
-      *message = @"You can add up to 9 prompt templates.";
-    return NO;
-  }
-
-  NSMutableSet<NSNumber *> *used = [NSMutableSet set];
-  for (NSDictionary *tmpl in self.templatesData) {
-    NSNumber *shortcut = [tmpl[@"shortcut"] isKindOfClass:[NSNumber class]]
-                             ? tmpl[@"shortcut"]
-                             : nil;
-    NSInteger value = shortcut.integerValue;
-    if (!shortcut || value < 1 || value > 9) {
-      if (message)
-        *message = @"Each prompt template needs a shortcut between 1 and 9.";
-      return NO;
-    }
-    if ([used containsObject:@(value)]) {
-      if (message)
-        *message = @"Each prompt template shortcut must be unique.";
-      return NO;
-    }
-    if ([self trimmedResolvedPromptTextForTemplate:tmpl].length == 0) {
-      if (message)
-        *message = @"Each prompt template needs a non-empty prompt.";
-      return NO;
-    }
-    [used addObject:@(value)];
-  }
-
-  return YES;
-}
-
-- (void)addTemplate:(id)sender {
-  if (self.templatesData.count >= 9) {
-    [self showAlert:@"Достигнут лимит шаблонов"
-               info:@"Можно добавить не больше 9 шаблонов: оверлей поддерживает только "
-                    @"клавиши 1–9."];
-    return;
-  }
-
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-  [self.templatesData
-      addObject:[NSMutableDictionary dictionaryWithDictionary:@{
-        @"name" : @"Новый шаблон",
-        @"enabled" : @YES,
-        @"shortcut" : @((NSInteger)self.templatesData.count + 1),
-        @"system_prompt" : @"",
-        kTemplateEditablePromptKey : @"",
-        kTemplateOriginalPromptKey : @"",
-      }]];
-
-  NSInteger newRow = (NSInteger)self.templatesData.count - 1;
-  [self reindexTemplateShortcuts];
-  [self reloadTemplateTableSelectingRow:newRow];
-}
-
-- (void)handleTemplatePrimaryActions:(NSSegmentedControl *)sender {
-  NSInteger segment = sender.selectedSegment;
-  if (segment == 0) {
-    [self addTemplate:sender];
-  } else if (segment == 1) {
-    [self removeTemplate:sender];
-  }
-}
-
-- (void)handleTemplateReorderActions:(NSSegmentedControl *)sender {
-  NSInteger segment = sender.selectedSegment;
-  if (segment == 0) {
-    [self moveTemplateUp:sender];
-  } else if (segment == 1) {
-    [self moveTemplateDown:sender];
-  }
-}
-
-- (void)removeTemplate:(id)sender {
-  NSInteger row = self.templatesTableView.selectedRow;
-  if (row < 0 || row >= (NSInteger)self.templatesData.count)
-    return;
-
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-  [self.templatesData removeObjectAtIndex:row];
-  [self reindexTemplateShortcuts];
-
-  NSInteger nextSelection = MIN(row, (NSInteger)self.templatesData.count - 1);
-  [self reloadTemplateTableSelectingRow:nextSelection];
-}
-
-- (void)moveTemplateUp:(id)sender {
-  NSInteger row = self.templatesTableView.selectedRow;
-  if (row <= 0 || row >= (NSInteger)self.templatesData.count)
-    return;
-
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-  NSMutableDictionary *templateData = self.templatesData[row];
-  [self.templatesData removeObjectAtIndex:row];
-  [self.templatesData insertObject:templateData atIndex:row - 1];
-  [self reindexTemplateShortcuts];
-  [self reloadTemplateTableSelectingRow:row - 1];
-}
-
-- (void)moveTemplateDown:(id)sender {
-  NSInteger row = self.templatesTableView.selectedRow;
-  if (row < 0 || row >= (NSInteger)self.templatesData.count - 1)
-    return;
-
-  [self flushEditorToIndex:self.selectedTemplateIndex];
-  NSMutableDictionary *templateData = self.templatesData[row];
-  [self.templatesData removeObjectAtIndex:row];
-  [self.templatesData insertObject:templateData atIndex:row + 1];
-  [self reindexTemplateShortcuts];
-  [self reloadTemplateTableSelectingRow:row + 1];
 }
 
 - (NSView *)buildAboutPane {
@@ -5040,144 +4190,6 @@ static const CGFloat kSnippetRowHeight = 58.0;
   return label;
 }
 
-- (NSArray<NSString *> *)availableOverlayFontFamilies {
-  if (self.overlayAvailableFontFamilies.count > 0) {
-    return self.overlayAvailableFontFamilies;
-  }
-
-  NSMutableOrderedSet<NSString *> *families = [NSMutableOrderedSet orderedSet];
-  for (NSString *family in
-       [[NSFontManager sharedFontManager] availableFontFamilies]) {
-    NSString *normalized = normalizedOverlayFontFamilyValue(family);
-    if (!overlayUsesSystemFontFamily(normalized)) {
-      [families addObject:normalized];
-    }
-  }
-
-  NSArray<NSString *> *sortedFamilies = [[families array]
-      sortedArrayUsingComparator:^NSComparisonResult(NSString *lhs,
-                                                     NSString *rhs) {
-        return [lhs localizedStandardCompare:rhs];
-      }];
-  self.overlayAvailableFontFamilies = sortedFamilies;
-  return sortedFamilies;
-}
-
-- (NSAttributedString *)overlayFontMenuTitleWithLabel:(NSString *)label
-                                                value:(NSString *)value {
-  NSFont *font = overlayFontForFamily(value, 13.0);
-  return [[NSAttributedString alloc]
-      initWithString:label
-          attributes:@{
-            NSFontAttributeName : font,
-            NSForegroundColorAttributeName : [NSColor labelColor],
-          }];
-}
-
-- (NSPopUpButton *)overlayFontFamilyPopupControl {
-  NSPopUpButton *popup =
-      [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 290, 26)
-                                 pullsDown:NO];
-  popup.target = self;
-  popup.action = @selector(overlayControlChanged:);
-
-  [popup removeAllItems];
-
-  NSMenuItem *systemItem =
-      [[NSMenuItem alloc] initWithTitle:kOverlayFontFamilySystemLabel
-                                 action:nil
-                          keyEquivalent:@""];
-  systemItem.representedObject = kOverlayFontFamilyDefault;
-  systemItem.attributedTitle =
-      [self overlayFontMenuTitleWithLabel:kOverlayFontFamilySystemLabel
-                                    value:kOverlayFontFamilyDefault];
-  [popup.menu addItem:systemItem];
-
-  for (NSString *family in [self availableOverlayFontFamilies]) {
-    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:family
-                                                  action:nil
-                                           keyEquivalent:@""];
-    item.representedObject = family;
-    item.attributedTitle = [self overlayFontMenuTitleWithLabel:family
-                                                         value:family];
-    [popup.menu addItem:item];
-  }
-
-  return popup;
-}
-
-- (NSPopUpButton *)overlayMaxVisibleLinesPopupControl {
-  NSPopUpButton *popup =
-      [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 118.0, 28.0)
-                                 pullsDown:NO];
-  popup.target = self;
-  popup.action = @selector(overlayControlChanged:);
-
-  for (NSInteger value = kOverlayMaxVisibleLinesMin;
-       value <= kOverlayMaxVisibleLinesMax; value++) {
-    NSString *title = [NSString stringWithFormat:@"строк: %ld", (long)value];
-    [popup addItemWithTitle:title];
-    popup.lastItem.representedObject = @(value);
-  }
-
-  [popup selectItemAtIndex:0];
-  return popup;
-}
-
-- (NSString *)selectedOverlayFontFamilyValue {
-  NSString *selectedValue =
-      self.overlayFontFamilyPopup.selectedItem.representedObject;
-  return normalizedOverlayFontFamilyValue(selectedValue);
-}
-
-- (NSInteger)selectedOverlayMaxVisibleLinesValue {
-  NSNumber *selectedValue =
-      [self.overlayMaxVisibleLinesPopup.selectedItem.representedObject
-          isKindOfClass:[NSNumber class]]
-          ? self.overlayMaxVisibleLinesPopup.selectedItem.representedObject
-          : nil;
-  return clampedOverlayMaxVisibleLinesValue(
-      selectedValue.integerValue > 0 ? selectedValue.integerValue
-                                     : kOverlayMaxVisibleLinesDefault);
-}
-
-- (void)selectOverlayFontFamilyValue:(NSString *)value {
-  NSString *normalized = normalizedOverlayFontFamilyValue(value);
-
-  for (NSMenuItem *item in self.overlayFontFamilyPopup.itemArray) {
-    NSString *representedValue = item.representedObject;
-    if (representedValue.length == 0)
-      continue;
-    if ([representedValue isEqualToString:normalized]) {
-      [self.overlayFontFamilyPopup selectItem:item];
-      return;
-    }
-  }
-
-  [self.overlayFontFamilyPopup selectItemAtIndex:0];
-}
-
-- (void)selectOverlayMaxVisibleLinesValue:(NSInteger)value {
-  NSInteger clampedValue = clampedOverlayMaxVisibleLinesValue(value);
-  for (NSMenuItem *item in self.overlayMaxVisibleLinesPopup.itemArray) {
-    NSNumber *representedValue =
-        [item.representedObject isKindOfClass:[NSNumber class]]
-            ? item.representedObject
-            : nil;
-    if (representedValue.integerValue == clampedValue) {
-      [self.overlayMaxVisibleLinesPopup selectItem:item];
-      return;
-    }
-  }
-
-  [self.overlayMaxVisibleLinesPopup selectItemAtIndex:0];
-}
-
-- (void)updateOverlayLineLimitControlsEnabled {
-  self.overlayMaxVisibleLinesPopup.enabled =
-      self.overlayLimitVisibleLinesSwitch.state == NSControlStateValueOn;
-}
-
 - (NSView *)sliderControlWithSlider:(NSSlider *)slider
                          valueLabel:(NSTextField *)valueLabel
                               width:(CGFloat)width {
@@ -5320,34 +4332,6 @@ static const CGFloat kSnippetRowHeight = 58.0;
   return card;
 }
 
-- (NSSegmentedControl *)
-    templateActionSegmentedControlWithSymbols:(NSArray<NSString *> *)symbolNames
-                                     toolTips:(NSArray<NSString *> *)toolTips
-                                       action:(SEL)action {
-  NSSegmentedControl *control =
-      [[NSSegmentedControl alloc] initWithFrame:NSMakeRect(0, 0, 50, 24)];
-  control.segmentCount = symbolNames.count;
-  control.segmentStyle = NSSegmentStyleTexturedRounded;
-  control.trackingMode = NSSegmentSwitchTrackingMomentary;
-  control.controlSize = NSControlSizeSmall;
-  control.target = self;
-  control.action = action;
-
-  for (NSInteger idx = 0; idx < (NSInteger)symbolNames.count; idx++) {
-    NSString *symbolName = symbolNames[idx];
-    NSString *toolTip = idx < (NSInteger)toolTips.count ? toolTips[idx] : @"";
-    NSImage *image = [NSImage imageWithSystemSymbolName:symbolName
-                               accessibilityDescription:toolTip];
-    image.size = NSMakeSize(12, 12);
-    [control setImage:image forSegment:idx];
-    [control setWidth:24 forSegment:idx];
-    [[control cell] setToolTip:toolTip forSegment:idx];
-  }
-
-  return control;
-}
-
-// ─── Card Layout Helpers ───────────────────────────────────────────
 
 - (NSView *)cardWithTitle:(NSString *)title
                      rows:(NSArray<NSView *> *)rows
@@ -7145,37 +6129,15 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     self.llmTestResultLabel.stringValue = @"";
     [self updateLlmFieldsEnabled];
   } else if ([identifier isEqualToString:kToolbarOverlay]) {
-    NSString *fontFamilyRaw = configGet(@"overlay.font_family");
-    NSString *fontSizeRaw = configGet(@"overlay.font_size");
     NSString *bottomMarginRaw = configGet(@"overlay.bottom_margin");
-    NSString *limitVisibleLinesRaw = configGet(@"overlay.limit_visible_lines");
-    NSString *maxVisibleLinesRaw = configGet(@"overlay.max_visible_lines");
-    NSString *fontFamily = fontFamilyRaw.length > 0
-                               ? normalizedOverlayFontFamilyValue(fontFamilyRaw)
-                               : kOverlayFontFamilyDefault;
-    NSInteger fontSize =
-        fontSizeRaw.length > 0
-            ? clampedOverlayFontSizeValue(fontSizeRaw.integerValue)
-            : kOverlayFontSizeDefault;
     NSInteger bottomMargin =
         bottomMarginRaw.length > 0
             ? clampedOverlayBottomMarginValue(bottomMarginRaw.integerValue)
             : kOverlayBottomMarginDefault;
-    BOOL limitVisibleLines = configBooleanValue(
-        limitVisibleLinesRaw, kOverlayLimitVisibleLinesDefault);
-    NSInteger maxVisibleLines = maxVisibleLinesRaw.length > 0
-                                    ? clampedOverlayMaxVisibleLinesValue(
-                                          maxVisibleLinesRaw.integerValue)
-                                    : kOverlayMaxVisibleLinesDefault;
-
-    [self selectOverlayFontFamilyValue:fontFamily];
-    self.overlayFontSizeSlider.integerValue = fontSize;
     self.overlayBottomMarginSlider.integerValue = bottomMargin;
-    self.overlayLimitVisibleLinesSwitch.state =
-        limitVisibleLines ? NSControlStateValueOn : NSControlStateValueOff;
-    [self rememberLoadedBooleanValue:limitVisibleLines
-                              forKey:@"overlay.limit_visible_lines"];
-    [self selectOverlayMaxVisibleLinesValue:maxVisibleLines];
+    [self rememberLoadedStringValue:
+              [NSString stringWithFormat:@"%ld", (long)bottomMargin]
+                             forKey:@"overlay.bottom_margin"];
     [self syncOverlayPreviewFromControls];
   } else if ([identifier isEqualToString:kToolbarHotkey]) {
     NSString *triggerKeyRaw = configGet(@"hotkey.trigger_key");
@@ -7356,32 +6318,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
             ?: @"";
     [self.systemPromptTextView setString:promptContent];
     self.loadedSystemPromptContent = promptContent;
-  } else if ([identifier isEqualToString:kToolbarTemplates]) {
-    BOOL templatesEnabled = configBooleanValue(
-        configGet(@"llm.prompt_templates_enabled"), NO);
-    self.templatesEnabledSwitch.state =
-        templatesEnabled ? NSControlStateValueOn : NSControlStateValueOff;
-    [self rememberLoadedBooleanValue:templatesEnabled
-                              forKey:@"llm.prompt_templates_enabled"];
-
-    NSArray *templates = [self.rustBridge promptTemplates];
-    self.templatesData = [NSMutableArray array];
-    for (NSDictionary *t in templates) {
-      NSMutableDictionary *templateData =
-          [t mutableCopy] ?: [NSMutableDictionary dictionary];
-      if (![templateData[@"enabled"] isKindOfClass:[NSNumber class]]) {
-        templateData[@"enabled"] = @YES;
-      }
-      NSString *resolvedPrompt =
-          [self resolvedPromptTextForTemplate:templateData];
-      templateData[kTemplateEditablePromptKey] = resolvedPrompt ?: @"";
-      templateData[kTemplateOriginalPromptKey] = resolvedPrompt ?: @"";
-      [self.templatesData addObject:templateData];
-    }
-    [self reindexTemplateShortcuts];
-    [self reloadTemplateTableSelectingRow:(self.templatesData.count > 0 ? 0
-                                                                        : -1)];
-    self.loadedTemplatesSnapshot = [[self serializedTemplatesData] copy];
   }
 }
 
@@ -7448,22 +6384,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
                             withIntermediateDirectories:YES
                                              attributes:nil
                                                   error:nil];
-
-  NSArray<NSDictionary *> *serializedTemplates = nil;
-  if (self.templatesData) {
-    [self saveCurrentTemplateEdits];
-    NSArray<NSDictionary *> *currentTemplates = [self serializedTemplatesData];
-    if (!self.loadedTemplatesSnapshot ||
-        ![currentTemplates isEqualToArray:self.loadedTemplatesSnapshot]) {
-      NSString *templateError = nil;
-      if (![self validateTemplatesDataWithMessage:&templateError]) {
-        [self showAlert:@"Некорректные шаблоны промптов"
-                   info:templateError ?: @"Проверьте шаблоны и повторите попытку."];
-        return;
-      }
-      serializedTemplates = currentTemplates;
-    }
-  }
 
   NSString *configPath = configFilePath();
   BOOL configExisted =
@@ -7740,28 +6660,11 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       self.loadedRecordingsRetentionDays = retention;
     }
   }
-  if (self.overlayFontSizeSlider) {
-    NSString *fontFamily = [self selectedOverlayFontFamilyValue];
-    NSInteger fontSize = clampedOverlayFontSizeValue(
-        lround(self.overlayFontSizeSlider.doubleValue));
-    NSInteger bottomMargin = clampedOverlayBottomMarginValue(
-        lround(self.overlayBottomMarginSlider.doubleValue));
-    BOOL limitVisibleLines =
-        self.overlayLimitVisibleLinesSwitch.state == NSControlStateValueOn;
-    NSInteger maxVisibleLines = [self selectedOverlayMaxVisibleLinesValue];
-    saveOk &= configSet(@"overlay.font_family", fontFamily);
-    saveOk &= configSet(@"overlay.font_size",
-                        [NSString stringWithFormat:@"%ld", (long)fontSize]);
-    saveOk &= configSet(@"overlay.bottom_margin",
-                        [NSString stringWithFormat:@"%ld", (long)bottomMargin]);
-    if ([self shouldPersistBooleanValue:limitVisibleLines
-                                 forKey:@"overlay.limit_visible_lines"]) {
-      saveOk &= configSet(@"overlay.limit_visible_lines",
-                          limitVisibleLines ? @"true" : @"false");
-    }
-    saveOk &=
-        configSet(@"overlay.max_visible_lines",
-                  [NSString stringWithFormat:@"%ld", (long)maxVisibleLines]);
+  if (self.overlayBottomMarginSlider) {
+    NSString *bottomMargin = [NSString
+        stringWithFormat:@"%ld", (long)clampedOverlayBottomMarginValue(lround(
+                                     self.overlayBottomMarginSlider.doubleValue))];
+    saveOk &= [self saveStringValue:bottomMargin forKey:@"overlay.bottom_margin"];
   }
   if (self.startSoundCheckbox) {
     NSString *startSound =
@@ -7806,17 +6709,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       saveOk &= configSet(@"paste.auto_return", autoReturn);
     }
   }
-  if (self.templatesEnabledSwitch) {
-    NSString *templatesEnabled =
-        (self.templatesEnabledSwitch.state == NSControlStateValueOn) ? @"true"
-                                                                     : @"false";
-    if ([self shouldPersistBooleanValue:
-                  self.templatesEnabledSwitch.state == NSControlStateValueOn
-                                forKey:@"llm.prompt_templates_enabled"]) {
-      saveOk &=
-          configSet(@"llm.prompt_templates_enabled", templatesEnabled);
-    }
-  }
 
   if (!saveOk) {
     rollbackConfigIfNeeded();
@@ -7825,17 +6717,6 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
              info:[NSString stringWithFormat:@"Убедитесь, что %@ доступен для записи, и повторите.",
                                              [configFilePath() stringByAbbreviatingWithTildeInPath]]];
     return;
-  }
-
-  // Save prompt templates
-  if (serializedTemplates) {
-    if (![self.rustBridge setPromptTemplates:serializedTemplates]) {
-      rollbackConfigIfNeeded();
-      [self showAlert:@"Не удалось сохранить шаблоны промптов"
-                 info:[NSString stringWithFormat:@"Проверьте шаблоны промптов и %@ и повторите попытку.",
-                                                 [configFilePath() stringByAbbreviatingWithTildeInPath]]];
-      return;
-    }
   }
 
   // Write dictionary.txt
