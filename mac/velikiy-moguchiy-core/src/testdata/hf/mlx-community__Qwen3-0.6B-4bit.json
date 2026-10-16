@@ -1,0 +1,89 @@
+{
+ "files": {
+  "config.json": "{\n    \"architectures\": [\n        \"Qwen3ForCausalLM\"\n    ],\n    \"attention_bias\": false,\n    \"attention_dropout\": 0.0,\n    \"bos_token_id\": 151643,\n    \"eos_token_id\": 151645,\n    \"head_dim\": 128,\n    \"hidden_act\": \"silu\",\n    \"hidden_size\": 1024,\n    \"initializer_range\": 0.02,\n    \"intermediate_size\": 3072,\n    \"max_position_embeddings\": 40960,\n    \"max_window_layers\": 28,\n    \"model_type\": \"qwen3\",\n    \"num_attention_heads\": 16,\n    \"num_hidden_layers\": 28,\n    \"num_key_value_heads\": 8,\n    \"quantization\": {\n        \"group_size\": 64,\n        \"bits\": 4\n    },\n    \"quantization_config\": {\n        \"group_size\": 64,\n        \"bits\": 4\n    },\n    \"rms_norm_eps\": 1e-06,\n    \"rope_scaling\": null,\n    \"rope_theta\": 1000000,\n    \"sliding_window\": null,\n    \"tie_word_embeddings\": true,\n    \"torch_dtype\": \"bfloat16\",\n    \"transformers_version\": \"4.51.0\",\n    \"use_cache\": true,\n    \"use_sliding_window\": false,\n    \"vocab_size\": 151936\n}"
+ },
+ "info": {
+  "cardData": {
+   "license": "apache-2.0",
+   "license_link": "https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE",
+   "pipeline_tag": "text-generation"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "mlx-community/Qwen3-0.6B-4bit",
+  "library_name": "mlx",
+  "pipeline_tag": "text-generation",
+  "private": false,
+  "sha": "73e3e38d981303bc594367cd910ea6eb48349da8",
+  "siblings": [
+   {
+    "blobId": "52373fe24473b1aa44333d318f578ae6bf04b49b",
+    "rfilename": ".gitattributes",
+    "size": 1570
+   },
+   {
+    "blobId": "347f24b0faf9b91a5f37326cf2c4595522521ec5",
+    "rfilename": "README.md",
+    "size": 873
+   },
+   {
+    "blobId": "b54f9135e44c1e81047e8d05cb027af8bc039eed",
+    "rfilename": "added_tokens.json",
+    "size": 707
+   },
+   {
+    "blobId": "6c974b02334f2f5f68de4cb2796ee4fe80bfc712",
+    "rfilename": "config.json",
+    "size": 937
+   },
+   {
+    "blobId": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+    "rfilename": "merges.txt",
+    "size": 1671853
+   },
+   {
+    "blobId": "853e66d7cf97b5aaa9a582ddc6f65f2244d483e1",
+    "lfs": {
+     "sha256": "392e8d466d56100ada00eb82031fb854297fc9e389b7d303eba3af114e87bce2",
+     "size": 335450584
+    },
+    "rfilename": "model.safetensors",
+    "size": 335450584
+   },
+   {
+    "blobId": "e743a6a7d2ba4fd21b2256d739117cbf31345297",
+    "rfilename": "model.safetensors.index.json",
+    "size": 49731
+   },
+   {
+    "blobId": "ac23c0aaa2434523c494330aeb79c58395378103",
+    "rfilename": "special_tokens_map.json",
+    "size": 613
+   },
+   {
+    "blobId": "cd71f61a15a522601badb3dc960d800d9cb3766c",
+    "lfs": {
+     "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+     "size": 11422654
+    },
+    "rfilename": "tokenizer.json",
+    "size": 11422654
+   },
+   {
+    "blobId": "7345216a0785dc7086e8c245b2a9d3896ce2b756",
+    "rfilename": "tokenizer_config.json",
+    "size": 9706
+   },
+   {
+    "blobId": "4783fe10ac3adce15ac8f358ef5462739852c569",
+    "rfilename": "vocab.json",
+    "size": 2776833
+   }
+  ],
+  "tags": [
+   "mlx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {}
+}

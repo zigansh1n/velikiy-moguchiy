@@ -1809,6 +1809,7 @@ pub extern "C" fn sp_core_scan_models_json() -> *mut c_char {
                 "total_size": m.manifest.files.iter().map(|f| f.size).sum::<u64>(),
                 "status": model_manager::model_status(&m.path, model_manager::VerifyMode::CacheOnly) as i32,
                 "huggingface": model_manager::hf_source(&m.path),
+                "external": model_manager::manifest_section(&m.path, "external"),
             })
         })
         .collect();

@@ -227,6 +227,35 @@ pub fn license_from_text(text: &str) -> Option<LicenseInfo> {
     })
 }
 
+/// A licence named by a file such as «GigaAM License_NC.pdf», when the card
+/// says nothing.
+pub fn license_from_file_names<'a>(paths: impl Iterator<Item = &'a str>) -> Option<LicenseInfo> {
+    for path in paths {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let lower = urlencoding::decode(name)
+            .map(|n| n.to_lowercase())
+            .unwrap_or_else(|_| name.to_lowercase());
+        let words: Vec<&str> = lower.split(|c: char| !c.is_alphanumeric()).collect();
+        if (lower.contains("license") || lower.contains("licence"))
+            && (words.contains(&"nc")
+                || lower.contains("noncommercial")
+                || lower.contains("non-commercial"))
+        {
+            let shown = urlencoding::decode(name)
+                .map(|n| n.into_owned())
+                .unwrap_or_else(|_| name.into());
+            return Some(LicenseInfo {
+                id: None,
+                name: format!("некоммерческая ({shown})"),
+                kind: LicenseKind::NonCommercial,
+                link: None,
+                source: "license_file",
+            });
+        }
+    }
+    None
+}
+
 /// A link to the original licence some sherpa-onnx exports record in their
 /// metadata (GigaAM, MedASR). Says where the terms are, not what they are.
 pub fn license_from_onnx(metadata: &BTreeMap<String, String>) -> Option<LicenseInfo> {
@@ -291,6 +320,16 @@ impl Languages {
             has_russian: None,
         }
     }
+
+    /// Multilingual Whisper, whose repositories rarely list its languages.
+    pub fn whisper() -> Self {
+        Self {
+            codes: vec!["ru".into(), "en".into()],
+            source: "family",
+            display: "99 языков, включая русский".into(),
+            has_russian: Some(true),
+        }
+    }
 }
 
 const LANGUAGES: &[(&str, &str, &str)] = &[
@@ -300,6 +339,7 @@ const LANGUAGES: &[(&str, &str, &str)] = &[
     ("be", "белорусский", "belarusian"),
     ("kk", "казахский", "kazakh"),
     ("uz", "узбекский", "uzbek"),
+    ("ky", "киргизский", "kyrgyz"),
     ("tt", "татарский", "tatar"),
     ("de", "немецкий", "german"),
     ("fr", "французский", "french"),
@@ -468,6 +508,15 @@ mod tests {
         );
         assert!(license_from_text("<!DOCTYPE html>\n<html lang=\"en\">").is_none());
         assert!(license_from_text("Ref to https://github.com/modelscope/FunASR#license").is_none());
+    }
+
+    #[test]
+    fn a_non_commercial_licence_file_name_is_noticed() {
+        let names = ["README.md", "GigaAM%20License_NC.pdf", "model.int8.onnx"];
+        let info = license_from_file_names(names.iter().copied()).unwrap();
+        assert_eq!(info.kind, LicenseKind::NonCommercial);
+        assert!(info.name.contains("GigaAM License_NC.pdf"), "{}", info.name);
+        assert!(license_from_file_names(["LICENSE", "encoder.onnx"].iter().copied()).is_none());
     }
 
     #[test]

@@ -173,6 +173,17 @@ impl SherpaLayout {
     /// Validates the layout and finds each file as a regular file inside
     /// `model_dir`, following no symlinks on the way.
     pub fn resolve(&self, model_dir: &Path) -> Result<ResolvedLayout, String> {
+        self.resolve_in(model_dir, false)
+    }
+
+    /// Like [`resolve`](Self::resolve), but a file may be a link to a regular
+    /// file anywhere, as in the Hugging Face cache. Only for a folder the user
+    /// chose themselves.
+    pub fn resolve_following_links(&self, model_dir: &Path) -> Result<ResolvedLayout, String> {
+        self.resolve_in(model_dir, true)
+    }
+
+    fn resolve_in(&self, model_dir: &Path, follow_links: bool) -> Result<ResolvedLayout, String> {
         self.validate()?;
         let root = std::fs::canonicalize(model_dir)
             .map_err(|e| format!("model not found: {}: {e}", model_dir.display()))?;
@@ -184,9 +195,13 @@ impl SherpaLayout {
                 current.push(component);
                 let meta = std::fs::symlink_metadata(&current)
                     .map_err(|_| format!("missing {}", rel.display()))?;
-                if meta.file_type().is_symlink() {
+                if meta.file_type().is_symlink() && !follow_links {
                     return Err(format!("{} is a symlink", rel.display()));
                 }
+            }
+            if follow_links {
+                current = std::fs::canonicalize(&current)
+                    .map_err(|_| format!("missing {}", rel.display()))?;
             }
             if !std::fs::symlink_metadata(&current).is_ok_and(|m| m.is_file()) {
                 return Err(format!("{} is not a file", rel.display()));
@@ -499,6 +514,45 @@ mod tests {
         }
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::remove_dir_all(&outside);
+    }
+
+    #[test]
+    fn links_are_followed_only_when_asked() {
+        let dir = temp_dir("follow");
+        let blobs = temp_dir("blobs");
+        fs::write(blobs.join("a"), b"x").unwrap();
+        fs::write(blobs.join("b"), b"x").unwrap();
+        std::os::unix::fs::symlink(blobs.join("a"), dir.join("model.onnx")).unwrap();
+        std::os::unix::fs::symlink(blobs.join("b"), dir.join("tokens.txt")).unwrap();
+        std::os::unix::fs::symlink(&blobs, dir.join("folder.onnx")).unwrap();
+        let l = layout(
+            SherpaFamily::NemoCtc,
+            false,
+            &[
+                (SherpaRole::Model, "model.onnx"),
+                (SherpaRole::Tokens, "tokens.txt"),
+            ],
+        );
+        assert!(l.resolve(&dir).is_err());
+        let resolved = l.resolve_following_links(&dir).unwrap();
+        assert_eq!(
+            resolved.path(SherpaRole::Model).unwrap(),
+            fs::canonicalize(blobs.join("a")).unwrap().to_string_lossy()
+        );
+        let folder = layout(
+            SherpaFamily::NemoCtc,
+            false,
+            &[
+                (SherpaRole::Model, "folder.onnx"),
+                (SherpaRole::Tokens, "tokens.txt"),
+            ],
+        );
+        assert!(folder
+            .resolve_following_links(&dir)
+            .unwrap_err()
+            .contains("not a file"));
+        let _ = fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&blobs);
     }
 
     #[test]

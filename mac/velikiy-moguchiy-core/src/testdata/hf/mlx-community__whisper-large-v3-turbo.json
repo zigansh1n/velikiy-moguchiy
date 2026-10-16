@@ -1,0 +1,47 @@
+{
+ "files": {
+  "config.json": "{\n    \"n_mels\": 128,\n    \"n_audio_ctx\": 1500,\n    \"n_audio_state\": 1280,\n    \"n_audio_head\": 20,\n    \"n_audio_layer\": 32,\n    \"n_vocab\": 51866,\n    \"n_text_ctx\": 448,\n    \"n_text_state\": 1280,\n    \"n_text_head\": 20,\n    \"n_text_layer\": 4,\n    \"model_type\": \"whisper\"\n}"
+ },
+ "info": {
+  "cardData": {
+   "pipeline_tag": "automatic-speech-recognition"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "mlx-community/whisper-large-v3-turbo",
+  "library_name": "mlx",
+  "pipeline_tag": "automatic-speech-recognition",
+  "private": false,
+  "sha": "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "3569b423420febc3a0e1949b9e6aff2bf3bba2c7",
+    "rfilename": "README.md",
+    "size": 359
+   },
+   {
+    "blobId": "6ac9a52a28f70a2e5681c250a470eca6e9c8cc3e",
+    "rfilename": "config.json",
+    "size": 268
+   },
+   {
+    "blobId": "26b12d9fb292a7bee72610f6e7e2ec84225feab7",
+    "lfs": {
+     "sha256": "951ed3fc1203e6a62467abb2144a96ce7eafca8fa77e3704fdb8635ff3e7f8a6",
+     "size": 1613977612
+    },
+    "rfilename": "weights.safetensors",
+    "size": 1613977612
+   }
+  ],
+  "tags": [
+   "mlx"
+  ]
+ },
+ "metadata": {}
+}

@@ -145,6 +145,8 @@ pub struct RepoInfo {
     #[serde(default)]
     pub pipeline_tag: Option<String>,
     #[serde(default)]
+    pub library_name: Option<String>,
+    #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default, rename = "cardData")]
     pub card_data: Option<serde_json::Value>,

@@ -1,15 +1,21 @@
-//! Speech models from Hugging Face: what a repository holds, whether
-//! sherpa-onnx can run it and as what, and installing it as a user model in
+//! Speech models from Hugging Face: what a repository holds, which engine
+//! can run it, and installing it as a user model in
 //! `models/hf/<owner>/<name>@<commit>/`, pinned to the commit it was
 //! inspected at. The large files are then fetched by
 //! [`crate::model_manager::download_model`] like any built-in model.
 
+pub mod analysis;
+pub mod backend;
 pub mod card;
+pub mod catalog;
 pub mod check;
 pub mod detect;
 pub mod ffi;
+pub mod library;
+pub mod local;
 pub mod onnx_meta;
 pub mod repo;
+pub mod search;
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -18,10 +24,11 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use velikiy_moguchiy_asr::{SherpaFamily, SherpaLayout};
 
+use analysis::{is_root_license, RepoHints, MAX_LICENSE_BYTES};
+pub use analysis::{ModelLayout, Problem, Variant};
 use card::{Languages, LicenseInfo};
-use detect::{Candidate, Rejection, RepoFile};
+use detect::{Rejection, RepoFile};
 use repo::{RepoInfo, RepoRef};
 
 pub const DEFAULT_ENDPOINT: &str = "https://huggingface.co";
@@ -29,13 +36,10 @@ pub const DEFAULT_ENDPOINT: &str = "https://huggingface.co";
 pub const USER_MODELS_DIR: &str = "hf";
 const MANIFEST_FILE: &str = ".koe-manifest.json";
 
-/// Candidates whose metadata is read; a repository with more is a collection,
-/// and the first ones are the ones its author lists first.
-const MAX_CANDIDATES: usize = 12;
 /// Git keeps no file above 10 MB outside LFS on Hugging Face.
 const MAX_GIT_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_API_BYTES: u64 = 8 * 1024 * 1024;
-const MAX_LICENSE_BYTES: u64 = 64 * 1024;
+const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
 const METADATA_READS_AT_ONCE: usize = 4;
 
 /// `HF_ENDPOINT` when set (a mirror), else huggingface.co.
@@ -54,34 +58,6 @@ pub fn http_client() -> Result<reqwest::Client, String> {
         .read_timeout(Duration::from_secs(60))
         .build()
         .map_err(|e| format!("http client: {e}"))
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Variant {
-    pub id: String,
-    /// What tells it apart from the other variants of the repository.
-    pub label: String,
-    /// «GigaAM (трансдьюсер)».
-    pub title: String,
-    /// «потоковая: текст появляется во время речи».
-    pub mode: String,
-    pub family: SherpaFamily,
-    pub streaming: bool,
-    /// «int8», «fp32» or «int8 и fp32».
-    pub precision: String,
-    pub total_size: u64,
-    pub files: Vec<RepoFile>,
-    #[serde(skip)]
-    pub layout: SherpaLayout,
-    /// The file whose metadata decided the family.
-    #[serde(skip)]
-    pub primary: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct Problem {
-    pub code: String,
-    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -107,14 +83,6 @@ pub struct Inspection {
     pub repo_file_count: usize,
 }
 
-fn mode_text(streaming: bool) -> &'static str {
-    if streaming {
-        "потоковая: текст появляется во время речи"
-    } else {
-        "текст появляется после паузы"
-    }
-}
-
 fn encode_path(path: &str) -> String {
     path.split('/')
         .map(|s| urlencoding::encode(s).into_owned())
@@ -136,7 +104,10 @@ fn network_error(e: &reqwest::Error) -> String {
 }
 
 /// Reads at most `limit` bytes of a response body; `None` when it is longer.
-async fn read_limited(response: reqwest::Response, limit: u64) -> Result<Option<Vec<u8>>, String> {
+pub(crate) async fn read_limited(
+    response: reqwest::Response,
+    limit: u64,
+) -> Result<Option<Vec<u8>>, String> {
     let mut body = Vec::new();
     let mut stream = response.bytes_stream();
     while let Some(chunk) = stream.next().await {
@@ -193,7 +164,7 @@ pub async fn fetch_info(
     serde_json::from_slice(&body).map_err(|e| format!("Hugging Face ответил непонятно: {e}"))
 }
 
-type MetadataRead = Result<BTreeMap<String, String>, String>;
+pub use analysis::MetadataRead;
 
 /// Metadata of an ONNX file, from its last [`onnx_meta::TAIL_BYTES`].
 async fn fetch_metadata(client: &reqwest::Client, url: &str, size: u64) -> MetadataRead {
@@ -280,70 +251,8 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     hex(&Sha256::digest(bytes))
-}
-
-/// Puts the variant that suits dictation best first: with punctuation, then
-/// transducers.
-fn preference(variant: &Variant) -> i32 {
-    let label = variant.label.to_ascii_lowercase();
-    let mut score = 0;
-    if label.contains("e2e") || label.contains("punct") {
-        score += 2;
-    }
-    if matches!(
-        variant.family,
-        SherpaFamily::Transducer | SherpaFamily::NemoTransducer
-    ) {
-        score += 1;
-    }
-    score
-}
-
-fn variant_from(
-    candidate: &Candidate,
-    classified: detect::Classified,
-    files: &[RepoFile],
-) -> Variant {
-    let mut wanted: Vec<String> = classified.layout.files.values().cloned().collect();
-    for extra in &candidate.extra {
-        if !wanted.contains(extra) {
-            wanted.push(extra.clone());
-        }
-    }
-    let licence = files
-        .iter()
-        .find(|f| is_root_license(&f.path) && f.size <= MAX_LICENSE_BYTES);
-    if let Some(licence) = licence {
-        wanted.push(licence.path.clone());
-    }
-    let chosen: Vec<RepoFile> = files
-        .iter()
-        .filter(|f| wanted.contains(&f.path))
-        .cloned()
-        .collect();
-    Variant {
-        id: candidate.key.clone(),
-        label: candidate.label.clone(),
-        title: classified.title,
-        mode: mode_text(classified.layout.streaming).into(),
-        family: classified.layout.family,
-        streaming: classified.layout.streaming,
-        precision: candidate.precision(),
-        total_size: chosen.iter().map(|f| f.size).sum(),
-        files: chosen,
-        layout: classified.layout,
-        primary: candidate.primary.clone(),
-    }
-}
-
-fn is_root_license(path: &str) -> bool {
-    !path.contains('/')
-        && matches!(
-            path.to_ascii_lowercase().as_str(),
-            "license" | "license.txt" | "license.md" | "licence"
-        )
 }
 
 /// What `repo` holds and whether this app can run it.
@@ -351,6 +260,22 @@ pub async fn inspect(
     client: &reqwest::Client,
     base: &str,
     repo: &RepoRef,
+) -> Result<Inspection, String> {
+    inspect_with(
+        client,
+        base,
+        repo,
+        crate::model_manager::supported_providers(),
+    )
+    .await
+}
+
+/// [`inspect`] for a build whose local providers are `compiled`.
+pub async fn inspect_with(
+    client: &reqwest::Client,
+    base: &str,
+    repo: &RepoRef,
+    compiled: &[&str],
 ) -> Result<Inspection, String> {
     let info = fetch_info(client, base, repo).await?;
     let sha = info
@@ -388,7 +313,7 @@ pub async fn inspect(
         repo_file_count: files.len(),
     };
 
-    let mut metadata: HashMap<String, BTreeMap<String, String>> = HashMap::new();
+    let mut reads_by_path: HashMap<String, MetadataRead> = HashMap::new();
     if info.disabled {
         inspection.problem = Some(Problem {
             code: "disabled".into(),
@@ -400,23 +325,15 @@ pub async fn inspect(
             message: "Доступ к модели выдают по запросу на Hugging Face, а приложение не входит в аккаунт и такие модели не скачивает.".into(),
         });
     } else {
-        let candidates = detect::candidates(&files);
-        let mut wanted: Vec<&RepoFile> = Vec::new();
-        for candidate in candidates.iter().take(MAX_CANDIDATES) {
-            if !candidate
-                .roles
-                .contains_key(&velikiy_moguchiy_asr::SherpaRole::Tokens)
-            {
-                continue;
-            }
-            if let Some(file) = files.iter().find(|f| f.path == candidate.primary) {
-                if !wanted.iter().any(|w| w.path == file.path) {
-                    wanted.push(file);
-                }
-            }
-        }
-        let reads: Vec<_> = wanted
-            .iter()
+        let hints = RepoHints {
+            name: name.clone(),
+            library: info.library_name.clone(),
+            tags: info.tags.clone(),
+            pipeline_tag: info.pipeline_tag.clone(),
+        };
+        let reads: Vec<_> = analysis::metadata_wanted(&files)
+            .into_iter()
+            .filter_map(|path| files.iter().find(|f| f.path == path))
             .map(|file| {
                 let url = file_url(base, &repo_id, &sha, &file.path);
                 let path = file.path.clone();
@@ -428,54 +345,37 @@ pub async fn inspect(
             .buffer_unordered(METADATA_READS_AT_ONCE)
             .collect()
             .await;
-        let mut unreadable: HashMap<String, String> = HashMap::new();
-        for (path, result) in fetched {
-            match result {
-                Ok(meta) => {
-                    metadata.insert(path, meta);
-                }
-                Err(error) => {
-                    unreadable.insert(path, error);
-                }
+        reads_by_path.extend(fetched);
+        let mut config = None;
+        if let Some(file) = analysis::config_wanted(&files, &hints)
+            .and_then(|path| files.iter().find(|f| f.path == path))
+        {
+            let url = file_url(base, &repo_id, &sha, &file.path);
+            if let Ok(body) = fetch_git_file(client, &url, file, MAX_CONFIG_BYTES).await {
+                config = serde_json::from_slice::<serde_json::Value>(&body).ok();
             }
         }
-
-        let empty = BTreeMap::new();
-        for candidate in candidates.iter().take(MAX_CANDIDATES) {
-            if let Some(error) = unreadable.get(&candidate.primary) {
-                inspection.rejected.push(Rejection {
-                    label: candidate.label.clone(),
-                    reason: detect::RejectReason::Unreadable,
-                    message: format!("Не удалось прочитать {}: {error}", candidate.primary),
-                });
-                continue;
-            }
-            let meta = metadata.get(&candidate.primary).unwrap_or(&empty);
-            match detect::classify(candidate, meta) {
-                Ok(classified) => inspection
-                    .variants
-                    .push(variant_from(candidate, classified, &files)),
-                Err(rejection) => inspection.rejected.push(rejection),
-            }
-        }
-        inspection.variants.sort_by_key(|v| -preference(v));
-        if inspection.variants.is_empty() {
-            let (code, message) =
-                detect::explain(&files, info.pipeline_tag.as_deref(), &inspection.rejected);
-            inspection.problem = Some(Problem { code, message });
-        }
+        let found = analysis::analyze(&files, &reads_by_path, config.as_ref(), &hints, compiled);
+        inspection.variants = found.variants;
+        inspection.rejected = found.rejected;
+        inspection.problem = found.problem;
     }
 
+    let metadata: HashMap<&String, &BTreeMap<String, String>> = reads_by_path
+        .iter()
+        .filter_map(|(path, read)| read.as_ref().ok().map(|meta| (path, meta)))
+        .collect();
     let primaries: Vec<&BTreeMap<String, String>> = if inspection.variants.is_empty() {
-        metadata.values().collect()
+        metadata.values().copied().collect()
     } else {
         inspection
             .variants
             .iter()
-            .filter_map(|v| metadata.get(&v.primary))
+            .filter_map(|v| metadata.get(&v.primary).copied())
             .collect()
     };
-    let mut license = card::license_from_card(info.card_data.as_ref(), &info.tags);
+    let mut license = card::license_from_card(info.card_data.as_ref(), &info.tags)
+        .or_else(|| card::license_from_file_names(files.iter().map(|f| f.path.as_str())));
     if license.is_none() {
         if let Some(file) = files
             .iter()
@@ -492,6 +392,14 @@ pub async fn inspect(
     }
     inspection.license = license.unwrap_or_else(LicenseInfo::unknown);
     inspection.languages = card::languages(info.card_data.as_ref(), &primaries, &name);
+    if inspection.languages.has_russian.is_none()
+        && inspection
+            .variants
+            .iter()
+            .any(|v| v.is_multilingual_whisper())
+    {
+        inspection.languages = Languages::whisper();
+    }
 
     if inspection.problem.is_none() {
         if let Some(warning) = inspection.license.warning() {
@@ -583,7 +491,7 @@ pub fn model_rel_path(inspection: &Inspection, variant: &Variant) -> String {
 }
 
 /// Creates `rel` under `root` without following a symlink on the way.
-fn create_contained_dir(root: &Path, rel: &str) -> Result<PathBuf, String> {
+pub(crate) fn create_contained_dir(root: &Path, rel: &str) -> Result<PathBuf, String> {
     std::fs::create_dir_all(root).map_err(|e| format!("{}: {e}", root.display()))?;
     let mut current = root.to_path_buf();
     for part in rel.split('/') {
@@ -602,7 +510,7 @@ fn create_contained_dir(root: &Path, rel: &str) -> Result<PathBuf, String> {
     Ok(current)
 }
 
-fn write_atomically(path: &Path, content: &[u8]) -> Result<(), String> {
+pub(crate) fn write_atomically(path: &Path, content: &[u8]) -> Result<(), String> {
     let tmp = path.with_file_name(format!(
         ".{}.tmp.{}",
         path.file_name().and_then(|n| n.to_str()).unwrap_or("file"),
@@ -633,6 +541,12 @@ pub async fn prepare_install(
         .iter()
         .find(|v| v.id == variant_id)
         .ok_or("Этого варианта модели в репозитории нет.")?;
+    if !variant.engine_ready {
+        return Err(variant
+            .engine_note
+            .clone()
+            .unwrap_or_else(|| "Этой сборке нечем запустить модель.".into()));
+    }
     let rel = model_rel_path(inspection, variant);
     let model_dir = create_contained_dir(models_root, &rel)?;
 
@@ -691,18 +605,18 @@ pub async fn prepare_install(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    let manifest = serde_json::json!({
-        "provider": "sherpa-onnx",
+    let mut manifest = serde_json::json!({
+        "provider": variant.backend.provider(),
         "mode": "asr",
         "description": format!("{description} — Hugging Face"),
         "repo": inspection.repo,
         "files": entries,
-        "sherpa": variant.layout,
         "huggingface": {
             "repo": inspection.repo,
             "revision": inspection.revision,
             "sha": inspection.sha,
             "variant": variant.id,
+            "label": variant.label,
             "title": variant.title,
             "streaming": variant.streaming,
             "license": inspection.license,
@@ -710,9 +624,20 @@ pub async fn prepare_install(
             "installed_at": installed_at,
         },
     });
+    add_layout_section(&mut manifest, &variant.layout);
     let text = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())?;
     write_atomically(&model_dir.join(MANIFEST_FILE), text.as_bytes())?;
     Ok(rel)
+}
+
+/// Records how the engine finds the files: `sherpa`, `whisper_cpp` or `mlx`.
+pub fn add_layout_section(manifest: &mut serde_json::Value, layout: &ModelLayout) {
+    let (key, value) = match layout {
+        ModelLayout::Sherpa(layout) => ("sherpa", serde_json::to_value(layout).unwrap_or_default()),
+        ModelLayout::WhisperCpp { model } => ("whisper_cpp", serde_json::json!({ "model": model })),
+        ModelLayout::Mlx { kind } => ("mlx", serde_json::json!({ "kind": kind })),
+    };
+    manifest[key] = value;
 }
 
 /// Deletes a model installed from Hugging Face: its files, its manifest and

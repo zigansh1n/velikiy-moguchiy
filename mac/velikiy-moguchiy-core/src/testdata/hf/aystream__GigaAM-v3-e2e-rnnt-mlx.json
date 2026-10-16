@@ -1,0 +1,62 @@
+{
+ "files": {
+  "config.json": "{\n  \"model_type\": \"gigaam\",\n  \"model_variant\": \"v3_e2e_ctc\",\n  \"framework\": \"mlx\",\n  \"encoder\": {\n    \"feat_in\": 64,\n    \"n_layers\": 16,\n    \"d_model\": 768,\n    \"n_heads\": 16,\n    \"ff_expansion_factor\": 4,\n    \"conv_kernel_size\": 5,\n    \"subs_kernel_size\": 5,\n    \"subsampling\": \"conv1d\",\n    \"subsampling_factor\": 4,\n    \"self_attention_model\": \"rotary\",\n    \"rope_base\": 5000\n  },\n  \"head\": {\n    \"type\": \"ctc\",\n    \"num_classes\": 257\n  },\n  \"preprocessor\": {\n    \"sample_rate\": 16000,\n    \"n_mels\": 64,\n    \"hop_length\": 160,\n    \"win_length\": 320,\n    \"n_fft\": 320,\n    \"center\": false\n  },\n  \"tokenizer\": \"tokenizer.model\",\n  \"total_parameters\": 220879361\n}\n"
+ },
+ "info": {
+  "cardData": {
+   "language": [
+    "ru",
+    "en"
+   ],
+   "license": "mit",
+   "pipeline_tag": "automatic-speech-recognition"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "aystream/GigaAM-v3-e2e-rnnt-mlx",
+  "library_name": "mlx",
+  "pipeline_tag": "automatic-speech-recognition",
+  "private": false,
+  "sha": "decfca492069ea30fb5ead79c4516d50c16d93ea",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "f41139541765981c9605b8599c6ba38982524e8a",
+    "rfilename": "README.md",
+    "size": 1371
+   },
+   {
+    "blobId": "f29a5e51eb927b20cf6963e8168f8fe53fd87c4a",
+    "rfilename": "config.json",
+    "size": 663
+   },
+   {
+    "blobId": "49739e92d267c28f71ac343cb5affe2f9cedf162",
+    "lfs": {
+     "sha256": "828c12c991019eef952a960661f25a92d6ad279591e2ea466b4aeddf1d20a18a",
+     "size": 255336
+    },
+    "rfilename": "tokenizer.model",
+    "size": 255336
+   },
+   {
+    "blobId": "6362d465161901d4f9bd4c5520a062fb6038def5",
+    "lfs": {
+     "sha256": "bbd1074b2466baf1a301b7a6c8427cea6d21a20d2ce1e173e7e447692619117f",
+     "size": 890094547
+    },
+    "rfilename": "weights.safetensors",
+    "size": 890094547
+   }
+  ],
+  "tags": [
+   "mlx",
+   "license:mit"
+  ]
+ },
+ "metadata": {}
+}

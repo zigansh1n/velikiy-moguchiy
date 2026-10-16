@@ -1,0 +1,1847 @@
+[
+ {
+  "id": "ai-sage/GigaAM-v3",
+  "downloads": 662337,
+  "likes": 192,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "modeling_gigaam.py"
+   },
+   {
+    "rfilename": "pytorch_model.bin"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   }
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
+  "downloads": 70849,
+  "likes": 3,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "ai-sage/GigaAM-Multilingual",
+  "downloads": 42798,
+  "likes": 96,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "modeling_gigaam.py"
+   },
+   {
+    "rfilename": "pytorch_model.bin"
+   }
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-e2e-ctc-gguf",
+  "downloads": 32171,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-rnnt-gguf",
+  "downloads": 16322,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "handy-computer/gigaam-v3-ctc-gguf",
+  "downloads": 12505,
+  "likes": 1,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "istupakov/gigaam-v3-onnx",
+  "downloads": 7052,
+  "likes": 22,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE.txt"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "v3_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "v3_ctc.onnx"
+   },
+   {
+    "rfilename": "v3_ctc.yaml"
+   },
+   {
+    "rfilename": "v3_e2e_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_ctc.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_ctc.yaml"
+   },
+   {
+    "rfilename": "v3_e2e_ctc_vocab.txt"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt.yaml"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_decoder.int8.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_encoder.int8.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_joint.int8.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt_vocab.txt"
+   },
+   {
+    "rfilename": "v3_rnnt.yaml"
+   },
+   {
+    "rfilename": "v3_rnnt_decoder.int8.onnx"
+   },
+   {
+    "rfilename": "v3_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "v3_rnnt_encoder.int8.onnx"
+   },
+   {
+    "rfilename": "v3_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "v3_rnnt_joint.int8.onnx"
+   },
+   {
+    "rfilename": "v3_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "v3_vocab.txt"
+   }
+  ]
+ },
+ {
+  "id": "cstr/gigaam-v3-GGUF",
+  "downloads": 1623,
+  "likes": 6,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "ggml",
+  "gated": false,
+  "tags": [
+   "ggml",
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-f16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-q4_k.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-q8_0.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-f16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-q4_k.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-q8_0.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-f16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-q4_k.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-q8_0.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-f16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-q4_k.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "istupakov/gigaam-v2-onnx",
+  "downloads": 1278,
+  "likes": 8,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "v2_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "v2_ctc.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_decoder.int8.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_encoder.int8.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_joint.int8.onnx"
+   },
+   {
+    "rfilename": "v2_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "v2_vocab.txt"
+   }
+  ]
+ },
+ {
+  "id": "vpermilp/GigaAM-v3",
+  "downloads": 1072,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   }
+  ]
+ },
+ {
+  "id": "por62/GigaAM-v3-e2e-rnnt-vllm",
+  "downloads": 635,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "modeling_gigaam.py"
+   },
+   {
+    "rfilename": "tokenizer.json"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   },
+   {
+    "rfilename": "tokenizer_config.json"
+   }
+  ]
+ },
+ {
+  "id": "istupakov/gigaam-multilingual-ctc-onnx",
+  "downloads": 377,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "multilingual_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "multilingual_ctc.onnx"
+   },
+   {
+    "rfilename": "multilingual_ctc.yaml"
+   },
+   {
+    "rfilename": "multilingual_vocab.txt"
+   }
+  ]
+ },
+ {
+  "id": "istupakov/gigaam-multilingual-large-ctc-onnx",
+  "downloads": 360,
+  "likes": 4,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "multilingual_large_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "multilingual_large_ctc.onnx"
+   },
+   {
+    "rfilename": "multilingual_large_ctc.onnx.data"
+   },
+   {
+    "rfilename": "multilingual_large_ctc.yaml"
+   },
+   {
+    "rfilename": "multilingual_vocab.txt"
+   }
+  ]
+ },
+ {
+  "id": "al-bo/gigaam-v3-rnnt-mlx",
+  "downloads": 290,
+  "likes": 3,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "smkrv/gigaam-v3-e2e-rnnt-coreml",
+  "downloads": 206,
+  "likes": 1,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "GigaAMv3DecoderStep.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+   },
+   {
+    "rfilename": "GigaAMv3DecoderStep.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+   },
+   {
+    "rfilename": "GigaAMv3DecoderStep.mlpackage/Manifest.json"
+   },
+   {
+    "rfilename": "GigaAMv3Encoder.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+   },
+   {
+    "rfilename": "GigaAMv3Encoder.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+   },
+   {
+    "rfilename": "GigaAMv3Encoder.mlpackage/Manifest.json"
+   },
+   {
+    "rfilename": "GigaAMv3JointStep.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+   },
+   {
+    "rfilename": "GigaAMv3JointStep.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+   },
+   {
+    "rfilename": "GigaAMv3JointStep.mlpackage/Manifest.json"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "convert_info.json"
+   },
+   {
+    "rfilename": "example_infer.py"
+   },
+   {
+    "rfilename": "model_info.json"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   },
+   {
+    "rfilename": "tokens.json"
+   },
+   {
+    "rfilename": "v3_e2e_rnnt.yaml"
+   }
+  ]
+ },
+ {
+  "id": "aystream/GigaAM-v3-e2e-rnnt-mlx",
+  "downloads": 181,
+  "likes": 1,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   },
+   {
+    "rfilename": "weights.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "epapanita/gigaam-v3-e2e-ctc-gguf",
+  "downloads": 149,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "waveletdeboshir/gigaam-ctc",
+  "downloads": 143,
+  "likes": 10,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transformers",
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "added_tokens.json"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "encoder.py"
+   },
+   {
+    "rfilename": "gigaam_transformers.py"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "preprocessor_config.json"
+   },
+   {
+    "rfilename": "pytorch_model.bin"
+   },
+   {
+    "rfilename": "special_tokens_map.json"
+   },
+   {
+    "rfilename": "tokenizer_config.json"
+   },
+   {
+    "rfilename": "vocab.json"
+   }
+  ]
+ },
+ {
+  "id": "epapanita/gigaam-v3-e2e-rnnt-gguf",
+  "downloads": 121,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "epapanita/gigaam-v3-ctc-gguf",
+  "downloads": 113,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "loom-ai-org/gigaam-v3-rnnt-loom",
+  "downloads": 111,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "loom-py-rt",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt.gguf"
+   }
+  ]
+ },
+ {
+  "id": "inhum/gigaam-v3-coreml",
+  "downloads": 104,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-melfb.f32"
+   },
+   {
+    "rfilename": "gigaam-vocab.txt"
+   },
+   {
+    "rfilename": "gigaam-window.f32"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e.mlpackage/Data/com.apple.CoreML/model.mlmodel"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e.mlpackage/Data/com.apple.CoreML/weights/weight.bin"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e.mlpackage/Manifest.json"
+   }
+  ]
+ },
+ {
+  "id": "aystream/GigaAM-v3-e2e-ctc-mlx",
+  "downloads": 102,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   },
+   {
+    "rfilename": "weights.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "ai-babai/gigaam-multilingual-mlx-int8-g64",
+  "downloads": 90,
+  "likes": 1,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "gigaam-multilingual-mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "THIRD_PARTY_NOTICES.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "manifest.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "epapanita/gigaam-v3-rnnt-gguf",
+  "downloads": 78,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-F16.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-F32.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q4_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q5_K_M.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q6_K.gguf"
+   },
+   {
+    "rfilename": "gigaam-v3-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "ai-babai/gigaam-multilingual-mlx",
+  "downloads": 75,
+  "likes": 2,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "gigaam-multilingual-mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "THIRD_PARTY_NOTICES.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "manifest.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "globalizator/gzwhisper-gigaam-multilingual-onnx-int8",
+  "downloads": 70,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "NOTICE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "SOURCE_MODEL_CARD.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "frontend.onnx"
+   },
+   {
+    "rfilename": "model.onnx"
+   },
+   {
+    "rfilename": "vocabulary.json"
+   }
+  ]
+ },
+ {
+  "id": "al-bo/gigaam-v3-e2e-rnnt-mlx",
+  "downloads": 66,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   }
+  ]
+ },
+ {
+  "id": "waveletdeboshir/gigaam-v3-ctc-with-lm",
+  "downloads": 63,
+  "likes": 3,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transformers",
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "added_tokens.json"
+   },
+   {
+    "rfilename": "alphabet.json"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "encoder.py"
+   },
+   {
+    "rfilename": "gigaam_transformers.py"
+   },
+   {
+    "rfilename": "language_model/attrs.json"
+   },
+   {
+    "rfilename": "language_model/ru_3gram.bin"
+   },
+   {
+    "rfilename": "language_model/unigrams.txt"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "preprocessor_config.json"
+   },
+   {
+    "rfilename": "pytorch_model.bin"
+   },
+   {
+    "rfilename": "special_tokens_map.json"
+   },
+   {
+    "rfilename": "tokenizer_config.json"
+   },
+   {
+    "rfilename": "vocab.json"
+   }
+  ]
+ },
+ {
+  "id": "Smirnov75/GigaAM-v3-sherpa-onnx",
+  "downloads": 59,
+  "likes": 2,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "VoiceScribe/gigaam-v3-e2e-rnnt-mlx",
+  "downloads": 48,
+  "likes": 2,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "UPSTREAM_SOURCE.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "tokenizer.model"
+   },
+   {
+    "rfilename": "weights.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "waveletdeboshir/gigaam-ctc-with-lm",
+  "downloads": 46,
+  "likes": 9,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transformers",
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "added_tokens.json"
+   },
+   {
+    "rfilename": "alphabet.json"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "encoder.py"
+   },
+   {
+    "rfilename": "gigaam_transformers.py"
+   },
+   {
+    "rfilename": "language_model/attrs.json"
+   },
+   {
+    "rfilename": "language_model/ru_3gram.bin"
+   },
+   {
+    "rfilename": "language_model/unigrams.txt"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "preprocessor_config.json"
+   },
+   {
+    "rfilename": "special_tokens_map.json"
+   },
+   {
+    "rfilename": "tokenizer_config.json"
+   },
+   {
+    "rfilename": "vocab.json"
+   }
+  ]
+ },
+ {
+  "id": "SpectrumDicta/gigaam-v3-e2e-rnnt-gguf",
+  "downloads": 46,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "gguf",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit"
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "al-bo/gigaam-v3-ctc-mlx",
+  "downloads": 38,
+  "likes": 1,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "mlx",
+  "gated": false,
+  "tags": [
+   "mlx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "model.safetensors"
+   }
+  ]
+ },
+ {
+  "id": "myflow-ai/gigaam-v3-ctc-gguf",
+  "downloads": 38,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "waveletdeboshir/gigaam-rnnt",
+  "downloads": 37,
+  "likes": 8,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transformers",
+  "gated": false,
+  "tags": [
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "added_tokens.json"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "encoder.py"
+   },
+   {
+    "rfilename": "gigaam_transformers.py"
+   },
+   {
+    "rfilename": "model.safetensors"
+   },
+   {
+    "rfilename": "preprocessor_config.json"
+   },
+   {
+    "rfilename": "pytorch_model.bin"
+   },
+   {
+    "rfilename": "special_tokens_map.json"
+   },
+   {
+    "rfilename": "tokenizer_config.json"
+   },
+   {
+    "rfilename": "vocab.json"
+   }
+  ]
+ },
+ {
+  "id": "voicetide/gigaam-v3-e2e-rnnt-gguf",
+  "downloads": 31,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-rnnt-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "memoravox/gigaam-v3-e2e-ctc-gguf",
+  "downloads": 28,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "transcribe.cpp",
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-e2e-ctc-Q8_0.gguf"
+   }
+  ]
+ },
+ {
+  "id": "AigizK/GigaAM-Bashkir-CV25-ONNX",
+  "downloads": 28,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ba"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "benchmark_onnx.py"
+   },
+   {
+    "rfilename": "benchmark_results.json"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "evaluation_results.json"
+   },
+   {
+    "rfilename": "inference_example.py"
+   },
+   {
+    "rfilename": "multilingual_bashkir_ctc.int8.onnx"
+   },
+   {
+    "rfilename": "multilingual_bashkir_ctc.onnx"
+   },
+   {
+    "rfilename": "multilingual_vocab.txt"
+   },
+   {
+    "rfilename": "requirements.txt"
+   }
+  ]
+ },
+ {
+  "id": "voicetide/gigaam-v3-ctc-gguf",
+  "downloads": 28,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "gguf",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "gigaam-v3-ctc-Q8_0.gguf"
+   }
+  ]
+ }
+]

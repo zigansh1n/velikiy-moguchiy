@@ -7,8 +7,11 @@ use std::fs;
 
 use velikiy_moguchiy_asr::{SherpaFamily, SherpaRole};
 
+use super::backend::Backend;
 use super::*;
 use crate::test_http::{Reply, Server};
+
+const ALL_ENGINES: &[&str] = &["sherpa-onnx", "whisper-cpp", "mlx"];
 
 macro_rules! fixture {
     ($name:literal) => {
@@ -74,6 +77,14 @@ fn hub_for(fixture: &str) -> (Server, RepoRef) {
             );
         }
     }
+    if let Some(files) = doc["files"].as_object() {
+        for (path, text) in files {
+            routes.insert(
+                resolve_path(repo_id, sha, path),
+                Reply::Body(text.as_str().unwrap().as_bytes().to_vec()),
+            );
+        }
+    }
     let (owner, name) = repo_id.split_once('/').unwrap();
     let repo = RepoRef {
         owner: owner.into(),
@@ -93,7 +104,13 @@ fn run<T>(future: impl std::future::Future<Output = T>) -> T {
 
 fn inspect_fixture(fixture: &str) -> Inspection {
     let (hub, repo) = hub_for(fixture);
-    run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap()
+    run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        ALL_ENGINES,
+    ))
+    .unwrap()
 }
 
 struct Expect {
@@ -112,7 +129,7 @@ fn check(name: &str, fixture: &str, expect: Expect) -> Inspection {
     let variant = &inspection.variants[0];
     assert_eq!(
         (variant.family, variant.streaming),
-        (expect.family, expect.streaming),
+        (Some(expect.family), expect.streaming),
         "{name}"
     );
     let mut paths: Vec<&str> = variant.files.iter().map(|f| f.path.as_str()).collect();
@@ -125,7 +142,8 @@ fn check(name: &str, fixture: &str, expect: Expect) -> Inspection {
         variant.files.iter().map(|f| f.size).sum::<u64>()
     );
     variant
-        .layout
+        .sherpa_layout()
+        .unwrap()
         .validate()
         .unwrap_or_else(|e| panic!("{name}: {e}"));
     inspection
@@ -209,7 +227,10 @@ fn nemo_transducers_offline_and_streaming() {
     );
     let v = &i.variants[0];
     assert_eq!(v.title, "GigaAM (трансдьюсер)");
-    assert_eq!(v.layout.model_type.as_deref(), Some("nemo_transducer"));
+    assert_eq!(
+        v.sherpa_layout().unwrap().model_type.as_deref(),
+        Some("nemo_transducer")
+    );
     assert_eq!(i.languages.codes, vec!["ru"]);
     assert_eq!(
         i.license.link.as_deref(),
@@ -231,7 +252,10 @@ fn nemo_transducers_offline_and_streaming() {
         },
     );
     assert_eq!(i.variants[0].title, "Parakeet (NeMo-трансдьюсер)");
-    assert_eq!(i.variants[0].layout.feature_dim, Some(128));
+    assert_eq!(
+        i.variants[0].sherpa_layout().unwrap().feature_dim,
+        Some(128)
+    );
 
     check(
         "parakeet fp32 with external weights",
@@ -263,7 +287,7 @@ fn nemo_transducers_offline_and_streaming() {
             ],
         },
     );
-    assert!(i.variants[0].layout.model_type.is_none());
+    assert!(i.variants[0].sherpa_layout().unwrap().model_type.is_none());
 }
 
 #[test]
@@ -336,8 +360,18 @@ fn ctc_models_of_every_kind() {
         let i = inspect_fixture(fixture);
         assert!(i.problem.is_none(), "{name}: {:?}", i.problem);
         let v = &i.variants[0];
-        assert_eq!((v.family, v.streaming), (*family, *streaming), "{name}");
-        assert!(v.layout.files.contains_key(&SherpaRole::Model), "{name}");
+        assert_eq!(
+            (v.family, v.streaming),
+            (Some(*family), *streaming),
+            "{name}"
+        );
+        assert!(
+            v.sherpa_layout()
+                .unwrap()
+                .files
+                .contains_key(&SherpaRole::Model),
+            "{name}"
+        );
         assert!(
             v.files.iter().all(|f| !f.path.ends_with(".model")),
             "{name}: a bpe model is not needed"
@@ -347,7 +381,10 @@ fn ctc_models_of_every_kind() {
     let t_one = inspect_fixture(fixture!(
         "csukuangfj__sherpa-onnx-streaming-t-one-russian-2025-09-08"
     ));
-    assert_eq!(t_one.variants[0].layout.sample_rate, Some(8000));
+    assert_eq!(
+        t_one.variants[0].sherpa_layout().unwrap().sample_rate,
+        Some(8000)
+    );
     assert_eq!(t_one.languages.codes, vec!["ru"]);
     let medasr = inspect_fixture(fixture!(
         "csukuangfj__sherpa-onnx-medasr-ctc-en-int8-2025-12-25"
@@ -359,7 +396,10 @@ fn ctc_models_of_every_kind() {
         .any(|w| w.contains("особая лицензия")));
     assert!(medasr.warnings.iter().any(|w| w.contains("Русского языка")));
     let v2 = inspect_fixture(fixture!("Alexanrd__GigaAMv2_CTC_RU_ASR_for_sherpa_onnx"));
-    assert_eq!(v2.variants[0].layout.feature_dim, Some(64));
+    assert_eq!(
+        v2.variants[0].sherpa_layout().unwrap().feature_dim,
+        Some(64)
+    );
 }
 
 #[test]
@@ -434,7 +474,10 @@ fn encoder_decoder_models() {
             files: &["decoder.int8.onnx", "encoder.int8.onnx", "tokens.txt"],
         },
     );
-    assert_eq!(canary.variants[0].layout.feature_dim, Some(128));
+    assert_eq!(
+        canary.variants[0].sherpa_layout().unwrap().feature_dim,
+        Some(128)
+    );
     check(
         "streaming paraformer",
         fixture!("csukuangfj__sherpa-onnx-streaming-paraformer-bilingual-zh-en"),
@@ -533,13 +576,13 @@ fn a_repository_with_several_models_offers_each_with_punctuation_first() {
         ]
     );
     let first = &i.variants[0];
-    assert_eq!(first.family, SherpaFamily::NemoTransducer);
+    assert_eq!(first.family, Some(SherpaFamily::NemoTransducer));
     let files: Vec<&str> = first.files.iter().map(|f| f.path.as_str()).collect();
     assert!(files.contains(&"gigaam_v3_e2e_rnnt_encoder_int8.onnx"));
     assert!(files.contains(&"gigaam_v3_e2e_rnnt_joint.onnx"));
     assert!(files.contains(&"gigaam_v3_e2e_rnnt_tokens.txt"));
     assert!(!files.iter().any(|f| f.contains("_ctc")));
-    assert_eq!(i.variants[3].family, SherpaFamily::NemoCtc);
+    assert_eq!(i.variants[3].family, Some(SherpaFamily::NemoCtc));
     assert_eq!(
         model_rel_path(&i, first),
         "hf/BahamutRU/GigaAM-v3-sherpa-onnx@b2176bb2acab-gigaam_v3_e2e_rnnt"
@@ -631,7 +674,13 @@ fn alternatives_are_suggested_for_an_unsupported_repository() {
     );
     let hub = Server::start(routes);
     let repo = repo::parse_repo_input("nvidia/parakeet-tdt-0.6b-v3", "").unwrap();
-    let i = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    let i = run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     assert_eq!(
         i.alternatives,
         vec!["csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"]
@@ -654,7 +703,7 @@ fn api_errors_become_plain_messages() {
     let client = http_client().unwrap();
     let ask = |input: &str, rev: &str| {
         let repo = repo::parse_repo_input(input, rev).unwrap();
-        run(inspect(&client, &hub.base, &repo)).unwrap_err()
+        run(inspect_with(&client, &hub.base, &repo, ALL_ENGINES)).unwrap_err()
     };
     assert!(ask("a/missing", "").contains("не найден или закрыт"));
     assert!(ask("a/model", "nope").contains("«nope»"));
@@ -666,7 +715,13 @@ fn metadata_comes_from_a_range_request_not_the_whole_file() {
     let (hub, repo) = hub_for(fixture!(
         "csukuangfj__sherpa-onnx-streaming-t-one-russian-2025-09-08"
     ));
-    run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     let model = hub
         .requests()
         .into_iter()
@@ -694,7 +749,13 @@ fn a_server_that_ignores_ranges_is_not_asked_for_gigabytes() {
     );
     let hub = Server::start(routes);
     let repo = repo::parse_repo_input(repo_id, "").unwrap();
-    let i = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    let i = run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     let problem = i.problem.unwrap();
     assert_eq!(problem.code, "unreadable");
     assert!(problem.message.contains("целиком"), "{}", problem.message);
@@ -734,7 +795,13 @@ fn one_unreadable_variant_does_not_hide_the_others() {
     }
     let hub = Server::start(routes);
     let repo = repo::parse_repo_input(repo_id, "").unwrap();
-    let i = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    let i = run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     let labels: Vec<&str> = i.variants.iter().map(|v| v.label.as_str()).collect();
     assert_eq!(labels, vec!["gigaam_v3_e2e_rnnt", "gigaam_v3_rnnt"]);
     assert_eq!(
@@ -840,7 +907,13 @@ fn temp_models_root(tag: &str) -> PathBuf {
 fn install_download_and_remove_a_user_model() {
     let tiny = tiny_repo(false);
     let client = http_client().unwrap();
-    let inspection = run(inspect(&client, &tiny.hub.base, &tiny.repo)).unwrap();
+    let inspection = run(inspect_with(
+        &client,
+        &tiny.hub.base,
+        &tiny.repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     assert_eq!(inspection.variants.len(), 1);
     assert_eq!(inspection.license.id.as_deref(), Some("mit"));
     assert!(inspection.warnings.is_empty(), "{:?}", inspection.warnings);
@@ -871,8 +944,8 @@ fn install_download_and_remove_a_user_model() {
 
     // The manifest reads back as the layout, the source and the file list.
     assert_eq!(
-        crate::model_manager::sherpa_layout(&dir).unwrap(),
-        variant.layout
+        &crate::model_manager::sherpa_layout(&dir).unwrap(),
+        variant.sherpa_layout().unwrap()
     );
     let source = crate::model_manager::hf_source(&dir).unwrap();
     assert_eq!(source["sha"], TINY_SHA);
@@ -932,7 +1005,13 @@ fn install_download_and_remove_a_user_model() {
 fn a_git_file_that_does_not_match_its_blob_id_stops_the_install() {
     let tiny = tiny_repo(true);
     let client = http_client().unwrap();
-    let inspection = run(inspect(&client, &tiny.hub.base, &tiny.repo)).unwrap();
+    let inspection = run(inspect_with(
+        &client,
+        &tiny.hub.base,
+        &tiny.repo,
+        ALL_ENGINES,
+    ))
+    .unwrap();
     let root = temp_models_root("tampered");
     let err = run(prepare_install(
         &client,
@@ -987,4 +1066,231 @@ fn git_blob_ids_match_git() {
         git_blob_sha1(b""),
         "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
     );
+}
+
+fn inspect_fixture_with(fixture: &str, compiled: &[&str]) -> Inspection {
+    let (hub, repo) = hub_for(fixture);
+    run(inspect_with(
+        &http_client().unwrap(),
+        &hub.base,
+        &repo,
+        compiled,
+    ))
+    .unwrap()
+}
+
+const RELEASE_ENGINES: &[&str] = &["sherpa-onnx", "whisper-cpp", "apple-speech"];
+
+#[test]
+fn whisper_cpp_repository_offers_every_size_turbo_first() {
+    let i = inspect_fixture_with(fixture!("ggerganov__whisper.cpp"), RELEASE_ENGINES);
+    assert!(i.problem.is_none(), "{:?}", i.problem);
+    let first = &i.variants[0];
+    assert_eq!(first.backend, Backend::WhisperCpp);
+    assert_eq!(first.label, "large-v3-turbo-q5_0");
+    assert_eq!(first.total_size, 574_041_195);
+    assert_eq!(first.files.len(), 1);
+    assert!(first.engine_ready);
+    assert!(i.variants.iter().all(|v| v.backend == Backend::WhisperCpp));
+    assert!(!i.variants.iter().any(|v| v.id.contains("mlmodelc")));
+    assert_eq!(i.variants.len(), 33);
+    assert!(i.variants.last().unwrap().label.contains(".en"));
+    assert_eq!(i.languages.has_russian, Some(true));
+    assert_eq!(i.license.id.as_deref(), Some("mit"));
+    assert!(i.warnings.is_empty(), "{:?}", i.warnings);
+}
+
+#[test]
+fn mlx_models_are_recognized_with_what_is_missing() {
+    let gigaam = inspect_fixture_with(fixture!("aystream__GigaAM-v3-e2e-rnnt-mlx"), ALL_ENGINES);
+    let v = &gigaam.variants[0];
+    assert_eq!(
+        (v.backend, v.title.as_str(), v.engine_ready),
+        (Backend::Mlx, "GigaAM (MLX)", false)
+    );
+    assert!(v
+        .engine_note
+        .as_deref()
+        .unwrap()
+        .contains("только Qwen3-ASR"));
+    assert_eq!(gigaam.languages.has_russian, Some(true));
+
+    let qwen = inspect_fixture_with(fixture!("mlx-community__Qwen3-ASR-0.6B-4bit"), ALL_ENGINES);
+    assert!(qwen.variants[0].engine_ready);
+    let qwen = inspect_fixture_with(
+        fixture!("mlx-community__Qwen3-ASR-0.6B-4bit"),
+        RELEASE_ENGINES,
+    );
+    let note = qwen.variants[0].engine_note.clone().unwrap();
+    assert!(note.contains("Xcode"), "{note}");
+
+    let whisper = inspect_fixture_with(
+        fixture!("mlx-community__whisper-large-v3-turbo"),
+        ALL_ENGINES,
+    );
+    assert_eq!(whisper.variants[0].title, "Whisper (MLX)");
+    assert!(!whisper.variants[0].engine_ready);
+
+    let llm = inspect_fixture_with(fixture!("mlx-community__Qwen3-0.6B-4bit"), ALL_ENGINES);
+    assert!(llm.variants.is_empty());
+    assert_eq!(llm.problem.unwrap().code, "not_asr");
+}
+
+#[test]
+fn formats_without_an_engine_are_named() {
+    let ct2 = inspect_fixture_with(
+        fixture!("deepdml__faster-whisper-large-v3-turbo-ct2"),
+        ALL_ENGINES,
+    );
+    let p = ct2.problem.unwrap();
+    assert_eq!(p.code, "faster_whisper");
+    assert!(p.message.contains("faster-whisper"));
+    let gguf = inspect_fixture_with(
+        fixture!("handy-computer__whisper-large-v3-turbo-gguf"),
+        ALL_ENGINES,
+    );
+    assert_eq!(gguf.problem.unwrap().code, "gguf");
+}
+
+#[test]
+fn a_non_commercial_licence_file_is_a_warning() {
+    let i = inspect_fixture(fixture!(
+        "csukuangfj__sherpa-onnx-nemo-ctc-giga-am-russian-2024-10-24"
+    ));
+    assert_eq!(i.license.kind, card::LicenseKind::NonCommercial);
+    assert!(
+        i.warnings.iter().any(|w| w.contains("коммерческое")),
+        "{:?}",
+        i.warnings
+    );
+}
+
+#[test]
+fn a_whisper_cpp_model_installs_with_its_engine_section() {
+    let model = noise(4096, 9);
+    let repo_id = "tester/whisper-ggml";
+    let info = serde_json::json!({"id": repo_id, "sha": TINY_SHA, "cardData": {"license": "mit"},
+    "siblings": [
+        {"rfilename": "ggml-tiny-q5_1.bin", "size": model.len(),
+         "lfs": {"sha256": sha256_hex(&model), "size": model.len()}},
+        {"rfilename": "README.md", "size": 3, "blobId": git_blob_sha1(b"hi\n")},
+    ]});
+    let mut routes = HashMap::new();
+    routes.insert(
+        api_path(repo_id, "main"),
+        Reply::Body(info.to_string().into_bytes()),
+    );
+    routes.insert(
+        resolve_path(repo_id, TINY_SHA, "ggml-tiny-q5_1.bin"),
+        Reply::Body(model.clone()),
+    );
+    let hub = Server::start(routes);
+    let client = http_client().unwrap();
+    let repo = repo::parse_repo_input(repo_id, "").unwrap();
+    let i = run(inspect_with(&client, &hub.base, &repo, ALL_ENGINES)).unwrap();
+    let root = temp_models_root("whisper-cpp");
+    let rel = run(prepare_install(
+        &client,
+        &hub.base,
+        &root,
+        &i,
+        &i.variants[0].id,
+    ))
+    .unwrap();
+    let dir = root.join(&rel);
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap()).unwrap();
+    assert_eq!(manifest["provider"], "whisper-cpp");
+    assert_eq!(manifest["whisper_cpp"]["model"], "ggml-tiny-q5_1.bin");
+    assert!(manifest.get("sherpa").is_none());
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(crate::model_manager::download_model(
+            &dir,
+            |_| {},
+            crate::model_manager::CancellationToken::new(),
+        ))
+        .unwrap();
+    assert_eq!(fs::read(dir.join("ggml-tiny-q5_1.bin")).unwrap(), model);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_variant_this_build_cannot_run_is_not_installed() {
+    let i = inspect_fixture_with(fixture!("aystream__GigaAM-v3-e2e-rnnt-mlx"), ALL_ENGINES);
+    let root = temp_models_root("mlx-refused");
+    let err = run(prepare_install(
+        &http_client().unwrap(),
+        "http://127.0.0.1:9",
+        &root,
+        &i,
+        "mlx",
+    ))
+    .unwrap_err();
+    assert!(err.contains("Qwen3-ASR"), "{err}");
+    assert!(!root.join("hf").exists());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn recommended_repositories_install_the_variant_and_size_the_list_promises() {
+    let fixtures: &[(&str, &str)] = &[
+        ("ggerganov/whisper.cpp", fixture!("ggerganov__whisper.cpp")),
+        (
+            "csukuangfj/sherpa-onnx-nemo-ctc-punct-giga-am-v3-russian-2025-12-16",
+            fixture!("csukuangfj__sherpa-onnx-nemo-ctc-punct-giga-am-v3-russian-2025-12-16"),
+        ),
+        (
+            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+            fixture!("csukuangfj__sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"),
+        ),
+        (
+            "csukuangfj/sherpa-onnx-streaming-t-one-russian-2025-09-08",
+            fixture!("csukuangfj__sherpa-onnx-streaming-t-one-russian-2025-09-08"),
+        ),
+        (
+            "alphacep/vosk-model-ru",
+            fixture!("alphacep__vosk-model-ru"),
+        ),
+    ];
+    let entries = catalog::recommended();
+    let from_hub: Vec<&catalog::Recommended> =
+        entries.iter().filter(|e| e.repo.is_some()).collect();
+    assert_eq!(
+        from_hub.len(),
+        fixtures.len(),
+        "every repository in the list has a fixture"
+    );
+    for entry in from_hub {
+        let repo = entry.repo.as_deref().unwrap();
+        let fixture = fixtures.iter().find(|(r, _)| *r == repo).unwrap().1;
+        let doc: serde_json::Value = serde_json::from_str(fixture).unwrap();
+        assert_eq!(
+            doc["info"]["sha"],
+            entry.revision.as_deref().unwrap(),
+            "{}",
+            entry.id
+        );
+        let (hub, mut repo_ref) = hub_for(fixture);
+        repo_ref.revision = "main".into();
+        let i = run(inspect_with(
+            &http_client().unwrap(),
+            &hub.base,
+            &repo_ref,
+            RELEASE_ENGINES,
+        ))
+        .unwrap();
+        let variant = match &entry.variant {
+            Some(wanted) => i
+                .variants
+                .iter()
+                .find(|v| &v.id == wanted || &v.label == wanted),
+            None => i.variants.first(),
+        }
+        .unwrap_or_else(|| panic!("{}: no such variant", entry.id));
+        assert_eq!(variant.backend, entry.engine, "{}", entry.id);
+        assert_eq!(variant.total_size, entry.size, "{}", entry.id);
+        assert_eq!(variant.streaming, entry.streaming, "{}", entry.id);
+        assert!(variant.engine_ready, "{}", entry.id);
+    }
 }

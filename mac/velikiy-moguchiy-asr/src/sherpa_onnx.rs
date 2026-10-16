@@ -26,6 +26,9 @@ pub struct SherpaOnnxConfig {
     /// The model's recorded layout; `None` for the built-in transducers,
     /// whose files are found by name.
     pub layout: Option<SherpaLayout>,
+    /// Whether the layout's files may be links out of `model_dir`, as in the
+    /// Hugging Face cache. Only for a folder the user added themselves.
+    pub follow_links: bool,
 }
 
 enum SherpaCmd {
@@ -71,6 +74,7 @@ impl crate::provider::AsrProvider for SherpaOnnxProvider {
         }
 
         let layout = match &self.config.layout {
+            Some(layout) if self.config.follow_links => layout.resolve_following_links(model_dir),
             Some(layout) => layout.resolve(model_dir),
             None => {
                 ResolvedLayout::legacy_transducer(model_dir, self.config.offline_model_type.clone())

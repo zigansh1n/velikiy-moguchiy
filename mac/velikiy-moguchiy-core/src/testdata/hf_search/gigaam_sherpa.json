@@ -1,0 +1,414 @@
+[
+ {
+  "id": "Smirnov75/GigaAM-v3-sherpa-onnx",
+  "downloads": 59,
+  "likes": 2,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "Alexanrd/GigaAMv2_CTC_RU_ASR_for_sherpa_onnx",
+  "downloads": 13,
+  "likes": 1,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit"
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "GigaAMv2_ctc_public.onnx"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "example.py"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "BahamutRU/GigaAM-v3-sherpa-onnx",
+  "downloads": 12,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_ctc_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_e2e_rnnt_tokens.txt"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_decoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_encoder_int8.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_joint.onnx"
+   },
+   {
+    "rfilename": "gigaam_v3_rnnt_tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "Alexxerm/gigaam-v3-e2e-rnnt-sherpa-onnx",
+  "downloads": 10,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "sherpa-onnx",
+  "gated": false,
+  "tags": [
+   "sherpa-onnx",
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.yaml"
+   },
+   {
+    "rfilename": "decoder.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "joiner.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "Alexanrd/GigaAMv2_RNNT_RU_ASR_for_sherpa_onnx",
+  "downloads": 7,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "config.json"
+   },
+   {
+    "rfilename": "decoder.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "encoder.onnx"
+   },
+   {
+    "rfilename": "joiner.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "fussraider/GigaAM-Multilingual-sherpa-onnx-ctc",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "sherpa-onnx",
+  "gated": false,
+  "tags": [
+   "sherpa-onnx",
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "ru",
+    "en",
+    "kk",
+    "ky",
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "export-onnx-ctc-multilingual.py"
+   },
+   {
+    "rfilename": "large/model.int8.onnx"
+   },
+   {
+    "rfilename": "large/model.onnx"
+   },
+   {
+    "rfilename": "large/model.onnx.data"
+   },
+   {
+    "rfilename": "large/multilingual_large_ctc.yaml"
+   },
+   {
+    "rfilename": "large/tokens.txt"
+   },
+   {
+    "rfilename": "model.int8.onnx"
+   },
+   {
+    "rfilename": "model.onnx"
+   },
+   {
+    "rfilename": "multilingual_ctc.yaml"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "iaa2005/GigaAM-Multilingual-sherpa-onnx-ctc",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit"
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "LICENSE"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "large/model.int8.onnx"
+   },
+   {
+    "rfilename": "large/tokens.txt"
+   },
+   {
+    "rfilename": "model.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "Alex13/sherpa-onnx-gigaam-uzbek-600m",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "sherpa-onnx",
+  "gated": false,
+  "tags": [
+   "sherpa-onnx",
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "uz"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "model.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ }
+]

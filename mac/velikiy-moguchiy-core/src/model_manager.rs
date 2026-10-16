@@ -196,13 +196,16 @@ pub fn supported_providers() -> &'static [&'static str] {
 
 /// Scan ~/.velikiy-moguchiy/models/**/.koe-manifest.json and return all discovered models.
 pub fn scan_models() -> Vec<DiscoveredModel> {
-    let dir = models_dir();
+    scan_models_in(&models_dir())
+}
+
+/// Every manifest under `dir`.
+pub fn scan_models_in(dir: &Path) -> Vec<DiscoveredModel> {
     if !dir.exists() {
         return Vec::new();
     }
-
     let mut models = Vec::new();
-    scan_dir_recursive(&dir, &mut models);
+    scan_dir_recursive(dir, &mut models);
     models
 }
 
@@ -275,8 +278,45 @@ pub fn sherpa_layout(model_dir: &Path) -> Option<velikiy_moguchiy_asr::SherpaLay
 /// The `huggingface` section of a user model's manifest: repository,
 /// commit, licence and languages.
 pub fn hf_source(model_dir: &Path) -> Option<serde_json::Value> {
+    manifest_section(model_dir, "huggingface")
+}
+
+/// A top-level object of a model's manifest.
+pub fn manifest_section(model_dir: &Path, key: &str) -> Option<serde_json::Value> {
     let manifest: serde_json::Value = serde_json::from_str(&read_manifest_text(model_dir)?).ok()?;
-    manifest.get("huggingface").filter(|v| v.is_object()).cloned()
+    manifest.get(key).filter(|v| v.is_object()).cloned()
+}
+
+/// Where a model added from elsewhere on the Mac lives, from the `external`
+/// section of its manifest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternalSource {
+    pub location: PathBuf,
+    pub variant: String,
+}
+
+pub fn external_source(model_dir: &Path) -> Option<ExternalSource> {
+    let section = manifest_section(model_dir, "external")?;
+    let location = PathBuf::from(section.get("location")?.as_str()?);
+    if !location.is_absolute() {
+        return None;
+    }
+    Some(ExternalSource {
+        location,
+        variant: section
+            .get("variant")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+    })
+}
+
+/// The folder an engine reads a model's files from: where an added model
+/// lives, else the model's own folder.
+pub fn files_dir(model_dir: &Path) -> PathBuf {
+    external_source(model_dir)
+        .map(|e| e.location)
+        .unwrap_or_else(|| model_dir.to_path_buf())
 }
 
 fn read_manifest_text(model_dir: &Path) -> Option<String> {
@@ -327,6 +367,13 @@ pub fn model_status(model_dir: &Path, mode: VerifyMode) -> ModelStatus {
         None => return ModelStatus::NotInstalled,
     };
 
+    if let Some(external) = external_source(model_dir) {
+        return if external.location.is_dir() {
+            ModelStatus::Installed
+        } else {
+            ModelStatus::NotInstalled
+        };
+    }
     if model.manifest.files.is_empty() {
         return ModelStatus::Installed;
     }

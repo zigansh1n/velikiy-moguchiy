@@ -172,14 +172,16 @@ pub fn create_asr_provider(
             let model_dir = crate::config::resolve_model_dir(&s.model);
             let offline_model_type = crate::model_manager::sherpa_offline_model_type(&model_dir);
             let layout = crate::model_manager::sherpa_layout(&model_dir);
+            let follow_links = crate::model_manager::external_source(&model_dir).is_some();
             let sherpa_config = SherpaOnnxConfig {
-                model_dir,
+                model_dir: crate::model_manager::files_dir(&model_dir),
                 num_threads: s.num_threads,
                 hotwords: dictionary.to_vec(),
                 hotwords_score: s.hotwords_score,
                 endpoint_silence: s.endpoint_silence,
                 offline_model_type,
                 layout,
+                follow_links,
             };
             (
                 AsrConfig::default(),

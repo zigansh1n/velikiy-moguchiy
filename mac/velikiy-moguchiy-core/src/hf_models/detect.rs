@@ -347,6 +347,17 @@ fn parse_positive(value: Option<&String>) -> Option<i32> {
         .filter(|v| *v > 0)
 }
 
+/// Whether the candidate's files form a model of some family, before its
+/// metadata says which.
+pub fn shape_is_complete(candidate: &Candidate) -> bool {
+    use SherpaRole::*;
+    let has = |role| candidate.roles.contains_key(&role);
+    let moonshine = has(Preprocessor) && has(Encoder) && has(UncachedDecoder) && has(CachedDecoder);
+    let encoder_decoder = has(Encoder) && has(Decoder);
+    let single = has(Model) && !has(Encoder) && !has(Decoder);
+    has(Tokens) && (moonshine || encoder_decoder || single)
+}
+
 /// Decides what `candidate` is from the metadata of its main file.
 pub fn classify(
     candidate: &Candidate,

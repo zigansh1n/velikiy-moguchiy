@@ -1,0 +1,354 @@
+[
+ {
+  "id": "csukuangfj/sherpa-onnx-whisper-turbo",
+  "downloads": 0,
+  "likes": 1,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx"
+  ],
+  "cardData": {},
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "turbo-decoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-decoder.onnx"
+   },
+   {
+    "rfilename": "turbo-encoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-encoder.onnx"
+   },
+   {
+    "rfilename": "turbo-encoder.weights"
+   },
+   {
+    "rfilename": "turbo-tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "csukuangfj/sherpa-whisper-turbo",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [],
+  "cardData": {},
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "model.pt"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "pantinor/sherpa-onnx-whisper-turbo",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx"
+  ],
+  "cardData": {},
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "turbo-decoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-encoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "MolyProduction/whisper-large-v3-turbo-german-sherpa-onnx",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "de"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "large-v3-turbo-decoder.int8.onnx"
+   },
+   {
+    "rfilename": "large-v3-turbo-encoder.int8.onnx"
+   },
+   {
+    "rfilename": "large-v3-turbo-tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "dmouayad/sherpa-onnx-whisper-large-v3-turbo-arabic-dialectal-v2",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:apache-2.0"
+  ],
+  "cardData": {
+   "license": "apache-2.0",
+   "language": "ar"
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "decoder.int8.onnx"
+   },
+   {
+    "rfilename": "decoder.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "ShiWarai/sherpa-rknn-whisper-turbo",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "multilingual"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "decoder.onnx"
+   },
+   {
+    "rfilename": "encoder.rknn"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "pantinor/whisper-large-v3-turbo-swiss-german-sherpa",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": null,
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "de",
+    "gsw"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "decoder.fp32.onnx"
+   },
+   {
+    "rfilename": "decoder.fp32.onnx.weights"
+   },
+   {
+    "rfilename": "decoder.int8.onnx"
+   },
+   {
+    "rfilename": "decoder.pc-int8.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "pantinor/whisper-large-v3-turbo-german-sherpa",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": null,
+  "gated": false,
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:apache-2.0"
+  ],
+  "cardData": {
+   "license": "apache-2.0",
+   "language": [
+    "de"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "decoder.pc-int8.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "cohearo/sherpa-onnx-whisper-large-v3-turbo-attention-int8",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "sherpa-onnx",
+  "gated": false,
+  "tags": [
+   "sherpa-onnx",
+   "onnx",
+   "license:mit"
+  ],
+  "cardData": {
+   "license": "mit",
+   "language": [
+    "multilingual"
+   ]
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "export/export-onnx-with-attention.py"
+   },
+   {
+    "rfilename": "export/export-onnx.py"
+   },
+   {
+    "rfilename": "turbo-decoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-encoder.int8.onnx"
+   },
+   {
+    "rfilename": "turbo-tokens.txt"
+   }
+  ]
+ },
+ {
+  "id": "pantinor/whisper-large-v3-turbo-hebrew-sherpa",
+  "downloads": 0,
+  "likes": 0,
+  "pipeline_tag": "automatic-speech-recognition",
+  "library_name": "sherpa-onnx",
+  "gated": false,
+  "tags": [
+   "sherpa-onnx",
+   "onnx",
+   "license:apache-2.0"
+  ],
+  "cardData": {
+   "license": "apache-2.0",
+   "language": "he"
+  },
+  "siblings": [
+   {
+    "rfilename": ".gitattributes"
+   },
+   {
+    "rfilename": "README.md"
+   },
+   {
+    "rfilename": "decoder.int8.onnx"
+   },
+   {
+    "rfilename": "encoder.int8.onnx"
+   },
+   {
+    "rfilename": "tokens.txt"
+   }
+  ]
+ }
+]

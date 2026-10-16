@@ -1,0 +1,82 @@
+{
+ "files": {
+  "config.json": "{\n    \"architectures\": [\n        \"Qwen3ASRForConditionalGeneration\"\n    ],\n    \"model_type\": \"qwen3_asr\",\n    \"quantization\": {\n        \"group_size\": 64,\n        \"bits\": 4,\n        \"mode\": \"affine\"\n    },\n    \"quantization_config\": {\n        \"group_size\": 64,\n        \"bits\": 4,\n        \"mode\": \"affine\"\n    },\n    \"support_languages\": [\n        \"Chinese\",\n        \"English\",\n        \"Cantonese\",\n        \"Arabic\",\n        \"German\",\n        \"French\",\n        \"Spanish\",\n        \"Portuguese\",\n        \"Indonesian\",\n        \"Italian\",\n        \"Korean\",\n        \"Russian\",\n        \"Thai\",\n        \"Vietnamese\",\n        \"Japanese\",\n        \"Turkish\",\n        \"Hindi\",\n        \"Malay\",\n        \"Dutch\",\n        \"Swedish\",\n        \"Danish\",\n        \"Finnish\",\n        \"Polish\",\n        \"Czech\",\n        \"Filipino\",\n        \"Persian\",\n        \"Greek\",\n        \"Romanian\",\n        \"Hungarian\",\n        \"Macedonian\"\n    ],\n    \"thinker_config\": {\n        \"model_type\": \"qwen3_asr\",\n        \"architectures\": [\n            \"Qwen3ASRForConditionalGeneration\"\n        ],\n        \"audio_config\": {\n            \"_name_or_path\": \"\",\n            \"activation_dropout\": 0,\n            \"activation_function\": \"gelu\",\n            \"add_cross_attention\": false,\n            \"architectures\": null,\n            \"attention_dropout\": 0,\n            \"bad_words_ids\": null,\n            \"begin_suppress_tokens\": null,\n            \"bos_token_id\": null,\n            \"chunk_size_feed_forward\": 0,\n            \"conv_chunksize\": 500,\n            \"cross_attention_hidden_size\": null,\n            \"d_model\": 896,\n            \"decoder_start_token_id\": null,\n            \"diversity_penalty\": 0.0,\n            \"do_sample\": false,\n            \"downsample_hidden_size\": 480,\n            \"dropout\": 0,\n            \"dtype\": null,\n            \"early_stopping\": false,\n            \"encoder_attention_heads\": 14,\n            \"encoder_ffn_dim\": 3584,\n            \"encoder_layers\": 18,\n            \"encoder_no_repeat_ngram_size\": 0,\n            \"eos_token_id\": null,\n            \"exponential_decay_length_penalty\": null,\n            \"finetuning_task\": null,\n            \"forced_bos_token_id\": null,\n            \"forced_eos_token_id\": null,\n            \"id2label\": {\n                \"0\": \"LABEL_0\",\n                \"1\": \"LABEL_1\"\n            },\n            \"initializer_range\": 0.02,\n            \"is_decoder\": false,\n            \"is_encoder_decoder\": false,\n            \"label2id\": {\n                \"LABEL_0\": 0,\n                \"LABEL_1\": 1\n            },\n            \"length_penalty\": 1.0,\n            \"max_length\": 20,\n            \"max_source_positions\": 1500,\n            \"min_length\": 0,\n            \"model_type\": \"qwen3_asr_audio_encoder\",\n            \"n_window\": 50,\n            \"n_window_infer\": 800,\n            \"no_repeat_ngram_size\": 0,\n            \"num_beam_groups\": 1,\n            \"num_beams\": 1,\n            \"num_hidden_layers\": 18,\n            \"num_mel_bins\": 128,\n            \"num_return_sequences\": 1,\n            \"output_attentions\": false,\n            \"output_dim\": 1024,\n            \"output_hidden_states\": false,\n            \"output_scores\": false,\n            \"pad_token_id\": null,\n            \"prefix\": null,\n            \"problem_type\": null,\n            \"pruned_heads\": {},\n            \"remove_invalid_values\": false,\n            \"repetition_penalty\": 1.0,\n            \"return_dict\": true,\n            \"return_dict_in_generate\": false,\n            \"scale_embedding\": false,\n            \"sep_token_id\": null,\n            \"suppress_tokens\": null,\n            \"task_specific_params\": null,\n            \"temperature\": 1.0,\n            \"tf_legacy_loss\": false,\n            \"tie_encoder_decoder\": false,\n            \"tie_word_embeddings\": true,\n            \"tokenizer_class\": null,\n            \"top_k\": 50,\n            \"top_p\": 1.0,\n            \"torchscript\": false,\n            \"typical_p\": 1.0,\n            \"use_bfloat16\": false\n        },\n        \"audio_end_token_id\": 151670,\n        \"audio_start_token_id\": 151669,\n        \"audio_token_id\": 151676,\n        \"dtype\": \"bfloat16\",\n        \"initializer_range\": 0.02,\n        \"text_config\": {\n            \"_name_or_path\": \"\",\n            \"add_cross_attention\": false,\n            \"architectures\": null,\n            \"attention_bias\": false,\n            \"attention_dropout\": 0.0,\n            \"bad_words_ids\": null,\n            \"begin_suppress_tokens\": null,\n            \"bos_token_id\": null,\n            \"chunk_size_feed_forward\": 0,\n            \"cross_attention_hidden_size\": null,\n            \"decoder_start_token_id\": null,\n            \"diversity_penalty\": 0.0,\n            \"do_sample\": false,\n            \"dtype\": null,\n            \"early_stopping\": false,\n            \"encoder_no_repeat_ngram_size\": 0,\n            \"eos_token_id\": null,\n            \"exponential_decay_length_penalty\": null,\n            \"finetuning_task\": null,\n            \"forced_bos_token_id\": null,\n            \"forced_eos_token_id\": null,\n            \"head_dim\": 128,\n            \"hidden_act\": \"silu\",\n            \"hidden_size\": 1024,\n            \"id2label\": {\n                \"0\": \"LABEL_0\",\n                \"1\": \"LABEL_1\"\n            },\n            \"initializer_range\": 0.02,\n            \"intermediate_size\": 3072,\n            \"is_decoder\": false,\n            \"is_encoder_decoder\": false,\n            \"label2id\": {\n                \"LABEL_0\": 0,\n                \"LABEL_1\": 1\n            },\n            \"length_penalty\": 1.0,\n            \"max_length\": 20,\n            \"max_position_embeddings\": 65536,\n            \"min_length\": 0,\n            \"model_type\": \"qwen3\",\n            \"no_repeat_ngram_size\": 0,\n            \"num_attention_heads\": 16,\n            \"num_beam_groups\": 1,\n            \"num_beams\": 1,\n            \"num_hidden_layers\": 28,\n            \"num_key_value_heads\": 8,\n            \"num_return_sequences\": 1,\n            \"output_attentions\": false,\n            \"output_hidden_states\": false,\n            \"output_scores\": false,\n            \"pad_token_id\": null,\n            \"prefix\": null,\n            \"problem_type\": null,\n            \"pruned_heads\": {},\n            \"remove_invalid_values\": false,\n            \"repetition_penalty\": 1.0,\n            \"return_dict\": true,\n            \"return_dict_in_generate\": false,\n            \"rms_norm_eps\": 1e-06,\n            \"rope_scaling\": {\n                \"interleaved\": true,\n                \"mrope_interleaved\": true,\n                \"mrope_section\": [\n                    24,\n                    20,\n                    20\n                ],\n                \"rope_type\": \"default\",\n                \"type\": \"default\"\n            },\n            \"rope_theta\": 1000000,\n            \"sep_token_id\": null,\n            \"suppress_tokens\": null,\n            \"task_specific_params\": null,\n            \"temperature\": 1.0,\n            \"tf_legacy_loss\": false,\n            \"tie_encoder_decoder\": false,\n            \"tie_word_embeddings\": true,\n            \"tokenizer_class\": null,\n            \"top_k\": 50,\n            \"top_p\": 1.0,\n            \"torchscript\": false,\n            \"typical_p\": 1.0,\n            \"use_bfloat16\": false,\n            \"use_cache\": true,\n            \"vocab_size\": 151936\n        }\n    },\n    \"transformers_version\": \"4.57.6\"\n}"
+ },
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "mlx-community/Qwen3-ASR-0.6B-4bit",
+  "library_name": "mlx-audio",
+  "private": false,
+  "sha": "313d850181767edf09f00a9c289becca70e58cd0",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "ab0d6d2e72d8587f2f599536e8b7463bba412a61",
+    "rfilename": "README.md",
+    "size": 1008
+   },
+   {
+    "blobId": "c44736493efd71ec96218cc626904698cdb13235",
+    "rfilename": "chat_template.json",
+    "size": 1161
+   },
+   {
+    "blobId": "049989ad1e19719b99c2f374eb7067040aa4c830",
+    "rfilename": "config.json",
+    "size": 7187
+   },
+   {
+    "blobId": "7382a4d347c0a865b76bb1b8277f66a5ac312854",
+    "rfilename": "generation_config.json",
+    "size": 142
+   },
+   {
+    "blobId": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+    "rfilename": "merges.txt",
+    "size": 1671853
+   },
+   {
+    "blobId": "7421526c273013a7eb16dec9bb77abd1c2c2c611",
+    "lfs": {
+     "sha256": "70c7e67e588062adce4f10796e47ad42ead51c6671eda61a0987eae38ca95ddf",
+     "size": 708236945
+    },
+    "rfilename": "model.safetensors",
+    "size": 708236945
+   },
+   {
+    "blobId": "b507ef4ee5b57e6147c4bda5d9db05992477030d",
+    "rfilename": "model.safetensors.index.json",
+    "size": 71814
+   },
+   {
+    "blobId": "8f7f07346466d5d494ec0d4969d1c3d0190eed72",
+    "rfilename": "preprocessor_config.json",
+    "size": 330
+   },
+   {
+    "blobId": "b93109843922a40c6654c5449d3bf95372267c66",
+    "rfilename": "tokenizer_config.json",
+    "size": 12487
+   },
+   {
+    "blobId": "4783fe10ac3adce15ac8f358ef5462739852c569",
+    "rfilename": "vocab.json",
+    "size": 2776833
+   }
+  ],
+  "tags": [
+   "mlx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {}
+}

@@ -101,13 +101,14 @@ async fn recognize(model_dir: &Path, pcm: &[i16]) -> Result<String, String> {
 
     let defaults = crate::config::SherpaOnnxAsrConfig::default();
     let mut provider = SherpaOnnxProvider::new(SherpaOnnxConfig {
-        model_dir: model_dir.to_path_buf(),
+        model_dir: crate::model_manager::files_dir(model_dir),
         num_threads: defaults.num_threads,
         hotwords: Vec::new(),
         hotwords_score: defaults.hotwords_score,
         endpoint_silence: defaults.endpoint_silence,
         offline_model_type: crate::model_manager::sherpa_offline_model_type(model_dir),
         layout: crate::model_manager::sherpa_layout(model_dir),
+        follow_links: crate::model_manager::external_source(model_dir).is_some(),
     });
     provider
         .connect(&AsrConfig::default())

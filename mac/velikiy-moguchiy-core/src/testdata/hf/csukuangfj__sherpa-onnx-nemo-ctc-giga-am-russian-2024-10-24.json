@@ -1,0 +1,73 @@
+{
+ "files": {},
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-ctc-giga-am-russian-2024-10-24",
+  "private": false,
+  "sha": "3a10e33521cf87fcd7ec8f544af518ee24c09a29",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "d9a6f7fff2e4acc126435550348f66a5998d5b2b",
+    "rfilename": "GigaAM%20License_NC.pdf",
+    "size": 91423
+   },
+   {
+    "blobId": "287b7907d7e2b6c9460d8bac56b336b0ce7f1881",
+    "rfilename": "README.md",
+    "size": 302
+   },
+   {
+    "blobId": "473361a7936b223d5d528faed164e7b75f1ceafa",
+    "rfilename": "export-onnx-ctc.py",
+    "size": 3694
+   },
+   {
+    "blobId": "94fc86f232bce955c6b363ae85db91c85ab0d99f",
+    "lfs": {
+     "sha256": "a5fa9d5e00845f1c57ca9033edfa50af7c7792559393c2ac9d03a7eaa6c97611",
+     "size": 274808098
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 274808098
+   },
+   {
+    "blobId": "26044d2b9b087066826094a1544cccb419380236",
+    "rfilename": "run-ctc.sh",
+    "size": 1690
+   },
+   {
+    "blobId": "ea69b70be3cf051f2e9a1ef13404767c8a54fd16",
+    "rfilename": "test-onnx-ctc.py",
+    "size": 4031
+   },
+   {
+    "blobId": "b194e4f8e722856d1d7d5e6eaea79f02db06edfe",
+    "rfilename": "tokens.txt",
+    "size": 196
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "is_giga_am": "1",
+   "language": "Russian",
+   "license": "https://github.com/salute-developers/GigaAM/blob/main/GigaAM%20License_NC.pdf",
+   "model_author": "https://github.com/salute-developers/GigaAM",
+   "model_type": "EncDecCTCModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "subsampling_factor": "4",
+   "version": "1",
+   "vocab_size": "34"
+  }
+ }
+}
