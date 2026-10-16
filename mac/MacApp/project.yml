@@ -151,6 +151,9 @@ targets:
       - path: VelikiyMoguchiy/Settings/SPQwenModelChoiceTests.m
       - path: VelikiyMoguchiy/Settings/SPSettingsValidation.m
       - path: VelikiyMoguchiy/Settings/SPSettingsValidationTests.m
+      - path: VelikiyMoguchiy/Settings/SPTheme.m
+      - path: VelikiyMoguchiy/Settings/SPSettingsViews.m
+      - path: VelikiyMoguchiy/Settings/SPSettingsViewsTests.m
       - path: VelikiyMoguchiy/Paste/SPTextEditPolicyTests.m
       - path: VelikiyMoguchiy/LipData/SPLipDataPolicy.m
       - path: VelikiyMoguchiy/LipData/SPLipDataPolicyTests.m

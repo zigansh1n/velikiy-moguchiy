@@ -31,7 +31,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Restyles the AppKit controls under `root` in the house style: push buttons
 /// and pop-ups become vellum plates edged in gold (the default button cinnabar),
-/// editable fields take the vellum background.
+/// editable fields take the vellum background. A control observed through KVO
+/// by anything other than its NSStackView keeps the system look.
 void SPApplyHouseStyle(NSView *root);
 
 NS_ASSUME_NONNULL_END

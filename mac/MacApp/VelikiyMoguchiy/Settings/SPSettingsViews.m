@@ -330,12 +330,37 @@ static void SPApplyButtonLayer(NSButton *button, BOOL primary, BOOL pressed) {
 
 @end
 
+// KVO registrations made under the old class do not survive object_setClass.
+// NSStackView observes `hidden` on every arranged subview and unregisters in
+// -dealloc, which then raises and aborts the app. An arranged view therefore
+// leaves its stack for the swap; a view observed by anyone else keeps its class.
+static BOOL SPAdoptHouseClass(NSView *view, Class houseClass) {
+  NSStackView *stack = [view.superview isKindOfClass:NSStackView.class] ? (NSStackView *)view.superview : nil;
+  NSUInteger index = [stack.arrangedSubviews indexOfObjectIdenticalTo:view];
+  CGFloat spacing = 0;
+  NSStackViewVisibilityPriority priority = 0;
+  if (index != NSNotFound) {
+    spacing = [stack customSpacingAfterView:view];
+    priority = [stack visibilityPriorityForView:view];
+    [stack removeArrangedSubview:view];
+  }
+  BOOL adopted = view.observationInfo == NULL;
+  if (adopted)
+    object_setClass(view, houseClass);
+  if (index != NSNotFound) {
+    [stack insertArrangedSubview:view atIndex:index];
+    [stack setCustomSpacing:spacing afterView:view];
+    [stack setVisibilityPriority:priority forView:view];
+  }
+  return adopted;
+}
+
 void SPApplyHouseStyle(NSView *root) {
-  for (NSView *view in root.subviews) {
+  // A copy: adopting a class re-inserts the view into its stack.
+  for (NSView *view in [root.subviews copy]) {
     if ([view isKindOfClass:NSPopUpButton.class]) {
       NSPopUpButton *popup = (NSPopUpButton *)view;
-      if (popup.isBordered && !popup.pullsDown) {
-        object_setClass(popup, SPHousePopUpButton.class);
+      if (popup.isBordered && !popup.pullsDown && SPAdoptHouseClass(popup, SPHousePopUpButton.class)) {
         popup.bordered = NO;
         popup.wantsLayer = YES;
         popup.layer.cornerRadius = 5.0;
@@ -346,8 +371,8 @@ void SPApplyHouseStyle(NSView *root) {
     }
     if ([view isMemberOfClass:NSButton.class]) {
       NSButton *button = (NSButton *)view;
-      if (button.isBordered && button.bezelStyle == NSBezelStyleRounded) {
-        object_setClass(button, SPHouseButton.class);
+      if (button.isBordered && button.bezelStyle == NSBezelStyleRounded &&
+          SPAdoptHouseClass(button, SPHouseButton.class)) {
         button.bordered = NO;
         button.wantsLayer = YES;
         SPApplyButtonLayer(button, [button.keyEquivalent isEqualToString:@"\r"], NO);
