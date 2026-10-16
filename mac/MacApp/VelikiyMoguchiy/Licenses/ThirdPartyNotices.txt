@@ -142,6 +142,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
+Check recording (Assets.xcassets/CheckClip.dataset) — Apache License 2.0
+==============================================================================
+
+The 2.2-second recording that «Проверить» runs through a local model («и давно определил про себя»)
+is cut from test.wav of the Russian Vosk model by Alpha Cephei (https://huggingface.co/alphacep/vosk-model-ru),
+published under the Apache License 2.0, whose text is given with the sherpa-onnx crates below. The only change
+is the cut: seconds 4.78 to 6.98 of the original file.
+
+==============================================================================
 Rust crates linked into the app and its CLI (184)
 ==============================================================================
 

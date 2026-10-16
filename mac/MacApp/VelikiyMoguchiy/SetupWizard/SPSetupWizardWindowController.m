@@ -12,6 +12,10 @@
 #import "SPSettingsValidation.h"
 #import "SPSettingsViews.h"
 #import "SPErrorExplainer.h"
+#import "SPHfModelPresenter.h"
+#import "SPModelBrowserWindowController.h"
+#import "SPModelCardPresenter.h"
+#import "SPLocalModelCheck.h"
 #import "SPTheme.h"
 #import "SPTriggerKeyPolicy.h"
 #import <Carbon/Carbon.h>
@@ -769,7 +773,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 
 @interface SPSetupWizardWindowController () <
     NSTableViewDelegate, NSTableViewDataSource, NSTextFieldDelegate,
-    NSTextViewDelegate, NSWindowDelegate>
+    NSTextViewDelegate, NSWindowDelegate, SPModelBrowserDelegate>
 
 // Window chrome
 @property(nonatomic, strong) SPSettingsSidebarViewController *sidebar;
@@ -851,6 +855,8 @@ static NSString *SPCondensedProviderError(NSString *raw) {
 @property(nonatomic, strong) NSTextField *modelStatusLabel;
 @property(nonatomic, strong) NSButton *modelDownloadButton;
 @property(nonatomic, strong) NSButton *modelDeleteButton;
+// «Модели…»: the model window, next to the provider popup
+@property(nonatomic, strong) NSButton *modelsButton;
 @property(nonatomic, strong) NSProgressIndicator *modelProgressBar;
 @property(nonatomic, strong) NSTextField *modelProgressSizeLabel;
 @property(nonatomic, strong) NSMutableSet<NSString *> *downloadingModels;
@@ -1468,6 +1474,18 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   providerFrame.size.width = providerPopupW;
   self.asrProviderPopup.frame = providerFrame;
   [pane addSubview:self.asrProviderPopup];
+  self.modelsButton = [NSButton buttonWithTitle:@"Модели…"
+                                         target:self
+                                         action:@selector(showModelBrowser:)];
+  self.modelsButton.bezelStyle = NSBezelStyleRounded;
+  [self.modelsButton sizeToFit];
+  self.modelsButton.frame =
+      NSMakeRect(NSMaxX(self.asrProviderPopup.frame) + 8, y - 3,
+                 NSWidth(self.modelsButton.frame), 28);
+  self.modelsButton.toolTip =
+      @"Модели распознавания на этом Mac: рекомендуемые, поиск на Hugging "
+      @"Face, уже скачанные";
+  [pane addSubview:self.modelsButton];
 
   // Test button next to Provider
   self.asrTestButton = [NSButton buttonWithTitle:@"Проверить"
@@ -5419,10 +5437,13 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
       forViewsMatchingTags:[NSIndexSet indexSetWithIndex:1013]
                     inView:self.currentPaneView];
 
-  // Hide test button for local providers (no remote connection to test)
+  // Local providers have no connection to test; a sherpa-onnx or
+  // whisper.cpp model can still be checked on the built-in recording.
+  BOOL isCheckable = [selectedProvider isEqualToString:@"sherpa-onnx"] ||
+                     [selectedProvider isEqualToString:@"whisper-cpp"];
   BOOL isLocal = !isDoubao && !isQwen && !isGlm && !isMimo && !isChatgpt;
-  self.asrTestButton.hidden = isLocal;
-  self.asrTestResultLabel.hidden = isLocal;
+  self.asrTestButton.hidden = isLocal && !isCheckable;
+  self.asrTestResultLabel.hidden = isLocal && !isCheckable;
 
   // Clear test result when switching provider
   self.asrTestResultLabel.stringValue = @"";
@@ -5491,6 +5512,22 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
 }
 
 - (void)applyModelStatus:(NSInteger)status verifying:(BOOL)verifying {
+  [self applyFileModelStatus:status verifying:verifying];
+  NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
+  NSDictionary *scanned = modelPath ? [self scannedModelAtPath:modelPath] : nil;
+  BOOL added = [scanned[@"external"] isKindOfClass:[NSDictionary class]];
+  BOOL user = [self isUserModel:scanned];
+  self.modelDeleteButton.toolTip =
+      added  ? @"Убрать из списка"
+      : user ? @"Удалить модель"
+             : @"Удалить скачанные файлы модели";
+  // A model added in place has no files of ours, so it can be taken off the
+  // list even while it shows as missing; not while a download runs.
+  if (user && ![self.downloadingModels containsObject:modelPath])
+    self.modelDeleteButton.enabled = YES;
+}
+
+- (void)applyFileModelStatus:(NSInteger)status verifying:(BOOL)verifying {
   self.modelProgressBar.hidden = YES;
   self.modelProgressSizeLabel.hidden = YES;
   self.modelDownloadButton.image =
@@ -5621,6 +5658,11 @@ static const CGFloat kAsrStatusStripHeight = 34.0;
   NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
   if (!modelPath)
     return;
+  NSDictionary *scanned = [self scannedModelAtPath:modelPath];
+  if ([self isUserModel:scanned]) {
+    [self deleteUserModel:scanned];
+    return;
+  }
 
   NSAlert *alert = [[NSAlert alloc] init];
   alert.messageText = @"Удалить файлы модели?";
@@ -7917,8 +7959,178 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
     [self testMimoConnection];
   } else if ([provider isEqualToString:@"chatgpt"]) {
     [self testChatgptConnection];
+  } else if ([provider isEqualToString:@"sherpa-onnx"] ||
+             [provider isEqualToString:@"whisper-cpp"]) {
+    [self testLocalModel];
   }
   [self revealAsrTestResult];
+}
+
+- (void)testLocalModel {
+  NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
+  if (!modelPath) {
+    self.asrTestResultLabel.stringValue = @"Сначала выберите модель";
+    self.asrTestResultLabel.textColor = SPTheme.warning;
+    return;
+  }
+  if ([self.rustBridge modelStatus:modelPath mode:SPModelVerifyCacheOnly] == 0) {
+    self.asrTestResultLabel.stringValue = @"Сначала скачайте модель";
+    self.asrTestResultLabel.textColor = SPTheme.warning;
+    return;
+  }
+  self.asrTestButton.enabled = NO;
+  self.asrTestResultLabel.stringValue =
+      @"Проверка: модель распознаёт встроенную запись…";
+  self.asrTestResultLabel.textColor = [NSColor secondaryLabelColor];
+  __weak typeof(self) weakSelf = self;
+  [SPLocalModelCheck
+      checkModelAtPath:modelPath
+            completion:^(NSDictionary *result) {
+              __strong typeof(weakSelf) strongSelf = weakSelf;
+              if (!strongSelf)
+                return;
+              strongSelf.asrTestButton.enabled = YES;
+              NSString *selected =
+                  strongSelf.localModelPopup.selectedItem.representedObject;
+              if (![selected isEqualToString:modelPath])
+                return;
+              NSString *summary =
+                  [SPHfModelPresenter summaryForCheckResult:result];
+              strongSelf.asrTestResultLabel.stringValue = summary;
+              strongSelf.asrTestResultLabel.toolTip = summary;
+              strongSelf.asrTestResultLabel.textColor =
+                  [result[@"ok"] boolValue] ? SPTheme.success : SPTheme.failure;
+              [strongSelf revealAsrTestResult];
+            }];
+}
+
+#pragma mark - Model window
+
+- (void)showModelBrowser:(id)sender {
+  [SPModelBrowserWindowController showWithBridge:self.rustBridge
+                                        delegate:self
+                                    parentWindow:self.window];
+}
+
+/// The provider whose models the model popup lists, or nil when it lists none.
+- (NSString *)shownModelProvider {
+  return self.localModelPopup && !self.localModelPopup.hidden
+             ? self.asrShownProvider
+             : nil;
+}
+
+- (void)modelBrowserDidChangeModels {
+  NSString *provider = [self shownModelProvider];
+  if (!provider)
+    return;
+  NSString *selected = self.localModelPopup.selectedItem.representedObject;
+  [self populateLocalModelPopup:provider mode:@"asr"];
+  [self selectLocalModelPath:selected];
+  [self updateModelStatusLabel];
+}
+
+- (BOOL)modelBrowserMakePrimaryModel:(NSString *)modelPath
+                            provider:(NSString *)provider {
+  NSString *modelKey = [NSString stringWithFormat:@"asr.%@.model", provider];
+  if (!configSet(modelKey, modelPath) || !configSet(@"asr.provider", provider))
+    return NO;
+  NSInteger index =
+      self.asrProviderPopup
+          ? [self.asrProviderPopup indexOfItemWithRepresentedObject:provider]
+          : -1;
+  if (index >= 0) {
+    [self.asrProviderPopup selectItemAtIndex:index];
+    [self asrProviderChanged:self.asrProviderPopup];
+    [self selectLocalModelPath:modelPath];
+    [self updateModelStatusLabel];
+    // What was just saved is no unsaved edit; other edits in the pane still are.
+    NSMapTable *baseline = self.paneBaselines[kToolbarASR].lastObject;
+    for (NSView *popup in @[ self.asrProviderPopup, self.localModelPopup ]) {
+      NSString *value = editableValueOfView(popup);
+      if (value && [baseline objectForKey:popup])
+        [baseline setObject:value forKey:popup];
+    }
+  }
+  [self.delegate setupWizardDidSaveConfig];
+  return YES;
+}
+
+- (void)selectLocalModelPath:(NSString *)path {
+  if (!path)
+    return;
+  for (NSInteger i = 0; i < self.localModelPopup.numberOfItems; i++) {
+    if ([[self.localModelPopup itemAtIndex:i].representedObject
+            isEqualToString:path]) {
+      [self.localModelPopup selectItemAtIndex:i];
+      return;
+    }
+  }
+}
+
+/// The scan entry of a local model, or nil.
+- (NSDictionary *)scannedModelAtPath:(NSString *)path {
+  for (NSDictionary *model in [self.rustBridge scanModels]) {
+    if ([model[@"path"] isEqualToString:path])
+      return model;
+  }
+  return nil;
+}
+
+/// Downloaded from Hugging Face or added from a folder on this Mac: removed
+/// whole rather than emptied.
+- (BOOL)isUserModel:(NSDictionary *)model {
+  return [model[@"huggingface"] isKindOfClass:[NSDictionary class]] ||
+         [model[@"external"] isKindOfClass:[NSDictionary class]];
+}
+
+- (void)deleteUserModel:(NSDictionary *)scanned {
+  NSString *path = scanned[@"path"];
+  BOOL added = [scanned[@"external"] isKindOfClass:[NSDictionary class]];
+  NSDictionary *model = @{
+    @"title" : scanned[@"description"] ?: path,
+    @"origin" : added ? @"external" : @"hugging_face",
+    @"removal" : added ? @"unlist" : @"delete",
+    @"size" : scanned[@"total_size"] ?: @0,
+  };
+  NSString *provider = scanned[@"provider"] ?: @"";
+  BOOL primary = [SPModelCardPresenter
+      isPrimaryModel:path
+            provider:provider
+      configProvider:configGet(@"asr.provider")
+         configModel:configGet([NSString
+                         stringWithFormat:@"asr.%@.model", provider])];
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = [SPModelCardPresenter removalQuestionForModel:model];
+  alert.informativeText =
+      [SPModelCardPresenter removalExplanationForModel:model primary:primary];
+  [alert addButtonWithTitle:[SPModelCardPresenter removalTitleForModel:model]];
+  [alert addButtonWithTitle:@"Отмена"];
+  alert.alertStyle = NSAlertStyleWarning;
+  if ([alert runModal] != NSAlertFirstButtonReturn)
+    return;
+
+  char *json = sp_models_remove_json(path.UTF8String);
+  NSDictionary *result = nil;
+  if (json) {
+    NSData *data = [NSData dataWithBytes:json length:strlen(json)];
+    result = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+    sp_core_free_string(json);
+  }
+  id error = [result isKindOfClass:[NSDictionary class]] ? result[@"error"]
+                                                         : @"ядро не ответило";
+  if ([error isKindOfClass:[NSString class]]) {
+    NSAlert *failed = [[NSAlert alloc] init];
+    failed.messageText = added ? @"Не удалось убрать модель из списка"
+                               : @"Не удалось удалить модель";
+    failed.informativeText = error;
+    [failed runModal];
+    return;
+  }
+  [self populateLocalModelPopup:provider mode:@"asr"];
+  [self selectLocalModelPath:configGet(
+                                 [NSString stringWithFormat:@"asr.%@.model",
+                                                            provider])];
+  [self updateModelStatusLabel];
 }
 
 /// The result line is pinned to the bottom of the form card, which for a tall

@@ -193,6 +193,12 @@ targets:
       - path: VelikiyMoguchiy/StatusBar/SPRecentDictationsMenuPolicyTests.m
       - path: VelikiyMoguchiy/FileTranscription/SPFileTranscriptionPolicy.m
       - path: VelikiyMoguchiy/FileTranscription/SPFileTranscriptionPolicyTests.m
+      - path: VelikiyMoguchiy/Models/SPDownloadMeter.m
+      - path: VelikiyMoguchiy/Models/SPDownloadMeterTests.m
+      - path: VelikiyMoguchiy/Models/SPHfModelPresenter.m
+      - path: VelikiyMoguchiy/Models/SPHfModelPresenterTests.m
+      - path: VelikiyMoguchiy/Models/SPModelCardPresenter.m
+      - path: VelikiyMoguchiy/Models/SPModelCardPresenterTests.m
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

@@ -28,6 +28,10 @@ OWN = {"velikiy-moguchiy-core", "velikiy-moguchiy-asr", "velikiy-moguchiy-cli"}
 # statically links its bundled libopus, whisper-rs-sys its bundled whisper.cpp and ggml.
 EXTRA_FILES = {"audiopus_sys": ["opus/COPYING"], "whisper-rs-sys": ["whisper.cpp/LICENSE"]}
 RULE = "=" * 78
+CHECK_CLIP = """The 2.2-second recording that «Проверить» runs through a local model («и давно определил про себя»)
+is cut from test.wav of the Russian Vosk model by Alpha Cephei (https://huggingface.co/alphacep/vosk-model-ru),
+published under the Apache License 2.0, whose text is given with the sherpa-onnx crates below. The only change
+is the cut: seconds 4.78 to 6.98 of the original file."""
 # Native libraries the sherpa-onnx-sys crate links statically: the no-TTS build that
 # mac/scripts/sherpa-onnx-libs.sh fetches. The crates' own license files cover sherpa-onnx.
 SHERPA_NATIVE = """sherpa-onnx v1.13.4 static libraries without text-to-speech (https://github.com/k2-fsa/sherpa-onnx):
@@ -131,6 +135,7 @@ def main():
                        (MAC / "vendor/mic-warm/LICENSE").read_text(encoding="utf-8")))
     out.append(section("giga-pisar by moznoazachem (clipboard backup code, ported) — MIT License",
                        markdown_block(MAC / "THIRD_PARTY.md", "## giga-pisar")))
+    out.append(section("Check recording (Assets.xcassets/CheckClip.dataset) — Apache License 2.0", CHECK_CLIP))
     listing = crates()
     table = "\n".join(f"{name} {version} — {lic}" for (name, version), lic in listing)
     out.append(section(f"Rust crates linked into the app and its CLI ({len(listing)})", table))

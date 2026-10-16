@@ -67,6 +67,8 @@ lipread/clips/
 *.ogg
 *.opus
 *.caf
+# except the public test clip of «Проверить» (Apache-2.0, see THIRD_PARTY.md)
+!mac/MacApp/VelikiyMoguchiy/Assets.xcassets/CheckClip.dataset/check-clip-ru.wav
 cookies*.txt
 *.pem
 *.key

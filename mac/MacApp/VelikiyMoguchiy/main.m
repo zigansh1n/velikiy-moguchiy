@@ -1,6 +1,7 @@
 #import <Cocoa/Cocoa.h>
 #import "SPLocalization.h"
 #import "SPClipboardManager.h"
+#import "SPLocalModelCheck.h"
 
 /// Bundle identifier of builds from before the rename (inherited from koe).
 static NSString *const SPLegacyBundleIdentifier = @"nz.owo.koe";
@@ -44,6 +45,10 @@ int main(int argc, const char *argv[]) {
     // executable so a stuck promised flavor cannot hang the app). Must come
     // before anything touches AppKit state.
     int childStatus = [SPClipboardManager runSnapshotChildIfRequestedWithArgc:argc argv:argv];
+    if (childStatus >= 0) return childStatus;
+    // «Проверить» for a local model runs in a child too: sherpa-onnx ends the
+    // process on a model it cannot load.
+    childStatus = [SPLocalModelCheck runChildIfRequestedWithArgc:argc argv:argv];
     if (childStatus >= 0) return childStatus;
 
     @autoreleasepool {
