@@ -1,0 +1,62 @@
+{
+ "info": {
+  "cardData": {
+   "language": [
+    "ru",
+    "en"
+   ],
+   "license": "mit",
+   "pipeline_tag": "automatic-speech-recognition"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "ai-sage/GigaAM-v3",
+  "pipeline_tag": "automatic-speech-recognition",
+  "private": false,
+  "sha": "ec1dc1f01d0d627ab2c0d3acc1e235702300d95e",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "a2a122b942e7707c3af2c0f5726705cc0f81fb77",
+    "rfilename": "README.md",
+    "size": 2928
+   },
+   {
+    "blobId": "1a435114bb773fddfe73877cbc6da836ef2d6510",
+    "rfilename": "config.json",
+    "size": 1867
+   },
+   {
+    "blobId": "36221634c2c0dd0043eb26454b79e0e7aa061b25",
+    "rfilename": "modeling_gigaam.py",
+    "size": 49135
+   },
+   {
+    "blobId": "ddb55c91b623df941d22d43b5369675921921f57",
+    "lfs": {
+     "sha256": "afc6dcbae8320ea56f2cddebc0f13fbf62c9d59b6ddcad899782623c8610826a",
+     "size": 448928167
+    },
+    "rfilename": "pytorch_model.bin",
+    "size": 448928167
+   },
+   {
+    "blobId": "49739e92d267c28f71ac343cb5affe2f9cedf162",
+    "lfs": {
+     "sha256": "828c12c991019eef952a960661f25a92d6ad279591e2ea466b4aeddf1d20a18a",
+     "size": 255336
+    },
+    "rfilename": "tokenizer.model",
+    "size": 255336
+   }
+  ],
+  "tags": [
+   "license:mit"
+  ]
+ },
+ "metadata": {}
+}

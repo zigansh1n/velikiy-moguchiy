@@ -1,0 +1,88 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-transducer-punct-giga-am-v3-russian-2025-12-16",
+  "private": false,
+  "sha": "a6039be7cee829a9044a69ac0ebaf1c191217c97",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "8d9a2e761e0feada9c9347a3f2265aee4653dba7",
+    "rfilename": "LICENSE",
+    "size": 1070
+   },
+   {
+    "blobId": "287b7907d7e2b6c9460d8bac56b336b0ce7f1881",
+    "rfilename": "README.md",
+    "size": 302
+   },
+   {
+    "blobId": "2fe6e11df7283b10402705c2be0b69fcf0b0edc6",
+    "lfs": {
+     "sha256": "38fc7475443ea2a26f63211ca350f73ac50fff824ab7a3876ee2bd610c53bbc4",
+     "size": 4600132
+    },
+    "rfilename": "decoder.onnx",
+    "size": 4600132
+   },
+   {
+    "blobId": "7cb5c55274e32bae09e3ebb5fd2195edde4b10b0",
+    "lfs": {
+     "sha256": "369f35a71bf288d3b8e0391fabd8dba5f2314088d440bca474056b7b4b6e66bf",
+     "size": 224570820
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 224570820
+   },
+   {
+    "blobId": "b1f69a5ea36a43c3389e1a3f542f0056a29a03da",
+    "lfs": {
+     "sha256": "602ff7017a93311aad34df1437c8d7f49911353c13d6eae7a6ee7b041339465c",
+     "size": 2712896
+    },
+    "rfilename": "joiner.onnx",
+    "size": 2712896
+   },
+   {
+    "blobId": "8972f95642dcae74329c0b3d74b334c3060cbe64",
+    "rfilename": "run-rnnt-v3-punct.sh",
+    "size": 950
+   },
+   {
+    "blobId": "cf831e1ec45f2035a2cf962111a3847d0702f999",
+    "rfilename": "test-onnx-rnnt.py",
+    "size": 8894
+   },
+   {
+    "blobId": "bd0cf91adfec3b5c83b7cf5769cf7b14059e4d51",
+    "rfilename": "tokens.txt",
+    "size": 13354
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "comment": "v3",
+   "is_giga_am": "1",
+   "language": "Russian",
+   "license": "https://github.com/salute-developers/GigaAM/blob/main/LICENSE",
+   "model_author": "https://github.com/salute-developers/GigaAM",
+   "model_type": "EncDecRNNTBPEModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "pred_hidden": "320",
+   "pred_rnn_layers": "1",
+   "subsampling_factor": "4",
+   "version": "3",
+   "vocab_size": "1024"
+  }
+ }
+}

@@ -1,0 +1,55 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12",
+  "private": false,
+  "sha": "6abf1ece20cd2308bdb7d13cd78ec1c44fa4c094",
+  "siblings": [
+   {
+    "blobId": "6f2cdb7f33d37dd32beac8847295ee32f41bea53",
+    "rfilename": ".gitattributes",
+    "size": 1607
+   },
+   {
+    "blobId": "f7934c80a1d123053efd4313c5723c55a447416b",
+    "rfilename": "LICENSE",
+    "size": 581
+   },
+   {
+    "blobId": "d0f440723d482f5dac8f3582167d67c027e7d32b",
+    "rfilename": "README.md",
+    "size": 10895
+   },
+   {
+    "blobId": "810679a0e7a338050879af51a86ecdd7db470142",
+    "lfs": {
+     "sha256": "e7c4e54ee4c4c47829cc6667d5d00ed8ea7bef1dcfeef0fce766f77752a2726c",
+     "size": 365352120
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 365352120
+   },
+   {
+    "blobId": "f6541787d8060867baa6804f4910ba055cd57bb5",
+    "rfilename": "tokens.txt",
+    "size": 86423
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "300M-CTC",
+   "model_author": "facebookresearch",
+   "model_type": "omnilingual-asr",
+   "onnx.infer": "onnxruntime.quant",
+   "sample_rate": "16000",
+   "url": "https://github.com/facebookresearch/omnilingual-asr",
+   "version": "1",
+   "vocab_size": "9812"
+  }
+ }
+}

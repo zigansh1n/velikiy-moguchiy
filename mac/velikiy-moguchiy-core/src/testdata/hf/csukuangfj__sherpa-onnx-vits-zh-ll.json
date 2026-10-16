@@ -1,0 +1,166 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-vits-zh-ll",
+  "private": false,
+  "sha": "7ddf37bcacf05ed56afee360d96835be633a5265",
+  "siblings": [
+   {
+    "blobId": "b13ae4df3313a78d99566f7685add81d3b5c63df",
+    "rfilename": ".gitattributes",
+    "size": 1562
+   },
+   {
+    "blobId": "a67fc8aead6b53bc4a8fc6b462176ba85838f316",
+    "rfilename": "G_multisperaker_latest.json",
+    "size": 2352
+   },
+   {
+    "blobId": "4ab60fffec0f49f61c8bc3cf2edb122121d8ead1",
+    "rfilename": "README.md",
+    "size": 127
+   },
+   {
+    "blobId": "20ec7f4c077f9ec85ca9d01c4b4f4581f6e552ee",
+    "rfilename": "date.fst",
+    "size": 59154
+   },
+   {
+    "blobId": "887911898611a1032f606bdbbdd6315b7bf992f6",
+    "rfilename": "dict/README.md",
+    "size": 683
+   },
+   {
+    "blobId": "3874490296906ad710ed5c0c82c9775ce8ac9c17",
+    "lfs": {
+     "sha256": "f17790586ac86dd048c8adffed052c4bd2b28ed0682972c1275e59040c0589a7",
+     "size": 519739
+    },
+    "rfilename": "dict/hmm_model.utf8",
+    "size": 519739
+   },
+   {
+    "blobId": "59c2310103196107c7ed606d16bae622c41bd4e7",
+    "lfs": {
+     "sha256": "dbd1e03d72b2263cc8d84a4304ed77677eed9e7deaf43a1a5133bbba9733b535",
+     "size": 5998717
+    },
+    "rfilename": "dict/idf.utf8",
+    "size": 5998717
+   },
+   {
+    "blobId": "5607d44d3da2f21cd23543c2bf723a6393ed35fd",
+    "lfs": {
+     "sha256": "3043b77068e09c9904f27cad82f12b6ebe9dbdb5aeff3b25e45ab7f9c1122b55",
+     "size": 5071204
+    },
+    "rfilename": "dict/jieba.dict.utf8",
+    "size": 5071204
+   },
+   {
+    "blobId": "fa2e9cd585e89a99e93b286942e9897b901dd419",
+    "lfs": {
+     "sha256": "28b7be1dd7369766a51445af4d42e9a2ba4bf374c13be5bc1ca7721e27271dbb",
+     "size": 327139
+    },
+    "rfilename": "dict/pos_dict/char_state_tab.utf8",
+    "size": 327139
+   },
+   {
+    "blobId": "fe06d077e7251314f6f4932b7f289939f3e9db54",
+    "lfs": {
+     "sha256": "c33c4cb7edf3b3a5947df7209b6e9f267eae1f21335d9e2bd2521ea07105457a",
+     "size": 1687686
+    },
+    "rfilename": "dict/pos_dict/prob_emit.utf8",
+    "size": 1687686
+   },
+   {
+    "blobId": "515b0686cb7f674c868107cb9c89edba31bf9d44",
+    "lfs": {
+     "sha256": "13623ea0e9300bdb597cb2da28770b7b385d6c0098d66e516083fb01b6bd5d96",
+     "size": 4347
+    },
+    "rfilename": "dict/pos_dict/prob_start.utf8",
+    "size": 4347
+   },
+   {
+    "blobId": "2f1a7bcefd4aba1f176fea5b73b0a18e8f890413",
+    "lfs": {
+     "sha256": "f22363e2307408293d180c6f9f6b5cb75879d52f722f7764fa2d3d0ae2400236",
+     "size": 124159
+    },
+    "rfilename": "dict/pos_dict/prob_trans.utf8",
+    "size": 124159
+   },
+   {
+    "blobId": "13b1fbeef7cf1cc87d21aed4995ef3826b37e6fd",
+    "lfs": {
+     "sha256": "b788b8a939d2e2fe079abd579ea98f12f9fb84370bfd0dddd81bb9381f7ab42c",
+     "size": 8974
+    },
+    "rfilename": "dict/stop_words.utf8",
+    "size": 8974
+   },
+   {
+    "blobId": "85347f5a3b92ad50e4f52a7536dbb7bda21823ee",
+    "lfs": {
+     "sha256": "495bbf49270408a1234690e1e6a97328f30a482a7a72aa769e8a12e8714b0c62",
+     "size": 49
+    },
+    "rfilename": "dict/user.dict.utf8",
+    "size": 49
+   },
+   {
+    "blobId": "cfe2c6cca1486109d13016362b03009d93d5326c",
+    "rfilename": "lexicon.txt",
+    "size": 376868
+   },
+   {
+    "blobId": "a30b1d81c27b8f0a66f33712ed6981a248e3bcd3",
+    "lfs": {
+     "sha256": "6c349bdd73dc928234dd7bc86929748bba32cd5264d32d915bf7b7aa0595965b",
+     "size": 121100803
+    },
+    "rfilename": "model.onnx",
+    "size": 121100803
+   },
+   {
+    "blobId": "478a809252067229211f7f414414f34f98314d9d",
+    "rfilename": "new_heteronym.fst",
+    "size": 21974
+   },
+   {
+    "blobId": "66c0bd468903fc98d212cd6c3c5b2793ce8eb2c3",
+    "rfilename": "number.fst",
+    "size": 64482
+   },
+   {
+    "blobId": "2eba908c27ec0767281cad25d322008b16869c5b",
+    "rfilename": "phone.fst",
+    "size": 88630
+   },
+   {
+    "blobId": "d915951eae4499201e8abcda565275f637a01c72",
+    "rfilename": "tokens.txt",
+    "size": 331
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.onnx": {
+   "add_blank": "1",
+   "comment": "hf-vits-models-fanchen-411",
+   "jieba": "1",
+   "language": "Chinese",
+   "model_type": "vits",
+   "n_speakers": "5",
+   "punctuation": ", . : ; ! ? ， 。 ： ； ！ ？ 、",
+   "sample_rate": "16000"
+  }
+ }
+}

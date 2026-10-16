@@ -1,0 +1,119 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-en-wenet-librispeech",
+  "private": false,
+  "sha": "1e15713049e0cdef7609db97861d87aab5dee117",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "f749e6e97d691ee733ecadcd9bddd40e6ca972a7",
+    "rfilename": "README.md",
+    "size": 134
+   },
+   {
+    "blobId": "52f353e054bb7cc7a9f7c3e4db87075048d87001",
+    "lfs": {
+     "sha256": "82acbe5f501e3a89031ca6e9d17d2150e51db7e13c2ea7b98e74c1aa5a4ce3d5",
+     "size": 49904771
+    },
+    "rfilename": "model-streaming.int8.onnx",
+    "size": 49904771
+   },
+   {
+    "blobId": "5c852d12e309f1742fa4bb5572054560a3726993",
+    "lfs": {
+     "sha256": "91080996d7dcc89fafe698a141da4790f1946953c6f4310a80674a2f1813a0f9",
+     "size": 144523275
+    },
+    "rfilename": "model-streaming.onnx",
+    "size": 144523275
+   },
+   {
+    "blobId": "91b7a04adbde20e637e2f10c833294145e81e655",
+    "lfs": {
+     "sha256": "dd858945d4294099920d658b764e009c79d3619297f891c49fdea7ce308a152c",
+     "size": 50016991
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 50016991
+   },
+   {
+    "blobId": "6b019b6c51439754ab378a4c95ac1f6c95cc27a4",
+    "lfs": {
+     "sha256": "0152eb75d5b14648844838cea56070c575cef6ea6ab2b182b296b4b970ed6beb",
+     "size": 144612887
+    },
+    "rfilename": "model.onnx",
+    "size": 144612887
+   },
+   {
+    "blobId": "516dfc99812d7ee93c0f9063f0fa15a90f48d7f7",
+    "rfilename": "tokens.txt",
+    "size": 70614
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model-streaming.int8.onnx": {
+   "chunk_size": "16",
+   "cnn_module_kernel": "15",
+   "comment": "streaming",
+   "head": "4",
+   "left_chunks": "4",
+   "model_author": "wenet",
+   "model_type": "wenet_ctc",
+   "num_blocks": "12",
+   "onnx.infer": "onnxruntime.quant",
+   "output_size": "256",
+   "right_context": "6",
+   "subsampling_factor": "4",
+   "url": "https://wenet.org.cn/downloads?models=wenet&version=aishell_u2pp_conformer_exp.tar.gz",
+   "version": "1",
+   "vocab_size": "5002"
+  },
+  "model-streaming.onnx": {
+   "chunk_size": "16",
+   "cnn_module_kernel": "15",
+   "comment": "streaming",
+   "head": "4",
+   "left_chunks": "4",
+   "model_author": "wenet",
+   "model_type": "wenet_ctc",
+   "num_blocks": "12",
+   "output_size": "256",
+   "right_context": "6",
+   "subsampling_factor": "4",
+   "url": "https://wenet.org.cn/downloads?models=wenet&version=aishell_u2pp_conformer_exp.tar.gz",
+   "version": "1",
+   "vocab_size": "5002"
+  },
+  "model.int8.onnx": {
+   "comment": "non-streaming",
+   "model_author": "wenet",
+   "model_type": "wenet_ctc",
+   "onnx.infer": "onnxruntime.quant",
+   "subsampling_factor": "4",
+   "url": "",
+   "version": "1",
+   "vocab_size": "5002"
+  },
+  "model.onnx": {
+   "comment": "non-streaming",
+   "model_author": "wenet",
+   "model_type": "wenet_ctc",
+   "subsampling_factor": "4",
+   "url": "",
+   "version": "1",
+   "vocab_size": "5002"
+  }
+ }
+}

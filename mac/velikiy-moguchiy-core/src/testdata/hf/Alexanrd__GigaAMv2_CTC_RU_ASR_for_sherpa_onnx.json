@@ -1,0 +1,67 @@
+{
+ "info": {
+  "cardData": {
+   "license": "mit"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "Alexanrd/GigaAMv2_CTC_RU_ASR_for_sherpa_onnx",
+  "private": false,
+  "sha": "0904a3a3b9ce949ade78127244d1e8b7ddf2dcc0",
+  "siblings": [
+   {
+    "blobId": "789edd49bd3f4f429e32663a0ebe7c38d50ceef5",
+    "rfilename": ".gitattributes",
+    "size": 1612
+   },
+   {
+    "blobId": "4bcc3187d404c53dbb18cea6846a7d7061c0eed0",
+    "lfs": {
+     "sha256": "b51746852adbdaa460592a5c58a97b8bb9fc0c8d8a21cfea1093494906fc2258",
+     "size": 932645252
+    },
+    "rfilename": "GigaAMv2_ctc_public.onnx",
+    "size": 932645252
+   },
+   {
+    "blobId": "c4530e5c687dd571b9587bbe2a874e75b3a6f9d6",
+    "rfilename": "README.md",
+    "size": 670
+   },
+   {
+    "blobId": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+    "rfilename": "config.json",
+    "size": 0
+   },
+   {
+    "blobId": "0a6693af1ecdf45940dc98644bbf3d6160dae6ff",
+    "rfilename": "example.py",
+    "size": 4181
+   },
+   {
+    "blobId": "b194e4f8e722856d1d7d5e6eaea79f02db06edfe",
+    "rfilename": "tokens.txt",
+    "size": 196
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:mit"
+  ]
+ },
+ "metadata": {
+  "GigaAMv2_ctc_public.onnx": {
+   "context_size": "2",
+   "feature_dim": "64",
+   "is_giga_am": "1",
+   "license": "https://github.com/salute-developers/GigaAM/blob/main/LICENSE",
+   "model_type": "EncDecCTCModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "sample_rate": "16000",
+   "subsampling_factor": "4",
+   "version": "2.0",
+   "vocab_size": "33"
+  }
+ }
+}

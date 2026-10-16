@@ -1,0 +1,65 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01",
+  "private": false,
+  "sha": "a5f60fe00dcfbaf68fcc1c6b5cf53061e144d6da",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "8648fd3ed80f8adcee5b93295a84c021bebdd0dc",
+    "rfilename": "README.md",
+    "size": 176
+   },
+   {
+    "blobId": "413e1696cb50b546df03e9f76f7a39755e5dba03",
+    "lfs": {
+     "sha256": "503204e0690eff065e30d0e01898c9ab06d0e6dc376a741eb6846198f95b2f82",
+     "size": 255180
+    },
+    "rfilename": "bbpe.model",
+    "size": 255180
+   },
+   {
+    "blobId": "cfa9fc220735859db3992d9a0c11284e9a4ae8c6",
+    "lfs": {
+     "sha256": "68c9c943840f7d9cf3e8a4970ba50f404feb5277f611fa82b7e72267786fa84a",
+     "size": 26342340
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 26342340
+   },
+   {
+    "blobId": "cf0617eb6c2d38e5d865b39ec287f9ec18e7d960",
+    "rfilename": "tokens.txt",
+    "size": 13366
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "T": "77",
+   "cnn_module_kernels": "31,31,15,15,15,31",
+   "comment": "streaming ctc zipformer2",
+   "decode_chunk_len": "64",
+   "encoder_dims": "192,256,256,256,256,256",
+   "left_context_len": "256,128,64,32,64,128",
+   "model_author": "k2-fsa",
+   "model_type": "zipformer2",
+   "num_encoder_layers": "2,2,2,2,2,2",
+   "num_heads": "4,4,4,8,4,4",
+   "onnx.infer": "onnxruntime.quant",
+   "query_head_dims": "32,32,32,32,32,32",
+   "value_head_dims": "12,12,12,12,12,12",
+   "version": "1"
+  }
+ }
+}

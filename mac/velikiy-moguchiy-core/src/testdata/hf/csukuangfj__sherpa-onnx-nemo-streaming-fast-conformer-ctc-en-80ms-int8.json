@@ -1,0 +1,54 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-streaming-fast-conformer-ctc-en-80ms-int8",
+  "private": false,
+  "sha": "2253b9ace8a22074f5e5f0fe9102c248185c34dd",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "7fe15b120abbc30aaf95bcc64bd6a17ae5192f2a",
+    "lfs": {
+     "sha256": "bf402c371a293707e90413c5df85484c8bc3aaa7081289c0007aab5ee8ac8e22",
+     "size": 132048406
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 132048406
+   },
+   {
+    "blobId": "3228fbf04d889e59138c56a1b19fd5fe795c3dbf",
+    "rfilename": "tokens.txt",
+    "size": 11896
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "cache_last_channel_dim1": "17",
+   "cache_last_channel_dim2": "70",
+   "cache_last_channel_dim3": "512",
+   "cache_last_time_dim1": "17",
+   "cache_last_time_dim2": "512",
+   "cache_last_time_dim3": "8",
+   "chunk_shift": "16",
+   "comment": "Only the CTC branch is exported",
+   "model_author": "NeMo",
+   "model_type": "EncDecHybridRNNTCTCBPEModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "subsampling_factor": "8",
+   "url": "https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/stt_en_fastconformer_hybrid_large_streaming_80ms",
+   "version": "1",
+   "vocab_size": "1024",
+   "window_size": "25"
+  }
+ }
+}

@@ -1,0 +1,56 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-dolphin-base-ctc-multi-lang-int8-2025-04-02",
+  "private": false,
+  "sha": "1f3a53d0ecf658f8b0974e2cfde368eee40732fa",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "aab1285ee8eab88e2f77cee6976ec1fb53a7b12c",
+    "rfilename": "README.md",
+    "size": 141
+   },
+   {
+    "blobId": "eb4ace09daebc535ea993c3c9763884ac1011edb",
+    "lfs": {
+     "sha256": "a3aa46c97f3f60f135ff949793cb05fabe7a0b3c484dc2e3cc699d354ee11b76",
+     "size": 103729802
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 103729802
+   },
+   {
+    "blobId": "868a04e8fd16545f873c46d53d4c7760d424431a",
+    "rfilename": "tokens.txt",
+    "size": 504662
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "base",
+   "invstd": "0.28683996200561523,0.26885583996772766,0.25932836532592773,0.25354185700416565,0.2479841411113739,0.2424044907093048,0.",
+   "maintainer": "k2-fsa",
+   "mean": "-8.201233863830566,-7.25913667678833,-6.440230369567871,-5.769667148590088,-5.006418704986572,-4.897216320037842,-5.1032",
+   "model_author": "DataoceanAI",
+   "model_type": "dolphin-ctc",
+   "onnx.infer": "onnxruntime.quant",
+   "url": "https://github.com/DataoceanAI/Dolphin",
+   "version": "1",
+   "vocab_size": "40002"
+  }
+ }
+}

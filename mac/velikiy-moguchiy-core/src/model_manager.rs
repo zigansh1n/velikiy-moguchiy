@@ -272,6 +272,13 @@ pub fn sherpa_layout(model_dir: &Path) -> Option<velikiy_moguchiy_asr::SherpaLay
     )
 }
 
+/// The `huggingface` section of a user model's manifest: repository,
+/// commit, licence and languages.
+pub fn hf_source(model_dir: &Path) -> Option<serde_json::Value> {
+    let manifest: serde_json::Value = serde_json::from_str(&read_manifest_text(model_dir)?).ok()?;
+    manifest.get("huggingface").filter(|v| v.is_object()).cloned()
+}
+
 fn read_manifest_text(model_dir: &Path) -> Option<String> {
     let manifest_path = model_dir.join(MANIFEST_FILE);
     // Read only a regular file, and check the descriptor actually opened
@@ -674,6 +681,7 @@ where
     let client = reqwest::Client::builder()
         .user_agent("velikiy-moguchiy/1.0")
         .connect_timeout(Duration::from_secs(30))
+        .read_timeout(Duration::from_secs(60))
         .tcp_keepalive(Some(Duration::from_secs(30)))
         .build()
         .map_err(|e| CoreError::Config(format!("http client: {e}")))?;
@@ -821,32 +829,11 @@ where
         existing_size = 0;
     }
 
-    let mut request = client.get(&file.url);
-    if existing_size > 0 {
-        request = request.header("Range", format!("bytes={}-", existing_size));
-    }
-
-    let response = tokio::select! {
-        result = request.send() => result
-            .map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?
-            .error_for_status()
-            .map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?,
-        _ = cancel.cancelled() => return Err(CoreError::Config("cancelled".into())),
-    };
-
-    let resuming = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
-
-    let mut out = if resuming && existing_size > 0 {
-        // Only ever append to a pre-existing regular file: a symlink (or
-        // anything else) planted at the .part path must not be followed.
-        let meta = std::fs::symlink_metadata(&part_path)
-            .map_err(|e| CoreError::Config(format!("stat part file: {e}")))?;
-        if !meta.file_type().is_file() {
-            return Err(CoreError::Config(format!(
-                "refusing to resume {}: not a regular file",
-                part_path.display()
-            )));
-        }
+    // A part that already holds every byte (the app quit between the last
+    // write and the rename) is checked as it is: asking for the bytes after
+    // its end would only get 416 Range Not Satisfiable.
+    let complete = file.size > 0 && existing_size == file.size;
+    if complete {
         on_progress(DownloadProgress {
             file_index,
             file_count,
@@ -855,76 +842,112 @@ where
             bytes_total: file.size,
             already_exists: false,
         });
-        tokio::fs::OpenOptions::new()
-            .append(true)
-            .open(&part_path)
-            .await
-            .map_err(|e| CoreError::Config(format!("open part file: {e}")))?
     } else {
-        if let Some(parent) = part_path.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| CoreError::Config(format!("create dir: {e}")))?;
+        let mut request = client.get(&file.url);
+        if existing_size > 0 {
+            request = request.header("Range", format!("bytes={}-", existing_size));
         }
-        // Create-new semantics so a path planted between the containment check
-        // and the open (symlink, directory, …) fails instead of being
-        // followed/truncated. Remove any stale leftover first — it is either a
-        // regular .part we are intentionally restarting, or a non-file that
-        // must not survive; remove_file unlinks a symlink itself, never its
-        // target.
-        if std::fs::symlink_metadata(&part_path).is_ok() {
-            std::fs::remove_file(&part_path)
-                .map_err(|e| CoreError::Config(format!("remove stale part file: {e}")))?;
-        }
-        tokio::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&part_path)
-            .await
-            .map_err(|e| CoreError::Config(format!("create part file: {e}")))?
-    };
 
-    let mut downloaded = if resuming { existing_size } else { 0 };
-    let mut stream = response.bytes_stream();
-
-    use tokio::io::AsyncWriteExt;
-    loop {
-        let chunk = tokio::select! {
-            item = stream.next() => match item {
-                Some(chunk) => chunk.map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?,
-                None => break,
-            },
+        let response = tokio::select! {
+            result = request.send() => result
+                .map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?
+                .error_for_status()
+                .map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?,
             _ = cancel.cancelled() => return Err(CoreError::Config("cancelled".into())),
         };
-        out.write_all(&chunk)
-            .await
-            .map_err(|e| CoreError::Config(format!("write {}: {e}", file.name)))?;
-        downloaded += chunk.len() as u64;
-        // Abort as soon as the stream exceeds the limit (manifest size, or
-        // the hard cap when the manifest declares none) — don't wait for the
-        // stream to end to notice an unbounded download.
-        if downloaded > size_limit {
-            drop(out);
-            let _ = std::fs::remove_file(&part_path);
-            return Err(CoreError::Config(format!(
-                "download {}: received {} bytes, exceeds limit of {} bytes",
-                file.name, downloaded, size_limit
-            )));
-        }
-        on_progress(DownloadProgress {
-            file_index,
-            file_count,
-            filename: file.name.clone(),
-            bytes_downloaded: downloaded,
-            bytes_total: file.size,
-            already_exists: false,
-        });
-    }
 
-    out.flush()
-        .await
-        .map_err(|e| CoreError::Config(format!("flush {}: {e}", file.name)))?;
-    drop(out);
+        let resuming = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+
+        let mut out = if resuming && existing_size > 0 {
+            // Only ever append to a pre-existing regular file: a symlink (or
+            // anything else) planted at the .part path must not be followed.
+            let meta = std::fs::symlink_metadata(&part_path)
+                .map_err(|e| CoreError::Config(format!("stat part file: {e}")))?;
+            if !meta.file_type().is_file() {
+                return Err(CoreError::Config(format!(
+                    "refusing to resume {}: not a regular file",
+                    part_path.display()
+                )));
+            }
+            on_progress(DownloadProgress {
+                file_index,
+                file_count,
+                filename: file.name.clone(),
+                bytes_downloaded: existing_size,
+                bytes_total: file.size,
+                already_exists: false,
+            });
+            tokio::fs::OpenOptions::new()
+                .append(true)
+                .open(&part_path)
+                .await
+                .map_err(|e| CoreError::Config(format!("open part file: {e}")))?
+        } else {
+            if let Some(parent) = part_path.parent() {
+                tokio::fs::create_dir_all(parent)
+                    .await
+                    .map_err(|e| CoreError::Config(format!("create dir: {e}")))?;
+            }
+            // Create-new semantics so a path planted between the containment check
+            // and the open (symlink, directory, …) fails instead of being
+            // followed/truncated. Remove any stale leftover first — it is either a
+            // regular .part we are intentionally restarting, or a non-file that
+            // must not survive; remove_file unlinks a symlink itself, never its
+            // target.
+            if std::fs::symlink_metadata(&part_path).is_ok() {
+                std::fs::remove_file(&part_path)
+                    .map_err(|e| CoreError::Config(format!("remove stale part file: {e}")))?;
+            }
+            tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&part_path)
+                .await
+                .map_err(|e| CoreError::Config(format!("create part file: {e}")))?
+        };
+
+        let mut downloaded = if resuming { existing_size } else { 0 };
+        let mut stream = response.bytes_stream();
+
+        use tokio::io::AsyncWriteExt;
+        loop {
+            let chunk = tokio::select! {
+                item = stream.next() => match item {
+                    Some(chunk) => chunk.map_err(|e| CoreError::Config(format!("download {}: {e}", file.name)))?,
+                    None => break,
+                },
+                _ = cancel.cancelled() => return Err(CoreError::Config("cancelled".into())),
+            };
+            out.write_all(&chunk)
+                .await
+                .map_err(|e| CoreError::Config(format!("write {}: {e}", file.name)))?;
+            downloaded += chunk.len() as u64;
+            // Abort as soon as the stream exceeds the limit (manifest size, or
+            // the hard cap when the manifest declares none) — don't wait for the
+            // stream to end to notice an unbounded download.
+            if downloaded > size_limit {
+                drop(out);
+                let _ = std::fs::remove_file(&part_path);
+                return Err(CoreError::Config(format!(
+                    "download {}: received {} bytes, exceeds limit of {} bytes",
+                    file.name, downloaded, size_limit
+                )));
+            }
+            on_progress(DownloadProgress {
+                file_index,
+                file_count,
+                filename: file.name.clone(),
+                bytes_downloaded: downloaded,
+                bytes_total: file.size,
+                already_exists: false,
+            });
+        }
+
+        out.flush()
+            .await
+            .map_err(|e| CoreError::Config(format!("flush {}: {e}", file.name)))?;
+        drop(out);
+    }
 
     // Verify integrity: use sha256 when available, otherwise check file size
     if !file.sha256.is_empty() {
@@ -2241,6 +2264,87 @@ mod tests {
         assert!(!dir.join("model.pth").exists());
         assert!(!dir.join("model.pth.part").exists());
         assert_eq!(model_status(&dir, VerifyMode::Normal), ModelStatus::NotInstalled);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    fn ranged_content() -> Vec<u8> {
+        (0..10_000u32).map(|i| (i * 7 % 251) as u8).collect()
+    }
+
+    fn ranged_dir(name: &str, content: &[u8], base: &str) -> PathBuf {
+        download_dir(
+            name,
+            vec![ModelFile {
+                name: "encoder.onnx".into(),
+                size: content.len() as u64,
+                sha256: sha_hex(content),
+                url: format!("{base}/encoder.onnx"),
+            }],
+        )
+    }
+
+    #[test]
+    fn resume_asks_only_for_the_missing_bytes() {
+        use crate::test_http::{Reply, Server};
+        let content = ranged_content();
+        let hub = Server::start([("/encoder.onnx".to_string(), Reply::Body(content.clone()))].into());
+        let dir = ranged_dir("resume", &content, &hub.base);
+        fs::write(dir.join("encoder.onnx.part"), &content[..4000]).unwrap();
+
+        run_download(&dir).unwrap();
+
+        assert_eq!(fs::read(dir.join("encoder.onnx")).unwrap(), content);
+        assert!(!dir.join("encoder.onnx.part").exists());
+        let ranges: Vec<Option<String>> = hub.requests().into_iter().map(|r| r.range).collect();
+        assert_eq!(ranges, vec![Some("bytes=4000-".to_string())]);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_corrupt_partial_file_fails_its_hash_and_the_next_try_starts_over() {
+        use crate::test_http::{Reply, Server};
+        let content = ranged_content();
+        let hub = Server::start([("/encoder.onnx".to_string(), Reply::Body(content.clone()))].into());
+        let dir = ranged_dir("corrupt-part", &content, &hub.base);
+        fs::write(dir.join("encoder.onnx.part"), vec![0u8; 4000]).unwrap();
+
+        let err = run_download(&dir).unwrap_err().to_string();
+        assert!(err.contains("sha256 mismatch"), "{err}");
+        assert!(!dir.join("encoder.onnx.part").exists());
+        assert!(!dir.join("encoder.onnx").exists());
+
+        run_download(&dir).unwrap();
+        assert_eq!(fs::read(dir.join("encoder.onnx")).unwrap(), content);
+        assert_eq!(hub.requests().last().unwrap().range, None);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_complete_partial_file_is_checked_without_asking_the_server() {
+        use crate::test_http::Server;
+        let content = ranged_content();
+        let hub = Server::start(Default::default());
+        let dir = ranged_dir("complete-part", &content, &hub.base);
+        fs::write(dir.join("encoder.onnx.part"), &content).unwrap();
+
+        run_download(&dir).unwrap();
+
+        assert_eq!(fs::read(dir.join("encoder.onnx")).unwrap(), content);
+        assert!(hub.requests().is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_server_without_ranges_restarts_the_file() {
+        use crate::test_http::{Reply, Server};
+        let content = ranged_content();
+        let hub = Server::start([("/encoder.onnx".to_string(), Reply::IgnoreRange(content.clone()))].into());
+        let dir = ranged_dir("no-ranges", &content, &hub.base);
+        fs::write(dir.join("encoder.onnx.part"), &content[..4000]).unwrap();
+
+        run_download(&dir).unwrap();
+
+        assert_eq!(fs::read(dir.join("encoder.onnx")).unwrap(), content);
         let _ = fs::remove_dir_all(&dir);
     }
 

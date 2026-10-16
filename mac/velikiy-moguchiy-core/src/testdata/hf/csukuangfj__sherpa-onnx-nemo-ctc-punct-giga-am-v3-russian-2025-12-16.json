@@ -1,0 +1,73 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-ctc-punct-giga-am-v3-russian-2025-12-16",
+  "private": false,
+  "sha": "4fb5407ff028a69fec516cdf4c10fac9ddea7c16",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "8d9a2e761e0feada9c9347a3f2265aee4653dba7",
+    "rfilename": "LICENSE",
+    "size": 1070
+   },
+   {
+    "blobId": "287b7907d7e2b6c9460d8bac56b336b0ce7f1881",
+    "rfilename": "README.md",
+    "size": 302
+   },
+   {
+    "blobId": "b6f801decc0847a4939f960184b46422861770cc",
+    "rfilename": "export-onnx-ctc-v3-punct.py",
+    "size": 3124
+   },
+   {
+    "blobId": "19dbb3a11d00322fb2243cb7b4da01eb3502f995",
+    "lfs": {
+     "sha256": "d5fea8df94263c285e54b21e5774b707c707192d3bdbeffd7b1eb07fb6743b35",
+     "size": 224893661
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 224893661
+   },
+   {
+    "blobId": "c4af3c2c0244518e21276e8198f86a42a0d852bc",
+    "rfilename": "run-ctc-v3-punct.sh",
+    "size": 882
+   },
+   {
+    "blobId": "ea69b70be3cf051f2e9a1ef13404767c8a54fd16",
+    "rfilename": "test-onnx-ctc.py",
+    "size": 4031
+   },
+   {
+    "blobId": "57e85ff18d746b7f29249859f94436d079bad0ee",
+    "rfilename": "tokens.txt",
+    "size": 2007
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "v3 with puncutations",
+   "is_giga_am": "1",
+   "language": "Russian",
+   "license": "https://github.com/salute-developers/GigaAM/blob/main/LICENSE",
+   "model_author": "https://github.com/salute-developers/GigaAM",
+   "model_type": "EncDecCTCModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "subsampling_factor": "4",
+   "version": "1",
+   "vocab_size": "257"
+  }
+ }
+}

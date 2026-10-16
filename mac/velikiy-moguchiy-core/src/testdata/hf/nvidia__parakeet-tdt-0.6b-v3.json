@@ -1,0 +1,114 @@
+{
+ "info": {
+  "cardData": {
+   "language": [
+    "en",
+    "es",
+    "fr",
+    "de",
+    "bg",
+    "hr",
+    "cs",
+    "da",
+    "nl",
+    "et",
+    "fi",
+    "el",
+    "hu",
+    "it",
+    "lv",
+    "lt",
+    "mt",
+    "pl",
+    "pt",
+    "ro",
+    "sk",
+    "sl",
+    "sv",
+    "ru",
+    "uk"
+   ],
+   "license": "cc-by-4.0",
+   "pipeline_tag": "automatic-speech-recognition"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "nvidia/parakeet-tdt-0.6b-v3",
+  "pipeline_tag": "automatic-speech-recognition",
+  "private": false,
+  "sha": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+  "siblings": [
+   {
+    "blobId": "70f27141a1757f2f027cb755b01556972888c636",
+    "rfilename": ".eval_results/open_asr_leaderboard.yaml",
+    "size": 2130
+   },
+   {
+    "blobId": "dae81d5df3418453c5153e3ba966c7d74c70bb3e",
+    "rfilename": ".gitattributes",
+    "size": 1722
+   },
+   {
+    "blobId": "50c4a1414566a843f671af136996f343309910dc",
+    "rfilename": "README.md",
+    "size": 42888
+   },
+   {
+    "blobId": "969c65410a736e4a3922f968b3481b2418aba786",
+    "rfilename": "config.json",
+    "size": 1153
+   },
+   {
+    "blobId": "e368b292e2ad5232aae2a3e45f4761097e5fc216",
+    "rfilename": "generation_config.json",
+    "size": 289
+   },
+   {
+    "blobId": "2d98cb6ea8e6f7c2dce6d7a88def7404169340a0",
+    "lfs": {
+     "sha256": "3a2026366188c8c68598edbbff92f8d11590a08e0ae2e6775544e7b07d6a5e11",
+     "size": 2508311120
+    },
+    "rfilename": "model.safetensors",
+    "size": 2508311120
+   },
+   {
+    "blobId": "ebab265de3051ef329df5cc4c97da8fdf2e3e4a2",
+    "lfs": {
+     "sha256": "3cbdc85877e668ca7b82d0d56770eb1fac76691f55d6b97545e8d61ca588d10d",
+     "size": 2509332480
+    },
+    "rfilename": "parakeet-tdt-0.6b-v3.nemo",
+    "size": 2509332480
+   },
+   {
+    "blobId": "2d8802fefcc24a702bbfd1990529505f2d37fc4c",
+    "lfs": {
+     "sha256": "e3880d0aaaaf2c308ea2c35016b2b895c423eb3fda924c1b463d1c19b7f4d32e",
+     "size": 713975456
+    },
+    "rfilename": "parakeet-tdt-0.6b-v3.q8_0.gguf",
+    "size": 713975456
+   },
+   {
+    "blobId": "7acffca89b7dd12e0ebcd085c7181c91cae6575c",
+    "rfilename": "processor_config.json",
+    "size": 392
+   },
+   {
+    "blobId": "a10a554cf61e38108756650018d5781ae9675c1d",
+    "rfilename": "tokenizer.json",
+    "size": 1159960
+   },
+   {
+    "blobId": "8a31c60ee8ce7b81b999061d3a233845cf8bd033",
+    "rfilename": "tokenizer_config.json",
+    "size": 290
+   }
+  ],
+  "tags": [
+   "license:cc-by-4.0"
+  ]
+ },
+ "metadata": {}
+}

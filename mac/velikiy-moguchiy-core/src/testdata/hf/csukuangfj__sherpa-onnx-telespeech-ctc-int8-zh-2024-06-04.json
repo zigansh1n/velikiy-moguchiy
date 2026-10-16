@@ -1,0 +1,59 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-telespeech-ctc-int8-zh-2024-06-04",
+  "private": false,
+  "sha": "d6ae7e614f84da611d9895867fdf4274fe07a00a",
+  "siblings": [
+   {
+    "blobId": "cbb3f21534be60fa001a9575e980e235d92fe923",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "fbd808c2dd22cebc53cdda1017f637721d43d094",
+    "rfilename": "README.md",
+    "size": 460
+   },
+   {
+    "blobId": "63f749430a81523b718dc120c1f4b1054d7e02ea",
+    "rfilename": "add-metadata.py",
+    "size": 2004
+   },
+   {
+    "blobId": "82a6a1f6928bd00dc999b7d51b51fce631288d35",
+    "lfs": {
+     "sha256": "2bf52b42c971696dc02a2db94c52c8fc75fab321ac4cf10b5a2d6863a73a33b3",
+     "size": 340990949
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 340990949
+   },
+   {
+    "blobId": "71953700f5653ef12df451656be2bf0af7826c9e",
+    "rfilename": "test.py",
+    "size": 4024
+   },
+   {
+    "blobId": "b65434b25b7a11759d7f394f1fe73206a28c4e85",
+    "rfilename": "tokens.txt",
+    "size": 66642
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "See also https://github.com/lovemefan/telespeech-asr-python",
+   "license": "https://github.com/Tele-AI/TeleSpeech-ASR/blob/master/TeleSpeech%E6%A8%A1%E5%9E%8B%E7%A4%BE%E5%8C%BA%E8%AE%B8%E5%8F%AF%E5%8D%8F%E8%AE%AE.pdf",
+   "model_author": "Tele-AI",
+   "model_type": "telespeech_ctc",
+   "onnx.infer": "onnxruntime.quant",
+   "url": "https://github.com/Tele-AI/TeleSpeech-ASR",
+   "version": "1"
+  }
+ }
+}

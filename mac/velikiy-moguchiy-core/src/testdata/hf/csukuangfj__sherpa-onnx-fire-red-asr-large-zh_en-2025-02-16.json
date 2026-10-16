@@ -1,0 +1,67 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-fire-red-asr-large-zh_en-2025-02-16",
+  "private": false,
+  "sha": "a54a778dd577224f5c44b4c408b570d089d7f63a",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "317a21096bce9fc0b6e007b39cd0b4154b164346",
+    "rfilename": "README.md",
+    "size": 188
+   },
+   {
+    "blobId": "60a45f4b4fb2083e4df0fd7b860dfb5cbd9bc72d",
+    "lfs": {
+     "sha256": "c08b9d0297ed17ad84087085e27a4adedcc4e8b3ef14770369f1665681cc507d",
+     "size": 445469383
+    },
+    "rfilename": "decoder.int8.onnx",
+    "size": 445469383
+   },
+   {
+    "blobId": "076cf3f436d517221b9159ca5c8704487cad3e82",
+    "lfs": {
+     "sha256": "e60cfef737a0ea324846a64eca8b9dae35898f353f4e34b62ad7e536e2d86add",
+     "size": 1293430814
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 1293430814
+   },
+   {
+    "blobId": "afd1d79290c76a05e9eb653d76984434c18bb371",
+    "rfilename": "tokens.txt",
+    "size": 71448
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "cmvn_inv_stddev": "0.2522108852863312,0.23741021752357483,0.23185651004314423,0.23331022262573242,0.23203925788402557,0.22906658053398132,0",
+   "cmvn_mean": "10.498912811279297,10.948603630065918,11.889163970947266,12.634881973266602,13.397452354431152,14.010934829711914,14.450",
+   "comment": "This is FireRedASR-AED-L",
+   "eos": "4",
+   "feat_dim": "80",
+   "head_dim": "64",
+   "maintainer": "k2-fsa",
+   "max_len": "1024",
+   "model_author": "FireRedTeam",
+   "model_type": "fire-red-asr-aed",
+   "num_decoder_layers": "16",
+   "num_head": "20",
+   "sos": "3",
+   "url": "https://github.com/FireRedTeam/FireRedASR",
+   "url-2": "https://huggingface.co/FireRedTeam/FireRedASR-AED-L",
+   "version": "1"
+  }
+ }
+}

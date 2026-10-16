@@ -1,0 +1,75 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-moonshine-tiny-en-int8",
+  "private": false,
+  "sha": "bf2b762c076d8ea61e2af0b3851c9564fb77552e",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "0cf49dc337ac33e85aa68f6ad5a9fd2ee62cbd52",
+    "rfilename": "LICENSE",
+    "size": 1071
+   },
+   {
+    "blobId": "8a0e893e5e374caae989bca628935620de76a962",
+    "rfilename": "README.md",
+    "size": 175
+   },
+   {
+    "blobId": "658305e31800ed07f802a647768036983d3b5978",
+    "lfs": {
+     "sha256": "2aff28bba6a03d8dcf5c9feac45462629bae37317442299f28115ad09da773f6",
+     "size": 45264830
+    },
+    "rfilename": "cached_decode.int8.onnx",
+    "size": 45264830
+   },
+   {
+    "blobId": "5c135300f497a10da78bc4b1f2347dd3c3be0a04",
+    "lfs": {
+     "sha256": "8774dfba578de027ec6595c2c654a0836434489bc963a0db124a7f181f571acb",
+     "size": 18249187
+    },
+    "rfilename": "encode.int8.onnx",
+    "size": 18249187
+   },
+   {
+    "blobId": "1464028c4223834dc884051eb48fce27d975d38f",
+    "lfs": {
+     "sha256": "f33addce61a143460fe753b5ee5b7db255e5140b5b779c065b94f6c83ff0bf4e",
+     "size": 6800738
+    },
+    "rfilename": "preprocess.onnx",
+    "size": 6800738
+   },
+   {
+    "blobId": "75a90190faccf21c06262649dc74544261e07f92",
+    "rfilename": "tokens.txt",
+    "size": 436688
+   },
+   {
+    "blobId": "58c8d5e769d5a9c7636147589d7b9c21b5b560db",
+    "lfs": {
+     "sha256": "216737000dd5881a17aa043f6bbd286add33e4c3b0ae257153e2ec15438bdc41",
+     "size": 53216096
+    },
+    "rfilename": "uncached_decode.int8.onnx",
+    "size": 53216096
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encode.int8.onnx": {
+   "onnx.infer": "onnxruntime.quant"
+  }
+ }
+}

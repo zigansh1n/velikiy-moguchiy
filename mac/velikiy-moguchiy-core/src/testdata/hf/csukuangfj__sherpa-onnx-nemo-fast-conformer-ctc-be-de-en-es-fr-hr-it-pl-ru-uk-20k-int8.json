@@ -1,0 +1,18 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-fast-conformer-ctc-be-de-en-es-fr-hr-it-pl-ru-uk-20k-int8",
+  "private": false,
+  "sha": "28dc93e0c628482444707e65cd7895a62160992d",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   }
+  ],
+  "tags": []
+ },
+ "metadata": {}
+}

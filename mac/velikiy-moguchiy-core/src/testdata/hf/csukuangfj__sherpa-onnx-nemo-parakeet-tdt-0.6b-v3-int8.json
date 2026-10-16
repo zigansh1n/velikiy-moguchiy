@@ -1,0 +1,66 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
+  "private": false,
+  "sha": "2bda32ec70b097a55adaa07d9a7173915b43cc78",
+  "siblings": [
+   {
+    "blobId": "6f2cdb7f33d37dd32beac8847295ee32f41bea53",
+    "rfilename": ".gitattributes",
+    "size": 1607
+   },
+   {
+    "blobId": "6d6a962c42e5dfd19ecf7dda0bc392ff12df09d4",
+    "lfs": {
+     "sha256": "179e50c43d1a9de79c8a24149a2f9bac6eb5981823f2a2ed88d655b24248db4e",
+     "size": 11845275
+    },
+    "rfilename": "decoder.int8.onnx",
+    "size": 11845275
+   },
+   {
+    "blobId": "df184c0ca8d0e6f8021b5b3d9ab6b6781e1a520d",
+    "lfs": {
+     "sha256": "acfc2b4456377e15d04f0243af540b7fe7c992f8d898d751cf134c3a55fd2247",
+     "size": 652184281
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 652184281
+   },
+   {
+    "blobId": "7f26222dd158f32f6e288c9f4111e419e357d025",
+    "lfs": {
+     "sha256": "3164c13fc2821009440d20fcb5fdc78bff28b4db2f8d0f0b329101719c0948b3",
+     "size": 6355277
+    },
+    "rfilename": "joiner.int8.onnx",
+    "size": 6355277
+   },
+   {
+    "blobId": "fc43e1c723e262df60b70e1919614417162d1fe2",
+    "rfilename": "tokens.txt",
+    "size": 93939
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "comment": "Only the transducer branch is exported",
+   "feat_dim": "128",
+   "model_author": "NeMo",
+   "model_type": "EncDecRNNTBPEModel",
+   "normalize_type": "per_feature",
+   "pred_hidden": "640",
+   "pred_rnn_layers": "2",
+   "subsampling_factor": "8",
+   "url": "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3",
+   "version": "2",
+   "vocab_size": "8192"
+  }
+ }
+}

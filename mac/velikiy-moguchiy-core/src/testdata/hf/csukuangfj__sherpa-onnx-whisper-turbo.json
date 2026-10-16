@@ -1,0 +1,132 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-whisper-turbo",
+  "private": false,
+  "sha": "2ca6ff69fc878651b770880507669577ac41c2ff",
+  "siblings": [
+   {
+    "blobId": "b814738ede9d5cbac2aff10ab3ccca8ed3bdd3c7",
+    "rfilename": ".gitattributes",
+    "size": 1608
+   },
+   {
+    "blobId": "bfebe364ec08531b40977768f1995b8194d7a05a",
+    "lfs": {
+     "sha256": "20accd02388482eb3a46bd615631adfdc85e1eb2c7db9ea3f02a40ffe6b81547",
+     "size": 361080764
+    },
+    "rfilename": "turbo-decoder.int8.onnx",
+    "size": 361080764
+   },
+   {
+    "blobId": "1fcb97ed00ed4deae3f97146568f3cf1b3b0af4b",
+    "lfs": {
+     "sha256": "b24db5d90fa230c5eaa6b823d74862ced9e0d1dc3e01ec46601968e8db0e09ec",
+     "size": 636209532
+    },
+    "rfilename": "turbo-decoder.onnx",
+    "size": 636209532
+   },
+   {
+    "blobId": "a17b2215cd09bc297e1e8522a02834888ce7f305",
+    "lfs": {
+     "sha256": "b02dcdf54f348741e93fe732b67d933c8dcb6735655f710640143081db38878b",
+     "size": 674716297
+    },
+    "rfilename": "turbo-encoder.int8.onnx",
+    "size": 674716297
+   },
+   {
+    "blobId": "b5a2527d655129a56beb31a384d64fbd638fcc80",
+    "lfs": {
+     "sha256": "1b960f278564fb8bbacd544d4f85f4dd6d8a64d3aa89543d8f2c4021c926f976",
+     "size": 735920
+    },
+    "rfilename": "turbo-encoder.onnx",
+    "size": 735920
+   },
+   {
+    "blobId": "b79fcbe6c3213ed5938f7cf4fa6665a04f6a4e0b",
+    "lfs": {
+     "sha256": "746f879ecf066450ab0cdecc05383380b85157270ff6c0a9fb7cfdd917036e12",
+     "size": 2600325120
+    },
+    "rfilename": "turbo-encoder.weights",
+    "size": 2600325120
+   },
+   {
+    "blobId": "a4edf0b719c10d28cd83f8c294449f99ff5d5dc0",
+    "rfilename": "turbo-tokens.txt",
+    "size": 816730
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "turbo-encoder.int8.onnx": {
+   "all_language_codes": "mk,tr,sd,ja,hr,af,kn,lv,fo,lb,mg,zh,ha,no,eu,ro,hi,ta,mr,lo,ar,be,bo,az,nn,sv,am,uz,hy,sk,si,lt,km,de,ca,tg,da,mn,my,tk,br,ne,fr,yi,hu,sl,ba,sa,ka,vi,he,es,ps,cy,en,as,bs,kk,yue,so,sr,th,ln,gu,su,fi,ru,oc,mt,cs,tl,ur,gl,is,bg,sn,pt,yo,fa,haw,id,mi,et,tt,it,sq,ht,pa,ml,ms,la,el,ko,sw,uk,te,bn,jw,nl,pl",
+   "all_language_tokens": "50308,50268,50332,50266,50291,50327,50306,50301,50338,50345,50349,50260,50354,50288,50310,50284,50276,50287,50320,50336,50272,50330,50347,50304,50342,50273,50334,50337,50312,50298,50322,50293,50323,50261,50270,50331,50285,50314,50346,50341,50309,50313,50265,50335,50286,50305,50355,50344,50329,50278,50279,50262,50340,50297,50259,50350,50315,50316,50358,50326,50303,50289,50353,50333,50357,50277,50263,50328,50343,50283,50348,50290,50319,50311,50292,50324,50267,50325,50300,50352,50275,50295,50307,50351,50274,50317,50339,50321,50296,50282,50294,50281,50264,50318,50280,50299,50302,50356,50271,50269",
+   "blank_id": "220",
+   "eot": "50257",
+   "is_multilingual": "1",
+   "maintainer": "k2-fsa",
+   "model_type": "whisper-turbo",
+   "n_audio_ctx": "1500",
+   "n_audio_head": "20",
+   "n_audio_layer": "32",
+   "n_audio_state": "1280",
+   "n_mels": "128",
+   "n_text_ctx": "448",
+   "n_text_head": "20",
+   "n_text_layer": "4",
+   "n_text_state": "1280",
+   "n_vocab": "51866",
+   "no_speech": "50363",
+   "no_timestamps": "50364",
+   "non_speech_tokens": "1,2,7,8,9,10,14,25,26,27,28,29,31,58,59,60,61,62,63,90,91,92,93,359,503,522,542,873,893,902,918,922,931,1350,1853,1982,2460,2627,3246,3253,3268,3536,3846,3961,4183,4667,6585,6647,7273,9061,9383,10428,10929,11938,12033,12331,12562,13793,14157,14635,15265,15618,16553,16604,18362,18956,20075,21675,22520,26130,26161,26435,28279,29464,31650,32302,32470,36865,42863,47425,49870,50254",
+   "onnx.infer": "onnxruntime.quant",
+   "sot": "50258",
+   "sot_index": "0",
+   "sot_lm": "50361",
+   "sot_prev": "50362",
+   "sot_sequence": "50258,50259,50360",
+   "transcribe": "50360",
+   "translate": "50359",
+   "version": "1"
+  },
+  "turbo-encoder.onnx": {
+   "all_language_codes": "mk,tr,sd,ja,hr,af,kn,lv,fo,lb,mg,zh,ha,no,eu,ro,hi,ta,mr,lo,ar,be,bo,az,nn,sv,am,uz,hy,sk,si,lt,km,de,ca,tg,da,mn,my,tk,br,ne,fr,yi,hu,sl,ba,sa,ka,vi,he,es,ps,cy,en,as,bs,kk,yue,so,sr,th,ln,gu,su,fi,ru,oc,mt,cs,tl,ur,gl,is,bg,sn,pt,yo,fa,haw,id,mi,et,tt,it,sq,ht,pa,ml,ms,la,el,ko,sw,uk,te,bn,jw,nl,pl",
+   "all_language_tokens": "50308,50268,50332,50266,50291,50327,50306,50301,50338,50345,50349,50260,50354,50288,50310,50284,50276,50287,50320,50336,50272,50330,50347,50304,50342,50273,50334,50337,50312,50298,50322,50293,50323,50261,50270,50331,50285,50314,50346,50341,50309,50313,50265,50335,50286,50305,50355,50344,50329,50278,50279,50262,50340,50297,50259,50350,50315,50316,50358,50326,50303,50289,50353,50333,50357,50277,50263,50328,50343,50283,50348,50290,50319,50311,50292,50324,50267,50325,50300,50352,50275,50295,50307,50351,50274,50317,50339,50321,50296,50282,50294,50281,50264,50318,50280,50299,50302,50356,50271,50269",
+   "blank_id": "220",
+   "eot": "50257",
+   "is_multilingual": "1",
+   "maintainer": "k2-fsa",
+   "model_type": "whisper-turbo",
+   "n_audio_ctx": "1500",
+   "n_audio_head": "20",
+   "n_audio_layer": "32",
+   "n_audio_state": "1280",
+   "n_mels": "128",
+   "n_text_ctx": "448",
+   "n_text_head": "20",
+   "n_text_layer": "4",
+   "n_text_state": "1280",
+   "n_vocab": "51866",
+   "no_speech": "50363",
+   "no_timestamps": "50364",
+   "non_speech_tokens": "1,2,7,8,9,10,14,25,26,27,28,29,31,58,59,60,61,62,63,90,91,92,93,359,503,522,542,873,893,902,918,922,931,1350,1853,1982,2460,2627,3246,3253,3268,3536,3846,3961,4183,4667,6585,6647,7273,9061,9383,10428,10929,11938,12033,12331,12562,13793,14157,14635,15265,15618,16553,16604,18362,18956,20075,21675,22520,26130,26161,26435,28279,29464,31650,32302,32470,36865,42863,47425,49870,50254",
+   "sot": "50258",
+   "sot_index": "0",
+   "sot_lm": "50361",
+   "sot_prev": "50362",
+   "sot_sequence": "50258,50259,50360",
+   "transcribe": "50360",
+   "translate": "50359",
+   "version": "1"
+  }
+ }
+}

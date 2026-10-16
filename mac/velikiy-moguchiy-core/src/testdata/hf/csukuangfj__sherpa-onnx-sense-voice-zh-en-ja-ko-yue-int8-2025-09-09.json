@@ -1,0 +1,64 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09",
+  "private": false,
+  "sha": "355f4d4884d8afd08aef04b9007a8556d7b463b2",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "b1c6fca2320e581661262d45526815aee7223675",
+    "rfilename": "README.md",
+    "size": 131
+   },
+   {
+    "blobId": "f35ee03e023b9d0181136e9c2682539461f47abe",
+    "lfs": {
+     "sha256": "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d",
+     "size": 237115547
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 237115547
+   },
+   {
+    "blobId": "2cfc92fc2ff26aaa690b7c01fd96b41109413881",
+    "rfilename": "tokens.txt",
+    "size": 315894
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "ASLP-lab/WSYue-ASR",
+   "inv_stddev": "0.155775,0.154484,0.1527379,0.1518718,0.1506028,0.1489256,0.147067,0.1447061,0.1436307,0.1443568,0.1451849,0.1455157,0.1",
+   "lang_auto": "0",
+   "lang_en": "4",
+   "lang_ja": "11",
+   "lang_ko": "12",
+   "lang_nospeech": "13",
+   "lang_yue": "7",
+   "lang_zh": "3",
+   "lfr_window_shift": "6",
+   "lfr_window_size": "7",
+   "maintainer": "k2-fsa",
+   "model_author": "ASLP-lab",
+   "model_type": "sense_voice_ctc",
+   "neg_mean": "-8.311879,-8.600912,-9.615928,-10.43595,-11.21292,-11.88333,-12.36243,-12.63706,-12.8818,-12.83066,-12.89103,-12.95666,-",
+   "normalize_samples": "0",
+   "onnx.infer": "onnxruntime.quant",
+   "url": "https://huggingface.co/ASLP-lab/WSYue-ASR/tree/main/sensevoice_small_yue",
+   "version": "2",
+   "vocab_size": "25055",
+   "with_itn": "14",
+   "without_itn": "15"
+  }
+ }
+}

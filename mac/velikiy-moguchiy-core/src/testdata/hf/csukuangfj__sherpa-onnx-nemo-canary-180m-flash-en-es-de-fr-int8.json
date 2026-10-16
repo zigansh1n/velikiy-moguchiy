@@ -1,0 +1,54 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8",
+  "private": false,
+  "sha": "9077164e0d3dd1d5353743e89ceaa1d3a770838c",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "cd33846c8ba16bcfd44f7ec9270d1b0ba71847d2",
+    "lfs": {
+     "sha256": "e41a2ab9c0c2fe81a1e8ade5a45fb02a74bc4db7d1f91b89a54a25e2cf79cba2",
+     "size": 74437848
+    },
+    "rfilename": "decoder.int8.onnx",
+    "size": 74437848
+   },
+   {
+    "blobId": "c87ab888d594387a4304ff457bb2f3558eb4150b",
+    "lfs": {
+     "sha256": "7a75b4e2a5857a6dcc0819503bbe3fad66943db4a3ccf21d3f27c633667d303f",
+     "size": 132678643
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 132678643
+   },
+   {
+    "blobId": "da5e7fa593e5f2e3d7a6daa6688da7adebc8336a",
+    "rfilename": "tokens.txt",
+    "size": 53555
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "feat_dim": "128",
+   "model_author": "NeMo",
+   "model_type": "EncDecMultiTaskModel",
+   "normalize_type": "per_feature",
+   "subsampling_factor": "8",
+   "url": "https://huggingface.co/nvidia/canary-180m-flash",
+   "version": "1",
+   "vocab_size": "5248"
+  }
+ }
+}

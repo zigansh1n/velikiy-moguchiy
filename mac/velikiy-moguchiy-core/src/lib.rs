@@ -9,6 +9,7 @@ pub mod dictionary;
 pub mod errors;
 pub mod ffi;
 pub mod file_transcription;
+pub mod hf_models;
 pub mod live_insert;
 pub mod llm;
 pub mod model_manager;
@@ -19,6 +20,8 @@ pub mod signature;
 pub mod silence;
 pub mod snippets;
 pub mod telemetry;
+#[cfg(test)]
+mod test_http;
 pub mod unicode_typing;
 pub mod visualizer;
 
@@ -1805,6 +1808,7 @@ pub extern "C" fn sp_core_scan_models_json() -> *mut c_char {
                 "repo": m.manifest.repo,
                 "total_size": m.manifest.files.iter().map(|f| f.size).sum::<u64>(),
                 "status": model_manager::model_status(&m.path, model_manager::VerifyMode::CacheOnly) as i32,
+                "huggingface": model_manager::hf_source(&m.path),
             })
         })
         .collect();

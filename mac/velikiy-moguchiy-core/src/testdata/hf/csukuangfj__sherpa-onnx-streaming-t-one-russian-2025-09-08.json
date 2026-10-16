@@ -1,0 +1,57 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-streaming-t-one-russian-2025-09-08",
+  "private": false,
+  "sha": "9d63341e0f2d8a8b2edaa825aa1fcfe3c5283b47",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "ef2b8e4e8275bc717651f1e2fc7be1cd382e38dd",
+    "rfilename": "LICENSE",
+    "size": 553
+   },
+   {
+    "blobId": "48b02c0c665208a79b18cc8582fdfb9dbb74702b",
+    "rfilename": "README.md",
+    "size": 126
+   },
+   {
+    "blobId": "97cc3c0d8b77699e8a4416df4a0143e4b7787662",
+    "lfs": {
+     "sha256": "5ded080e2a6c86ecc11bcb0902d77524eb3e8b0844cb0c0754347f5aafb4dabc",
+     "size": 144193702
+    },
+    "rfilename": "model.onnx",
+    "size": 144193702
+   },
+   {
+    "blobId": "1b142114bebfc804e668fcba49159c1be7b21d3f",
+    "rfilename": "tokens.txt",
+    "size": 202
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.onnx": {
+   "comment": "This is a streaming CTC model for Russian with expected audio sample rate 8000",
+   "frame_length_ms": "300",
+   "language": "Russian",
+   "maintainer": "k2-fsa",
+   "model_type": "t-one",
+   "sample_rate": "8000",
+   "see_also": "https://huggingface.co/t-tech/T-one",
+   "state_dim": "219729",
+   "url": "https://github.com/voicekit-team/T-one",
+   "version": "1"
+  }
+ }
+}

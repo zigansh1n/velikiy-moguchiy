@@ -1,0 +1,75 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-funasr-nano-int8-2025-12-30",
+  "private": false,
+  "sha": "6f16bd378457e13f36ccf3910df9017f96c346fb",
+  "siblings": [
+   {
+    "blobId": "d9c30a312e77f1df3e0821a5b66e670320df2f3e",
+    "rfilename": ".gitattributes",
+    "size": 1693
+   },
+   {
+    "blobId": "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7",
+    "rfilename": "Qwen3-0.6B/merges.txt",
+    "size": 1671853
+   },
+   {
+    "blobId": "cd71f61a15a522601badb3dc960d800d9cb3766c",
+    "lfs": {
+     "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+     "size": 11422654
+    },
+    "rfilename": "Qwen3-0.6B/tokenizer.json",
+    "size": 11422654
+   },
+   {
+    "blobId": "6c49fc63bcb109de13abe49e58f85a4cdba7b679",
+    "lfs": {
+     "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+     "size": 2776833
+    },
+    "rfilename": "Qwen3-0.6B/vocab.json",
+    "size": 2776833
+   },
+   {
+    "blobId": "8c54e87ceea9b732139e0c7bbd2cf51e8a684dbf",
+    "rfilename": "README.md",
+    "size": 253
+   },
+   {
+    "blobId": "503c06b6a681d0103060de743aac55c34aed8b63",
+    "lfs": {
+     "sha256": "95e61cd0c9c3b9543339a4cf973c95c116815e745ccc1e0285cbd81f76d18644",
+     "size": 155584380
+    },
+    "rfilename": "embedding.int8.onnx",
+    "size": 155584380
+   },
+   {
+    "blobId": "5393cad3ec76f3d1adf80005a5c2c971c5cbaaf3",
+    "lfs": {
+     "sha256": "f36dea2e30fbc33b5db1d7a7265cc976c5e5586c77b042d5adb1ad27c72db422",
+     "size": 237792748
+    },
+    "rfilename": "encoder_adaptor.int8.onnx",
+    "size": 237792748
+   },
+   {
+    "blobId": "c91040f65ce9675a7bfc713153933230acb4f8a2",
+    "lfs": {
+     "sha256": "dfbf9aa3be41bccc257587f151e15c63fbe1b549f2b517f5ccd5bdce3bf4322a",
+     "size": 600356593
+    },
+    "rfilename": "llm.int8.onnx",
+    "size": 600356593
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {}
+}

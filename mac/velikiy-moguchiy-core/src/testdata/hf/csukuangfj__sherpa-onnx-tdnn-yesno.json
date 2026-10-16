@@ -1,0 +1,68 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-tdnn-yesno",
+  "private": false,
+  "sha": "93a6f1d8f477397fc607a6cb151bff7a68c28589",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "8c51f2aee13e79808da43dcaeebbda93ea96c13b",
+    "rfilename": "README.md",
+    "size": 419
+   },
+   {
+    "blobId": "4bf03cb7e0e229af284843fc376ae1341580abaa",
+    "lfs": {
+     "sha256": "3fc7a11b646a2237924c7b391e44a9ab74a16ff691ab52af83a05e5863b63d60",
+     "size": 56780
+    },
+    "rfilename": "model-epoch-14-avg-2.int8.onnx",
+    "size": 56780
+   },
+   {
+    "blobId": "1e1b067f00498cf862e379c704fc3a7f4d95b421",
+    "lfs": {
+     "sha256": "c4521e1e5c82c311f903ae2c905d4d8f9ddc70a0aa8f2ffe78f45c4d67252ac0",
+     "size": 55574
+    },
+    "rfilename": "model-epoch-14-avg-2.onnx",
+    "size": 55574
+   },
+   {
+    "blobId": "24c1b63e0d4171beb1ecf2d0ae64423cca28b049",
+    "rfilename": "tokens.txt",
+    "size": 37
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {
+  "model-epoch-14-avg-2.int8.onnx": {
+   "comment": "non-streaming tdnn for the yesno recipe",
+   "model_author": "k2-fsa",
+   "model_type": "tdnn",
+   "onnx.infer": "onnxruntime.quant",
+   "version": "1",
+   "vocab_size": "4"
+  },
+  "model-epoch-14-avg-2.onnx": {
+   "comment": "non-streaming tdnn for the yesno recipe",
+   "model_author": "k2-fsa",
+   "model_type": "tdnn",
+   "version": "1",
+   "vocab_size": "4"
+  }
+ }
+}

@@ -1,0 +1,102 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-streaming-paraformer-bilingual-zh-en",
+  "private": false,
+  "sha": "8e40c43232a1c5c66c82111efc5820d3accca11b",
+  "siblings": [
+   {
+    "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+    "rfilename": ".gitattributes",
+    "size": 1519
+   },
+   {
+    "blobId": "23c9cb2b0edb172e6790f2ed5ff398fdba6e233a",
+    "rfilename": "README.md",
+    "size": 415
+   },
+   {
+    "blobId": "18c36b66c025f8db9b365e6fc36e06fe9c831d71",
+    "lfs": {
+     "sha256": "f3cca9f77bb9d93c8fcbfb63ae617b6b1ee96818df3aa3b151c40658fe38594f",
+     "size": 71664561
+    },
+    "rfilename": "decoder.int8.onnx",
+    "size": 71664561
+   },
+   {
+    "blobId": "16fe3e2c653f8679a58f9ab2e0e734af9167aeea",
+    "lfs": {
+     "sha256": "e178f5a7dd4efbf5905a797807006d773b12116eb39fed3d16758e68f9f50921",
+     "size": 228464044
+    },
+    "rfilename": "decoder.onnx",
+    "size": 228464044
+   },
+   {
+    "blobId": "b5b21f1634200180753bb8ae31975ab6c05b6c5c",
+    "lfs": {
+     "sha256": "81a70226a8934e6ed92aa1d4fc486b428b5398e2f2619ed4897b7294cab90e9a",
+     "size": 165462184
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 165462184
+   },
+   {
+    "blobId": "e4f9193862cc71b29fcbc03350b46863a744c313",
+    "lfs": {
+     "sha256": "832c8e8d3f758f4ab0fcfc011eec91154ecd129b7305564a7b461b20064ebcc6",
+     "size": 636348877
+    },
+    "rfilename": "encoder.onnx",
+    "size": 636348877
+   },
+   {
+    "blobId": "57bc045ddda0434ed4440c38e14287c595b258d9",
+    "rfilename": "tokens.txt",
+    "size": 75756
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "comment": "speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online",
+   "decoder_kernel_size": "11",
+   "decoder_num_blocks": "16",
+   "encoder_output_size": "512",
+   "inv_stddev": "0.155775,0.154484,0.1527379,0.1518718,0.1506028,0.1489256,0.147067,0.1447061,0.1436307,0.1443568,0.1451849,0.1455157,0.1",
+   "lfr_window_shift": "6",
+   "lfr_window_size": "7",
+   "maintainer": "k2-fsa",
+   "model_author": "damo",
+   "model_type": "paraformer",
+   "neg_mean": "-8.311879,-8.600912,-9.615928,-10.43595,-11.21292,-11.88333,-12.36243,-12.63706,-12.8818,-12.83066,-12.89103,-12.95666,-",
+   "onnx.infer": "onnxruntime.quant",
+   "version": "1",
+   "vocab_size": "8404"
+  },
+  "encoder.onnx": {
+   "comment": "speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online",
+   "decoder_kernel_size": "11",
+   "decoder_num_blocks": "16",
+   "encoder_output_size": "512",
+   "inv_stddev": "0.155775,0.154484,0.1527379,0.1518718,0.1506028,0.1489256,0.147067,0.1447061,0.1436307,0.1443568,0.1451849,0.1455157,0.1",
+   "lfr_window_shift": "6",
+   "lfr_window_size": "7",
+   "maintainer": "k2-fsa",
+   "model_author": "damo",
+   "model_type": "paraformer",
+   "neg_mean": "-8.311879,-8.600912,-9.615928,-10.43595,-11.21292,-11.88333,-12.36243,-12.63706,-12.8818,-12.83066,-12.89103,-12.95666,-",
+   "version": "1",
+   "vocab_size": "8404"
+  }
+ }
+}

@@ -1,0 +1,115 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-lstm-en-2023-02-17",
+  "private": false,
+  "sha": "534cbfc9cf21de81a1afb8eb9657df572c334af9",
+  "siblings": [
+   {
+    "blobId": "c7d9f3332a950355d5a77d85000f05e6f45435ea",
+    "rfilename": ".gitattributes",
+    "size": 1477
+   },
+   {
+    "blobId": "277ccbb0c31f7c73b250f76ee95e505289cb4a31",
+    "rfilename": "README.md",
+    "size": 199
+   },
+   {
+    "blobId": "75e6b4fcc1aeec2216f92aafc93e1732da680124",
+    "lfs": {
+     "sha256": "87ce18875a01faf0e0948f128c8ae6270895942a4989ee8814f51ecc87b7ced8",
+     "size": 1294554
+    },
+    "rfilename": "decoder-epoch-99-avg-1.int8.onnx",
+    "size": 1294554
+   },
+   {
+    "blobId": "0a72861b4c1e528666bda5a5bfb62d647e2386cb",
+    "lfs": {
+     "sha256": "d5bb311780062edeca88c272581c4eb3745463bbae5632de2056cea05f0e3810",
+     "size": 2079966
+    },
+    "rfilename": "decoder-epoch-99-avg-1.onnx",
+    "size": 2079966
+   },
+   {
+    "blobId": "d2fe94758ca52f4a01797f58c9b499a8453a62e6",
+    "lfs": {
+     "sha256": "1f6e736b673faab20f055d18f4af2fe96af622298e56af1f2203c14f7cc2e67b",
+     "size": 83792102
+    },
+    "rfilename": "encoder-epoch-99-avg-1.int8.onnx",
+    "size": 83792102
+   },
+   {
+    "blobId": "2ca1f98878bd9c38fe575d132f649e2aca430e70",
+    "lfs": {
+     "sha256": "818aedff60693d8a57206e9a83f04b432221f63e2bdf280cc27c2de0d9ee8637",
+     "size": 333453580
+    },
+    "rfilename": "encoder-epoch-99-avg-1.onnx",
+    "size": 333453580
+   },
+   {
+    "blobId": "b105f541919834ddd7ed51ebb1ebb76194d74650",
+    "rfilename": "export-onnx-lstm2.sh",
+    "size": 397
+   },
+   {
+    "blobId": "fc42745fbb70e8a6d641f1a1c1076ceeabb1850a",
+    "lfs": {
+     "sha256": "201b0f64784b301fa1e66ac8d4387db07950de53ea15c9d1bfddb94455aff0df",
+     "size": 259335
+    },
+    "rfilename": "joiner-epoch-99-avg-1.int8.onnx",
+    "size": 259335
+   },
+   {
+    "blobId": "34a5bbd7046def86fc48ff192e62069882e16b7f",
+    "lfs": {
+     "sha256": "61df96f21f04b8835092f0a5ca9f3cae4df491ef5f66f7e2b1ffe49a673bfa80",
+     "size": 1026405
+    },
+    "rfilename": "joiner-epoch-99-avg-1.onnx",
+    "size": 1026405
+   },
+   {
+    "blobId": "b4d1bf82e68de1354f2a3f5fd51094d61d65c77c",
+    "rfilename": "tokens.txt",
+    "size": 5048
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {
+  "encoder-epoch-99-avg-1.int8.onnx": {
+   "T": "9",
+   "d_model": "512",
+   "decode_chunk_len": "4",
+   "model_author": "k2-fsa",
+   "model_type": "lstm",
+   "num_encoder_layers": "12",
+   "onnx.infer": "onnxruntime.quant",
+   "rnn_hidden_size": "1024",
+   "version": "1"
+  },
+  "encoder-epoch-99-avg-1.onnx": {
+   "T": "9",
+   "d_model": "512",
+   "decode_chunk_len": "4",
+   "model_author": "k2-fsa",
+   "model_type": "lstm",
+   "num_encoder_layers": "12",
+   "rnn_hidden_size": "1024",
+   "version": "1"
+  }
+ }
+}

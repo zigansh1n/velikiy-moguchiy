@@ -1,0 +1,217 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20",
+  "private": false,
+  "sha": "98590b7ed6443e77b714204da2757d75e1a642f4",
+  "siblings": [
+   {
+    "blobId": "c7d9f3332a950355d5a77d85000f05e6f45435ea",
+    "rfilename": ".gitattributes",
+    "size": 1477
+   },
+   {
+    "blobId": "81530df8c89dc7f7e5238112a2c3a5855af43f8d",
+    "rfilename": "README.md",
+    "size": 296
+   },
+   {
+    "blobId": "e967f050079837ddf23e41b12c9b40cc02bb7d2a",
+    "lfs": {
+     "sha256": "bcae393dbc5611be5ffa4c7ae0841558978a5a4f484008cb9dff3a2cc97ebe01",
+     "size": 244836
+    },
+    "rfilename": "bpe.model",
+    "size": 244836
+   },
+   {
+    "blobId": "e294b6f31228a7662fa1ddf2edf79d87e3f22c99",
+    "rfilename": "bpe.vocab",
+    "size": 12564
+   },
+   {
+    "blobId": "9d415b974179f5b9bb2b6af20e71ade515268686",
+    "lfs": {
+     "sha256": "1a70c593d71e53f023f5f55b0b4cfff5055abb786ee3992e5f63dc2e273cc4fa",
+     "size": 13091040
+    },
+    "rfilename": "decoder-epoch-99-avg-1.int8.onnx",
+    "size": 13091040
+   },
+   {
+    "blobId": "ac9909ad95c0f25160f97943d808b3806e9444b5",
+    "lfs": {
+     "sha256": "2e3b5ec371f8899ee6acd829fd753ba45772df57a91bdf37cde3136354e7db7d",
+     "size": 13876452
+    },
+    "rfilename": "decoder-epoch-99-avg-1.onnx",
+    "size": 13876452
+   },
+   {
+    "blobId": "2be64b8812623c4974bf6224b1491027d7863083",
+    "lfs": {
+     "sha256": "8fa764187a261844f859d7143ebaa563af5d10adfece4c18a8f414c88cba2a9b",
+     "size": 181895032
+    },
+    "rfilename": "encoder-epoch-99-avg-1.int8.onnx",
+    "size": 181895032
+   },
+   {
+    "blobId": "fa2c32423a5ca993863bc3d2cbc932031f5c04d0",
+    "lfs": {
+     "sha256": "709f0ed53a734b7942f170127e7547b566cb29c4afc5e67719f314c3d63ccb10",
+     "size": 330083505
+    },
+    "rfilename": "encoder-epoch-99-avg-1.onnx",
+    "size": 330083505
+   },
+   {
+    "blobId": "cbebc9f3796b05f5344e05c9f003e43d9223dc41",
+    "rfilename": "export-onnx-stateless7-streaming-zh.sh",
+    "size": 713
+   },
+   {
+    "blobId": "3a445a3b38b4e8768474168e41a75b2a7dbfc8eb",
+    "lfs": {
+     "sha256": "1ed689c5ed19dbaa725d9d191bb4822b5f4855a39e1ffd28cbc1f340d25b2ee0",
+     "size": 3228404
+    },
+    "rfilename": "joiner-epoch-99-avg-1.int8.onnx",
+    "size": 3228404
+   },
+   {
+    "blobId": "abee08e21c27d43e86178f4fa025db80013a9938",
+    "lfs": {
+     "sha256": "5f2adc585dd1bec6421c8bb8660d2a73fc8b9ceb24491ef51399ba2a2f0fc31b",
+     "size": 12833618
+    },
+    "rfilename": "joiner-epoch-99-avg-1.onnx",
+    "size": 12833618
+   },
+   {
+    "blobId": "40a618f04a0b1900f9b35acff1af6cd4696e8cd3",
+    "lfs": {
+     "sha256": "b6775a8e596b02ce33acf607b14e09e9e220039daf1ae06d2f1432e4cedfc86e",
+     "size": 6451206
+    },
+    "rfilename": "no-state-epoch-99-avg-1.int8.onnx",
+    "size": 6451206
+   },
+   {
+    "blobId": "02558df5ff070a77ca4fdd8282417ad8028d40b6",
+    "lfs": {
+     "sha256": "207592f0be5592ea421420e219e93c43f6ac47f67de6ebff7985850a2e2f3c13",
+     "size": 25487624
+    },
+    "rfilename": "no-state-epoch-99-avg-1.onnx",
+    "size": 25487624
+   },
+   {
+    "blobId": "980dd6cd2d71532898b1eac4a4ac9a91302083b6",
+    "rfilename": "tokens.txt",
+    "size": 56317
+   },
+   {
+    "blobId": "725ecf891d7da87f1e4f2f6d5333dedbcb281b3e",
+    "lfs": {
+     "sha256": "3caf2d7f3af4fa2b8c19b45b69cf797d095f60759ca378a1b9f8ccbb44625120",
+     "size": 6434917
+    },
+    "rfilename": "with-state-epoch-999-avg-1.int8.onnx",
+    "size": 6434917
+   },
+   {
+    "blobId": "d727b0345cadd31b350531eaff1a305d23429458",
+    "lfs": {
+     "sha256": "961413c7df6a9c99d543f7dbe6eea05a2734a9a5910cfb1c44103870dcd56ccf",
+     "size": 25474644
+    },
+    "rfilename": "with-state-epoch-999-avg-1.onnx",
+    "size": 25474644
+   }
+  ],
+  "tags": [
+   "onnx",
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {
+  "encoder-epoch-99-avg-1.int8.onnx": {
+   "T": "39",
+   "attention_dims": "192,192,192,192,192",
+   "cnn_module_kernels": "31,31,31,31,31",
+   "decode_chunk_len": "32",
+   "encoder_dims": "384,384,384,384,384",
+   "left_context_len": "64,32,16,8,32",
+   "model_author": "k2-fsa",
+   "model_type": "zipformer",
+   "num_encoder_layers": "2,4,3,2,4",
+   "onnx.infer": "onnxruntime.quant",
+   "version": "1"
+  },
+  "encoder-epoch-99-avg-1.onnx": {
+   "T": "39",
+   "attention_dims": "192,192,192,192,192",
+   "cnn_module_kernels": "31,31,31,31,31",
+   "decode_chunk_len": "32",
+   "encoder_dims": "384,384,384,384,384",
+   "left_context_len": "64,32,16,8,32",
+   "model_author": "k2-fsa",
+   "model_type": "zipformer",
+   "num_encoder_layers": "2,4,3,2,4",
+   "version": "1"
+  },
+  "no-state-epoch-99-avg-1.int8.onnx": {
+   "comment": "rnnlm without state",
+   "eos_id": "1",
+   "model_author": "k2-fsa",
+   "model_type": "rnnlm",
+   "onnx.infer": "onnxruntime.quant",
+   "sos_id": "1",
+   "url": "https://huggingface.co/ezerhouni/icefall-librispeech-rnn-lm",
+   "version": "1",
+   "vocab_size": "6254"
+  },
+  "no-state-epoch-99-avg-1.onnx": {
+   "comment": "rnnlm without state",
+   "eos_id": "1",
+   "model_author": "k2-fsa",
+   "model_type": "rnnlm",
+   "sos_id": "1",
+   "url": "https://huggingface.co/ezerhouni/icefall-librispeech-rnn-lm",
+   "version": "1",
+   "vocab_size": "6254"
+  },
+  "with-state-epoch-999-avg-1.int8.onnx": {
+   "comment": "rnnlm state",
+   "embedding_dim": "256",
+   "eos_id": "1",
+   "hidden_size": "256",
+   "model_author": "k2-fsa",
+   "model_type": "rnnlm",
+   "num_layers": "6",
+   "onnx.infer": "onnxruntime.quant",
+   "sos_id": "1",
+   "url": "https://huggingface.co/ezerhouni/icefall-librispeech-rnn-lm",
+   "version": "1",
+   "vocab_size": "6254"
+  },
+  "with-state-epoch-999-avg-1.onnx": {
+   "comment": "rnnlm state",
+   "embedding_dim": "256",
+   "eos_id": "1",
+   "hidden_size": "256",
+   "model_author": "k2-fsa",
+   "model_type": "rnnlm",
+   "num_layers": "6",
+   "sos_id": "1",
+   "url": "https://huggingface.co/ezerhouni/icefall-librispeech-rnn-lm",
+   "version": "1",
+   "vocab_size": "6254"
+  }
+ }
+}

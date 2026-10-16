@@ -1,0 +1,83 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16",
+  "private": false,
+  "sha": "31fa603e4f31279c6e1f7600fed13dc4312663ab",
+  "siblings": [
+   {
+    "blobId": "cdf8b887ff4b005bd82b705beb5257ccca57fdb6",
+    "rfilename": ".gitattributes",
+    "size": 1607
+   },
+   {
+    "blobId": "715421d0df37bff6323454ab2ed2907875d475a7",
+    "rfilename": "README.md",
+    "size": 111
+   },
+   {
+    "blobId": "2c49efdb5ad1e8a4f4af5343bfc97be0e8917141",
+    "lfs": {
+     "sha256": "c7a756aeb3550417d6b2ed3efde9a7aa3eea54787d4eac011e9cce6090c9c64a",
+     "size": 246184
+    },
+    "rfilename": "bpe.model",
+    "size": 246184
+   },
+   {
+    "blobId": "6e683787a00524bc96bd506c9518d21bb41c3984",
+    "lfs": {
+     "sha256": "89b3088a9e20e1ef7f2e85ce1a3478afe6a9c4ac57369cabcc4beb8e95328ea0",
+     "size": 2093080
+    },
+    "rfilename": "decoder.onnx",
+    "size": 2093080
+   },
+   {
+    "blobId": "208dcaba8f2a88405f894a37864da2d81efc93b9",
+    "lfs": {
+     "sha256": "e0db705e94ec35d803b1df4f40cda23d064e1142977c80ab288430b109777a9d",
+     "size": 26214060
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 26214060
+   },
+   {
+    "blobId": "2e3cdc6c7ec9abbf2dd8fe67d6714b6473a2dd4c",
+    "lfs": {
+     "sha256": "b55784b071ab7512eab4c7c44e4f5478284ef33c83562cc6a249b972515a31e5",
+     "size": 259417
+    },
+    "rfilename": "joiner.int8.onnx",
+    "size": 259417
+   },
+   {
+    "blobId": "eb7996c3921124c9c05a109fbf83ab1fac440dca",
+    "rfilename": "tokens.txt",
+    "size": 6388
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "T": "77",
+   "cnn_module_kernels": "31,31,15,15,15,31",
+   "comment": "streaming zipformer2",
+   "decode_chunk_len": "64",
+   "encoder_dims": "192,256,256,256,256,256",
+   "left_context_len": "128,64,32,16,32,64",
+   "model_author": "k2-fsa",
+   "model_type": "zipformer2",
+   "num_encoder_layers": "2,2,2,2,2,2",
+   "num_heads": "4,4,4,8,4,4",
+   "onnx.infer": "onnxruntime.quant",
+   "query_head_dims": "32,32,32,32,32,32",
+   "value_head_dims": "12,12,12,12,12,12",
+   "version": "1"
+  }
+ }
+}

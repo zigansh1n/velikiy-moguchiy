@@ -1,0 +1,74 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8",
+  "private": false,
+  "sha": "3fafd319033af1c552e7bc8394f7258afdce91b0",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "597d5d8596916729eed4391cf75941bf27edd7d0",
+    "lfs": {
+     "sha256": "76eec598da07c204747a859a723b99077ef0bbdc19ef4b3f51eb43275662475d",
+     "size": 3955863
+    },
+    "rfilename": "decoder.int8.onnx",
+    "size": 3955863
+   },
+   {
+    "blobId": "3e3b2ab08b3348a23cf092333b37e1850daf9f03",
+    "lfs": {
+     "sha256": "8b982c67b45e3b735d3fee49a4fea525b3149b450ba437f4c8a933f4aa6744c0",
+     "size": 131507579
+    },
+    "rfilename": "encoder.int8.onnx",
+    "size": 131507579
+   },
+   {
+    "blobId": "9e949050a052ed7c7aea537b6f9827be6e622f2c",
+    "lfs": {
+     "sha256": "67f4291dc170fd06b3695a8511f5199fd5965ee3c77cfbd59afc10e145f173f2",
+     "size": 1408182
+    },
+    "rfilename": "joiner.int8.onnx",
+    "size": 1408182
+   },
+   {
+    "blobId": "3228fbf04d889e59138c56a1b19fd5fe795c3dbf",
+    "rfilename": "tokens.txt",
+    "size": 11896
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "encoder.int8.onnx": {
+   "cache_last_channel_dim1": "17",
+   "cache_last_channel_dim2": "70",
+   "cache_last_channel_dim3": "512",
+   "cache_last_time_dim1": "17",
+   "cache_last_time_dim2": "512",
+   "cache_last_time_dim3": "8",
+   "chunk_shift": "16",
+   "comment": "Only the transducer branch is exported",
+   "model_author": "NeMo",
+   "model_type": "EncDecHybridRNNTCTCBPEModel",
+   "normalize_type": "",
+   "onnx.infer": "onnxruntime.quant",
+   "pred_hidden": "640",
+   "pred_rnn_layers": "1",
+   "subsampling_factor": "8",
+   "url": "https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/stt_en_fastconformer_hybrid_large_streaming_80ms",
+   "version": "1",
+   "vocab_size": "1024",
+   "window_size": "25"
+  }
+ }
+}

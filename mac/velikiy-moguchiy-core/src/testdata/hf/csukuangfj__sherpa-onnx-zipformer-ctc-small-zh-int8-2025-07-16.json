@@ -1,0 +1,51 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16",
+  "private": false,
+  "sha": "54edf2b8023f281a86be059807ff985280ccb52c",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "413e1696cb50b546df03e9f76f7a39755e5dba03",
+    "lfs": {
+     "sha256": "503204e0690eff065e30d0e01898c9ab06d0e6dc376a741eb6846198f95b2f82",
+     "size": 255180
+    },
+    "rfilename": "bbpe.model",
+    "size": 255180
+   },
+   {
+    "blobId": "957c9027acfbfc0671cfcdfa19ce81d8e332c0ae",
+    "lfs": {
+     "sha256": "32e5f17cc9a77d480f8d94bda97b7cc7a40965b6651b35385813f561a74129c8",
+     "size": 62666860
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 62666860
+   },
+   {
+    "blobId": "cf0617eb6c2d38e5d865b39ec287f9ec18e7d960",
+    "rfilename": "tokens.txt",
+    "size": 13366
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "non-streaming zipformer2 CTC",
+   "model_author": "k2-fsa",
+   "model_type": "zipformer2_ctc",
+   "onnx.infer": "onnxruntime.quant",
+   "version": "2"
+  }
+ }
+}

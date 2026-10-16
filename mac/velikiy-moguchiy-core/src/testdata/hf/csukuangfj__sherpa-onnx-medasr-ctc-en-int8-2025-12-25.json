@@ -1,0 +1,63 @@
+{
+ "info": {
+  "cardData": {
+   "language": [
+    "en"
+   ],
+   "license": "other",
+   "license_link": "https://developers.google.com/health-ai-developer-foundations/terms",
+   "license_name": "health-ai-developer-foundations",
+   "pipeline_tag": "automatic-speech-recognition"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-medasr-ctc-en-int8-2025-12-25",
+  "pipeline_tag": "automatic-speech-recognition",
+  "private": false,
+  "sha": "780221e413159bd82fcbd728632213cdf1b2bc81",
+  "siblings": [
+   {
+    "blobId": "330646ab2448fcb36e015f1d38d92c9e844c64c5",
+    "rfilename": ".gitattributes",
+    "size": 1873
+   },
+   {
+    "blobId": "af09a08fbb71d6b318750ce8f39a5c2b9e5a886e",
+    "rfilename": "README.md",
+    "size": 599
+   },
+   {
+    "blobId": "63a5740c0087aab4f8e65b13ca2683ad919250c0",
+    "lfs": {
+     "sha256": "2c20f03265ee6144c566fd18b0f7bbb4f0d005d11ce9440dd641920210f4c33a",
+     "size": 154106419
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 154106419
+   },
+   {
+    "blobId": "5c9bce7fa6c35383117d1d4d2fe944bf61db148e",
+    "rfilename": "tokens.txt",
+    "size": 4712
+   }
+  ],
+  "tags": [
+   "onnx",
+   "sherpa-onnx",
+   "license:other"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "license": "https://developers.google.com/health-ai-developer-foundations/terms",
+   "maintainer": "k2-fsa",
+   "model_author": "google",
+   "model_type": "medasr_ctc",
+   "onnx.infer": "onnxruntime.quant",
+   "subsampling_factor": "4",
+   "url": "https://github.com/Google-Health/medasr",
+   "version": "20251225",
+   "vocab_size": "512"
+  }
+ }
+}

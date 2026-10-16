@@ -1,0 +1,52 @@
+{
+ "info": {
+  "disabled": false,
+  "gated": false,
+  "id": "csukuangfj/sherpa-onnx-paraformer-zh-int8-2025-10-07",
+  "private": false,
+  "sha": "52f0cdb5bdde9533c62f2a49c9ec073ab8139820",
+  "siblings": [
+   {
+    "blobId": "83cfd8dbb643612f79f25d84b65ac7e4b3c4fb7f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "8f4d96d1dd045564da869efdd5635a31984c2879",
+    "rfilename": "README.md",
+    "size": 337
+   },
+   {
+    "blobId": "4c5a8a0f68f35bf0ca8bddb9bd9bab72e90845c3",
+    "lfs": {
+     "sha256": "53813ee1d41722cc6370a571c887e6d0b391d25b8312cf714a31af85ea603812",
+     "size": 238429929
+    },
+    "rfilename": "model.int8.onnx",
+    "size": 238429929
+   },
+   {
+    "blobId": "57bc045ddda0434ed4440c38e14287c595b258d9",
+    "rfilename": "tokens.txt",
+    "size": 75756
+   }
+  ],
+  "tags": [
+   "onnx"
+  ]
+ },
+ "metadata": {
+  "model.int8.onnx": {
+   "comment": "https://huggingface.co/ASLP-lab/WSChuan-ASR/tree/main/Paraformer-large-Chuan",
+   "inv_stddev": "0.155775,0.154484,0.1527379,0.1518718,0.1506028,0.1489256,0.147067,0.1447061,0.1436307,0.1443568,0.1451849,0.1455157,0.1",
+   "lfr_window_shift": "6",
+   "lfr_window_size": "7",
+   "model_author": "ASLP-lab",
+   "model_type": "paraformer",
+   "neg_mean": "-8.311879,-8.600912,-9.615928,-10.43595,-11.21292,-11.88333,-12.36243,-12.63706,-12.8818,-12.83066,-12.89103,-12.95666,-",
+   "onnx.infer": "onnxruntime.quant",
+   "version": "1",
+   "vocab_size": "8404"
+  }
+ }
+}

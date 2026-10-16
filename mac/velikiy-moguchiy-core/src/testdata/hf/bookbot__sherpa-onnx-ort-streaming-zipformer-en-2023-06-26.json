@@ -1,0 +1,126 @@
+{
+ "info": {
+  "cardData": {
+   "license": "apache-2.0"
+  },
+  "disabled": false,
+  "gated": false,
+  "id": "bookbot/sherpa-onnx-ort-streaming-zipformer-en-2023-06-26",
+  "private": false,
+  "sha": "96650a5b5c7ecb3cdf8a26ae534a768d3fa1fd36",
+  "siblings": [
+   {
+    "blobId": "a577eb0ea5265ade30e19fcd57273f9251615a4f",
+    "rfilename": ".gitattributes",
+    "size": 1561
+   },
+   {
+    "blobId": "9805364335c68e5422fbb1a25cf51d53d02573fe",
+    "rfilename": "README.md",
+    "size": 357
+   },
+   {
+    "blobId": "0a7fdb4e15f063e06d9936c71e13525b31c588e3",
+    "lfs": {
+     "sha256": "c53433de083c4a6ad12d034550ef22de68cec62c4f58932a7b6b8b2f1e743fa5",
+     "size": 244865
+    },
+    "rfilename": "bpe.model",
+    "size": 244865
+   },
+   {
+    "blobId": "7ee669ba7c65522166f5362afc92d4a389e92475",
+    "lfs": {
+     "sha256": "ffdd6302a4ad88c56d4ddafa4e0ac65e76df7121d3ab67ed8b2b617420faa83e",
+     "size": 1320104
+    },
+    "rfilename": "decoder-epoch-99-avg-1-chunk-16-left-128.int8.ort",
+    "size": 1320104
+   },
+   {
+    "blobId": "876b8b8ce1f3450efe64bc39a72c324522cbe0c0",
+    "rfilename": "decoder-epoch-99-avg-1-chunk-16-left-128.int8.required_operators.config",
+    "size": 301
+   },
+   {
+    "blobId": "2c3325429e57c4f3380d23efe4c20b594e17823a",
+    "lfs": {
+     "sha256": "e9f02f83337a5e63a11a212eb191c382b1dde2290bf49c168e764848e80b1858",
+     "size": 1320104
+    },
+    "rfilename": "decoder-epoch-99-avg-1-chunk-16-left-64.int8.ort",
+    "size": 1320104
+   },
+   {
+    "blobId": "859657b218646e60c936a2714d107baa1db384cd",
+    "rfilename": "decoder-epoch-99-avg-1-chunk-16-left-64.int8.required_operators.config",
+    "size": 300
+   },
+   {
+    "blobId": "d56dca84e2e9f1369e3968e621bf473e950ef229",
+    "lfs": {
+     "sha256": "afeaddefe055d28138c0f6943935772b88f284eecf11b8aa460177349291c479",
+     "size": 72917160
+    },
+    "rfilename": "encoder-epoch-99-avg-1-chunk-16-left-128.int8.ort",
+    "size": 72917160
+   },
+   {
+    "blobId": "5d8413c2f1a7c8c4da72c40c414f1f352f0b9240",
+    "rfilename": "encoder-epoch-99-avg-1-chunk-16-left-128.int8.required_operators.config",
+    "size": 469
+   },
+   {
+    "blobId": "eee1dc1cd8539b7beafae31a1d5d8a87554f7b9d",
+    "lfs": {
+     "sha256": "2bcba50c1f38b19ae5fe4a83eb42f8d93e8d841fce6928644401ebe2f41ec535",
+     "size": 72915528
+    },
+    "rfilename": "encoder-epoch-99-avg-1-chunk-16-left-64.int8.ort",
+    "size": 72915528
+   },
+   {
+    "blobId": "bf5e725349497d3fd9cf3b979215d980c422b545",
+    "rfilename": "encoder-epoch-99-avg-1-chunk-16-left-64.int8.required_operators.config",
+    "size": 468
+   },
+   {
+    "blobId": "30eab1d5ad2d714ffa5be6f12e3de4fc8ca64538",
+    "lfs": {
+     "sha256": "7ef0a8f352180412fb692482cffc8173adbfe57d7dfc3dab1ed7fc6d11ec3abb",
+     "size": 262920
+    },
+    "rfilename": "joiner-epoch-99-avg-1-chunk-16-left-128.int8.ort",
+    "size": 262920
+   },
+   {
+    "blobId": "d62140ca1adb2aec3c444b35c7444dfb8fec9e08",
+    "rfilename": "joiner-epoch-99-avg-1-chunk-16-left-128.int8.required_operators.config",
+    "size": 189
+   },
+   {
+    "blobId": "97fb0ee49c17cdb32fc35a686cd823a4b9032d24",
+    "lfs": {
+     "sha256": "8f5c7dcd5fe5147d68045cf38bf8da511a33f7a6b352dbd5aec0524b29f69a82",
+     "size": 262920
+    },
+    "rfilename": "joiner-epoch-99-avg-1-chunk-16-left-64.int8.ort",
+    "size": 262920
+   },
+   {
+    "blobId": "fadb497f46ba9a6ffecea111fba9929b398fbb91",
+    "rfilename": "joiner-epoch-99-avg-1-chunk-16-left-64.int8.required_operators.config",
+    "size": 188
+   },
+   {
+    "blobId": "b4d1bf82e68de1354f2a3f5fd51094d61d65c77c",
+    "rfilename": "tokens.txt",
+    "size": 5048
+   }
+  ],
+  "tags": [
+   "license:apache-2.0"
+  ]
+ },
+ "metadata": {}
+}
