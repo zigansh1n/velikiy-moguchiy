@@ -57,6 +57,7 @@ pub mod ogg_opus;
 pub mod mlx;
 pub mod provider;
 pub mod qwen;
+pub mod sherpa_layout;
 #[cfg(feature = "sherpa-onnx")]
 pub mod sherpa_onnx;
 pub mod transcript;
@@ -76,6 +77,7 @@ pub use mimo::MimoAsrProvider;
 pub use mlx::{MlxConfig, MlxProvider};
 pub use provider::AsrProvider;
 pub use qwen::QwenAsrProvider;
+pub use sherpa_layout::{SherpaFamily, SherpaLayout, SherpaRole};
 #[cfg(feature = "sherpa-onnx")]
 pub use sherpa_onnx::{SherpaOnnxConfig, SherpaOnnxProvider};
 pub use transcript::{append_segment, is_silent_transcript, TranscriptAggregator};

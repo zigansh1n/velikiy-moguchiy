@@ -5,6 +5,7 @@ use std::time::Duration;
 use crate::config::AsrConfig;
 use crate::error::{AsrError, Result};
 use crate::event::AsrEvent;
+use crate::sherpa_layout::{ResolvedLayout, SherpaFamily, SherpaLayout, SherpaRole};
 
 /// Configuration for the sherpa-onnx local streaming ASR provider.
 #[derive(Debug, Clone)]
@@ -20,8 +21,11 @@ pub struct SherpaOnnxConfig {
     /// Endpoint rule 2: trailing silence after speech (seconds)
     pub endpoint_silence: f32,
     /// sherpa-onnx `model_type` of a non-streaming model (e.g. "nemo_transducer");
-    /// `None` for streaming zipformer models.
+    /// `None` for streaming zipformer models. Ignored when `layout` is set.
     pub offline_model_type: Option<String>,
+    /// The model's recorded layout; `None` for the built-in transducers,
+    /// whose files are found by name.
+    pub layout: Option<SherpaLayout>,
 }
 
 enum SherpaCmd {
@@ -66,51 +70,29 @@ impl crate::provider::AsrProvider for SherpaOnnxProvider {
             )));
         }
 
-        let (encoder, decoder, joiner, tokens) = find_model_files(model_dir)?;
-
-        if let Some(model_type) = self.config.offline_model_type.clone() {
-            let files = OfflineModelFiles {
-                encoder,
-                decoder,
-                joiner,
-                tokens,
-                model_type,
-                num_threads: self.config.num_threads,
-            };
-            let (cmd_tx, cmd_rx) = std_mpsc::channel::<SherpaCmd>();
-            let (event_tx, event_rx) = tokio::sync::mpsc::channel::<AsrEvent>(256);
-            let worker = std::thread::spawn(move || offline_worker_loop(files, cmd_rx, event_tx));
-            self.cmd_tx = Some(cmd_tx);
-            self.event_rx = Some(event_rx);
-            self.worker = Some(worker);
-            return Ok(());
+        let layout = match &self.config.layout {
+            Some(layout) => layout.resolve(model_dir),
+            None => {
+                ResolvedLayout::legacy_transducer(model_dir, self.config.offline_model_type.clone())
+            }
         }
+        .map_err(AsrError::Connection)?;
+        log::info!(
+            "sherpa model: {:?}, streaming: {}",
+            layout.family,
+            layout.streaming
+        );
 
-        let num_threads = self.config.num_threads;
-        let endpoint_silence = self.config.endpoint_silence;
-        let hotwords_score = self.config.hotwords_score;
-        let hotwords_buf = if self.config.hotwords.is_empty() {
-            None
-        } else {
-            Some(self.config.hotwords.join("\n").into_bytes())
-        };
         let (cmd_tx, cmd_rx) = std_mpsc::channel::<SherpaCmd>();
         let (event_tx, event_rx) = tokio::sync::mpsc::channel::<AsrEvent>(256);
-
-        let worker = std::thread::spawn(move || {
-            worker_loop(
-                encoder,
-                decoder,
-                joiner,
-                tokens,
-                num_threads,
-                endpoint_silence,
-                hotwords_buf,
-                hotwords_score,
-                cmd_rx,
-                event_tx,
-            );
-        });
+        let worker = if layout.streaming {
+            let config = online_config(&layout, &self.config);
+            std::thread::spawn(move || worker_loop(config, cmd_rx, event_tx))
+        } else {
+            let key = layout.cache_key(self.config.num_threads);
+            let config = offline_config(&layout, self.config.num_threads);
+            std::thread::spawn(move || offline_worker_loop(key, config, cmd_rx, event_tx))
+        };
 
         self.cmd_tx = Some(cmd_tx);
         self.event_rx = Some(event_rx);
@@ -161,81 +143,53 @@ impl crate::provider::AsrProvider for SherpaOnnxProvider {
     }
 }
 
-/// Find encoder/decoder/joiner/tokens files in the model directory.
-/// Prefers int8 quantized models when available (smaller, faster on CPU).
-fn find_model_files(model_dir: &std::path::Path) -> Result<(String, String, String, String)> {
-    let entries: Vec<_> = std::fs::read_dir(model_dir)
-        .map_err(|e| AsrError::Connection(format!("read model dir: {e}")))?
-        .filter_map(|e| e.ok())
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .collect();
-
-    // Prefer int8 > fp16 > fp32
-    let find = |pattern: &str| -> Result<String> {
-        let candidates: Vec<_> = entries
-            .iter()
-            .filter(|name| name.contains(pattern) && name.ends_with(".onnx"))
-            .collect();
-        let chosen = candidates
-            .iter()
-            .find(|n| n.contains(".int8."))
-            .or_else(|| candidates.iter().find(|n| n.contains(".fp16.")))
-            .or_else(|| candidates.first());
-        chosen
-            .map(|name| model_dir.join(name).to_string_lossy().to_string())
-            .ok_or_else(|| {
-                AsrError::Connection(format!(
-                    "missing {pattern}*.onnx in {}",
-                    model_dir.display()
-                ))
-            })
-    };
-
-    let encoder = find("encoder")?;
-    let decoder = find("decoder")?;
-    let joiner = find("joiner")?;
-
-    let tokens = entries
-        .iter()
-        .find(|name| *name == "tokens.txt")
-        .map(|name| model_dir.join(name).to_string_lossy().to_string())
-        .ok_or_else(|| {
-            AsrError::Connection(format!("missing tokens.txt in {}", model_dir.display()))
-        })?;
-
-    log::info!("sherpa model files: encoder={encoder}, decoder={decoder}, joiner={joiner}");
-    Ok((encoder, decoder, joiner, tokens))
-}
-
-/// Worker thread: runs sherpa-onnx OnlineRecognizer synchronously.
-#[allow(clippy::too_many_arguments)]
-fn worker_loop(
-    encoder: String,
-    decoder: String,
-    joiner: String,
-    tokens: String,
-    num_threads: i32,
-    endpoint_silence: f32,
-    hotwords_buf: Option<Vec<u8>>,
-    hotwords_score: f32,
-    cmd_rx: std_mpsc::Receiver<SherpaCmd>,
-    event_tx: tokio::sync::mpsc::Sender<AsrEvent>,
-) {
-    use sherpa_onnx::{OnlineRecognizer, OnlineRecognizerConfig};
-
-    let mut config = OnlineRecognizerConfig::default();
-    config.model_config.transducer.encoder = Some(encoder);
-    config.model_config.transducer.decoder = Some(decoder);
-    config.model_config.transducer.joiner = Some(joiner);
-    config.model_config.tokens = Some(tokens);
-    config.model_config.num_threads = num_threads;
+/// Recognizer settings for a streaming model.
+fn online_config(
+    layout: &ResolvedLayout,
+    settings: &SherpaOnnxConfig,
+) -> sherpa_onnx::OnlineRecognizerConfig {
+    let mut config = sherpa_onnx::OnlineRecognizerConfig::default();
+    config.feat_config.sample_rate = layout.sample_rate;
+    config.feat_config.feature_dim = layout.feature_dim;
+    let model = &mut config.model_config;
+    match layout.family {
+        SherpaFamily::Paraformer => {
+            model.paraformer.encoder = layout.path(SherpaRole::Encoder);
+            model.paraformer.decoder = layout.path(SherpaRole::Decoder);
+        }
+        SherpaFamily::NemoCtc => model.nemo_ctc.model = layout.path(SherpaRole::Model),
+        SherpaFamily::ZipformerCtc => model.zipformer2_ctc.model = layout.path(SherpaRole::Model),
+        SherpaFamily::ToneCtc => model.t_one_ctc.model = layout.path(SherpaRole::Model),
+        _ => {
+            model.transducer.encoder = layout.path(SherpaRole::Encoder);
+            model.transducer.decoder = layout.path(SherpaRole::Decoder);
+            model.transducer.joiner = layout.path(SherpaRole::Joiner);
+        }
+    }
+    model.tokens = layout.path(SherpaRole::Tokens);
+    model.num_threads = settings.num_threads;
+    model.model_type = layout.model_type.clone();
     config.decoding_method = Some("greedy_search".into());
     config.enable_endpoint = true;
     config.rule1_min_trailing_silence = 2.4;
-    config.rule2_min_trailing_silence = endpoint_silence;
+    config.rule2_min_trailing_silence = settings.endpoint_silence;
     config.rule3_min_utterance_length = 300.0; // effectively disabled
-    config.hotwords_buf = hotwords_buf;
-    config.hotwords_score = hotwords_score;
+
+    // Hotwords stay with the transducers that always received them.
+    if layout.family == SherpaFamily::Transducer && !settings.hotwords.is_empty() {
+        config.hotwords_buf = Some(settings.hotwords.join("\n").into_bytes());
+        config.hotwords_score = settings.hotwords_score;
+    }
+    config
+}
+
+/// Worker thread: runs sherpa-onnx OnlineRecognizer synchronously.
+fn worker_loop(
+    config: sherpa_onnx::OnlineRecognizerConfig,
+    cmd_rx: std_mpsc::Receiver<SherpaCmd>,
+    event_tx: tokio::sync::mpsc::Sender<AsrEvent>,
+) {
+    use sherpa_onnx::OnlineRecognizer;
 
     let recognizer = match OnlineRecognizer::create(&config) {
         Some(r) => r,
@@ -317,15 +271,6 @@ fn worker_loop(
     let _ = event_tx.blocking_send(AsrEvent::Closed(None));
 }
 
-struct OfflineModelFiles {
-    encoder: String,
-    decoder: String,
-    joiner: String,
-    tokens: String,
-    model_type: String,
-    num_threads: i32,
-}
-
 /// GigaAM-style offline models are trained on utterances up to ~25 s and
 /// degrade on longer input, so audio is decoded in pieces cut at pauses.
 const OFFLINE_PIECE_MIN_SECS: f32 = 5.0;
@@ -344,15 +289,96 @@ struct CachedRecognizer {
 
 static OFFLINE_CACHE: std::sync::Mutex<Option<CachedRecognizer>> = std::sync::Mutex::new(None);
 
-fn offline_recognizer(
-    files: &OfflineModelFiles,
-) -> Option<std::sync::Arc<sherpa_onnx::OfflineRecognizer>> {
-    use sherpa_onnx::{OfflineRecognizer, OfflineRecognizerConfig};
+/// Recognizer settings for a non-streaming model.
+fn offline_config(
+    layout: &ResolvedLayout,
+    num_threads: i32,
+) -> sherpa_onnx::OfflineRecognizerConfig {
+    let mut config = sherpa_onnx::OfflineRecognizerConfig::default();
+    config.feat_config.sample_rate = layout.sample_rate;
+    config.feat_config.feature_dim = layout.feature_dim;
+    let model = &mut config.model_config;
+    let main = layout.path(SherpaRole::Model);
+    let encoder = layout.path(SherpaRole::Encoder);
+    let decoder = layout.path(SherpaRole::Decoder);
+    // sherpa-onnx picks the implementation by model_type when it is set;
+    // these are the values its own Python constructors pass.
+    let mut model_type = layout.model_type.clone();
+    match layout.family {
+        SherpaFamily::Transducer | SherpaFamily::NemoTransducer => {
+            model.transducer.encoder = encoder;
+            model.transducer.decoder = decoder;
+            model.transducer.joiner = layout.path(SherpaRole::Joiner);
+            if model_type.is_none() {
+                model_type = Some(
+                    if layout.family == SherpaFamily::NemoTransducer {
+                        "nemo_transducer"
+                    } else {
+                        "transducer"
+                    }
+                    .into(),
+                );
+            }
+        }
+        SherpaFamily::Paraformer => {
+            model.paraformer.model = main;
+            model_type.get_or_insert_with(|| "paraformer".into());
+        }
+        SherpaFamily::NemoCtc => {
+            model.nemo_ctc.model = main;
+            model_type.get_or_insert_with(|| "nemo_ctc".into());
+        }
+        SherpaFamily::ZipformerCtc => model.zipformer_ctc.model = main,
+        SherpaFamily::WenetCtc => {
+            model.wenet_ctc.model = main;
+            model_type.get_or_insert_with(|| "wenet_ctc".into());
+        }
+        SherpaFamily::TelespeechCtc => model.telespeech_ctc = main,
+        SherpaFamily::OmnilingualCtc => model.omnilingual.model = main,
+        SherpaFamily::MedasrCtc => model.medasr.model = main,
+        SherpaFamily::FireRedAsrCtc => model.fire_red_asr_ctc.model = main,
+        SherpaFamily::Whisper => {
+            model.whisper.encoder = encoder;
+            model.whisper.decoder = decoder;
+            model.whisper.task = Some("transcribe".into());
+            model.whisper.tail_paddings = -1;
+            model_type.get_or_insert_with(|| "whisper".into());
+        }
+        SherpaFamily::SenseVoice => {
+            model.sense_voice.model = main;
+            model.sense_voice.use_itn = true;
+        }
+        SherpaFamily::Moonshine => {
+            model.moonshine.preprocessor = layout.path(SherpaRole::Preprocessor);
+            model.moonshine.encoder = encoder;
+            model.moonshine.uncached_decoder = layout.path(SherpaRole::UncachedDecoder);
+            model.moonshine.cached_decoder = layout.path(SherpaRole::CachedDecoder);
+        }
+        SherpaFamily::FireRedAsr => {
+            model.fire_red_asr.encoder = encoder;
+            model.fire_red_asr.decoder = decoder;
+        }
+        SherpaFamily::Dolphin => model.dolphin.model = main,
+        SherpaFamily::Canary => {
+            model.canary.encoder = encoder;
+            model.canary.decoder = decoder;
+            model.canary.use_pnc = true;
+        }
+        SherpaFamily::ToneCtc | SherpaFamily::Unknown => {}
+    }
+    model.tokens = layout.path(SherpaRole::Tokens);
+    model.num_threads = num_threads;
+    model.model_type = model_type;
+    config.decoding_method = Some("greedy_search".into());
+    config
+}
 
-    let key = format!(
-        "{}|{}|{}",
-        files.encoder, files.model_type, files.num_threads
-    );
+fn offline_recognizer(
+    key: String,
+    config: &sherpa_onnx::OfflineRecognizerConfig,
+) -> Option<std::sync::Arc<sherpa_onnx::OfflineRecognizer>> {
+    use sherpa_onnx::OfflineRecognizer;
+
     let mut cache = OFFLINE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(cached) = cache.as_mut().filter(|c| c.key == key) {
         cached.last_used = std::time::Instant::now();
@@ -362,16 +388,7 @@ fn offline_recognizer(
     // would double the memory peak.
     *cache = None;
 
-    let mut config = OfflineRecognizerConfig::default();
-    config.model_config.transducer.encoder = Some(files.encoder.clone());
-    config.model_config.transducer.decoder = Some(files.decoder.clone());
-    config.model_config.transducer.joiner = Some(files.joiner.clone());
-    config.model_config.tokens = Some(files.tokens.clone());
-    config.model_config.model_type = Some(files.model_type.clone());
-    config.model_config.num_threads = files.num_threads;
-    config.decoding_method = Some("greedy_search".into());
-
-    let recognizer = std::sync::Arc::new(OfflineRecognizer::create(&config)?);
+    let recognizer = std::sync::Arc::new(OfflineRecognizer::create(config)?);
     *cache = Some(CachedRecognizer {
         key,
         recognizer: recognizer.clone(),
@@ -413,14 +430,15 @@ fn decode_offline(recognizer: &sherpa_onnx::OfflineRecognizer, samples: &[f32]) 
 /// whenever the buffer outgrows the length limit, and the rest when input
 /// finishes.
 fn offline_worker_loop(
-    files: OfflineModelFiles,
+    key: String,
+    config: sherpa_onnx::OfflineRecognizerConfig,
     cmd_rx: std_mpsc::Receiver<SherpaCmd>,
     event_tx: tokio::sync::mpsc::Sender<AsrEvent>,
 ) {
     use crate::audio_split::split_at_quiet;
     use crate::transcript::append_segment;
 
-    let Some(recognizer) = offline_recognizer(&files) else {
+    let Some(recognizer) = offline_recognizer(key, &config) else {
         let _ = event_tx.blocking_send(AsrEvent::Error(
             "failed to create sherpa-onnx offline recognizer".into(),
         ));

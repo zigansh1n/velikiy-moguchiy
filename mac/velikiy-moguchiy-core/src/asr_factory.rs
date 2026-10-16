@@ -171,6 +171,7 @@ pub fn create_asr_provider(
             let s = &cfg.asr.sherpa_onnx;
             let model_dir = crate::config::resolve_model_dir(&s.model);
             let offline_model_type = crate::model_manager::sherpa_offline_model_type(&model_dir);
+            let layout = crate::model_manager::sherpa_layout(&model_dir);
             let sherpa_config = SherpaOnnxConfig {
                 model_dir,
                 num_threads: s.num_threads,
@@ -178,6 +179,7 @@ pub fn create_asr_provider(
                 hotwords_score: s.hotwords_score,
                 endpoint_silence: s.endpoint_silence,
                 offline_model_type,
+                layout,
             };
             (
                 AsrConfig::default(),

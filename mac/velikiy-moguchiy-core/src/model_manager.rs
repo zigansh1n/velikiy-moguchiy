@@ -260,6 +260,18 @@ pub fn sherpa_offline_model_type(model_dir: &Path) -> Option<String> {
         .filter(|t| !t.is_empty())
 }
 
+/// The recorded sherpa-onnx layout of a model (the manifest's `sherpa`
+/// section), or `None` for models found by file name. A section that cannot
+/// be read yields a layout that refuses to run rather than a guess.
+pub fn sherpa_layout(model_dir: &Path) -> Option<velikiy_moguchiy_asr::SherpaLayout> {
+    let manifest: serde_json::Value = serde_json::from_str(&read_manifest_text(model_dir)?).ok()?;
+    let section = manifest.get("sherpa")?;
+    Some(
+        serde_json::from_value(section.clone())
+            .unwrap_or_else(|_| velikiy_moguchiy_asr::SherpaLayout::unreadable()),
+    )
+}
+
 fn read_manifest_text(model_dir: &Path) -> Option<String> {
     let manifest_path = model_dir.join(MANIFEST_FILE);
     // Read only a regular file, and check the descriptor actually opened
@@ -1075,6 +1087,40 @@ mod tests {
         .unwrap();
         assert_eq!(sherpa_offline_model_type(&tmp), None);
 
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn sherpa_layout_is_read_from_the_manifest_and_never_guessed() {
+        use velikiy_moguchiy_asr::{SherpaFamily, SherpaRole};
+        let tmp = unique_tmp("sherpa-layout");
+        fs::create_dir_all(&tmp).unwrap();
+
+        fs::write(
+            tmp.join(MANIFEST_FILE),
+            include_str!("manifests/sherpa-onnx/ru-vosk-small.json"),
+        )
+        .unwrap();
+        assert!(sherpa_layout(&tmp).is_none());
+
+        fs::write(
+            tmp.join(MANIFEST_FILE),
+            r#"{"provider":"sherpa-onnx","description":"t","repo":"a/b","files":[],
+                "sherpa":{"family":"whisper","files":{"encoder":"e.onnx","decoder":"d.onnx","tokens":"t.txt"}}}"#,
+        )
+        .unwrap();
+        let layout = sherpa_layout(&tmp).unwrap();
+        assert_eq!(layout.family, SherpaFamily::Whisper);
+        assert_eq!(layout.files[&SherpaRole::Tokens], "t.txt");
+        assert!(layout.validate().is_ok());
+
+        fs::write(
+            tmp.join(MANIFEST_FILE),
+            r#"{"provider":"sherpa-onnx","description":"t","repo":"a/b","files":[],
+                "sherpa":{"family":"whisper","files":{"vocoder":"v.onnx"}}}"#,
+        )
+        .unwrap();
+        assert!(sherpa_layout(&tmp).unwrap().validate().is_err());
         let _ = fs::remove_dir_all(&tmp);
     }
 
