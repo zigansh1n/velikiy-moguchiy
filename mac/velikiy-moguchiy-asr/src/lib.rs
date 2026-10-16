@@ -63,6 +63,8 @@ pub mod sherpa_onnx;
 pub mod transcript;
 #[cfg(feature = "wetype-offline")]
 pub mod wetype;
+#[cfg(feature = "whisper-cpp")]
+pub mod whisper_cpp;
 
 #[cfg(feature = "apple-speech")]
 pub use apple_speech::{AppleSpeechConfig, AppleSpeechProvider};
@@ -83,3 +85,5 @@ pub use sherpa_onnx::{SherpaOnnxConfig, SherpaOnnxProvider};
 pub use transcript::{append_segment, is_silent_transcript, TranscriptAggregator};
 #[cfg(feature = "wetype-offline")]
 pub use wetype::{ensure_model, model_present, ModelAsset, WeTypeModelSpec, WeTypeOfflineProvider};
+#[cfg(feature = "whisper-cpp")]
+pub use whisper_cpp::{WhisperCppConfig, WhisperCppProvider};

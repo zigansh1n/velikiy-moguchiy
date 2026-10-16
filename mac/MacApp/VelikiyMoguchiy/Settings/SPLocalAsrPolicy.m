@@ -13,7 +13,7 @@ static NSDictionary *section(NSDictionary *asr, NSString *name) {
 @implementation SPLocalAsrPolicy
 
 + (BOOL)isLocalProvider:(NSString *)provider {
-    return [@[ @"apple-speech", @"mlx", @"sherpa-onnx", @"wetype" ] containsObject:provider ?: @""];
+    return [@[ @"apple-speech", @"mlx", @"sherpa-onnx", @"whisper-cpp", @"wetype" ] containsObject:provider ?: @""];
 }
 
 + (NSString *)providerOf:(NSDictionary *)asrConfig {

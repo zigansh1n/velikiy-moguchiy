@@ -61,6 +61,7 @@
         @"apple-speech" : @"Apple Speech",
         @"mlx" : @"локальная модель MLX",
         @"sherpa-onnx" : @"локальная модель",
+        @"whisper-cpp" : @"локальная модель Whisper",
         @"wetype" : @"WeType",
     };
     return titles[provider] ?: provider;

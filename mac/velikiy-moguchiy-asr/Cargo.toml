@@ -1,6 +1,6 @@
 [package]
 name = "velikiy-moguchiy-asr"
-description = "Streaming ASR (Automatic Speech Recognition) library with multiple provider backends (Doubao, Qwen, Apple Speech, MLX Whisper, Sherpa-ONNX)"
+description = "Streaming ASR (Automatic Speech Recognition) library with multiple provider backends (Doubao, Qwen, Apple Speech, MLX Whisper, Sherpa-ONNX, whisper.cpp)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -34,12 +34,18 @@ url.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 ndarray = { version = "0.17", optional = true }
 rustfft = { version = "6", optional = true }
+whisper-rs = { version = "=0.16.0", features = ["log_backend"], optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+whisper-rs = { version = "=0.16.0", features = ["log_backend", "metal"], optional = true }
 
 [features]
 default = []
 mlx = []
 apple-speech = []
 sherpa-onnx = ["dep:sherpa-onnx"]
+# whisper.cpp ggml models, built from source with cmake and linked statically.
+whisper-cpp = ["dep:whisper-rs"]
 # Offline on-device WeType voice ASR (embed_140m, pure-Rust; needs an embed140m.koepack model dir).
 # Developer-only and off everywhere by default: the weights are Tencent's, reverse-engineered,
 # without a license. Never enable it in public or release builds.

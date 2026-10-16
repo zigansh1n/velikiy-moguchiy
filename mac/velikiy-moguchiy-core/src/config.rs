@@ -111,7 +111,7 @@ pub struct PromptTemplate {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AsrSection {
-    /// Which ASR provider to use: "qwen" (default), "doubao", "glm", "mimo", "chatgpt", "mlx", "sherpa-onnx", "apple-speech"
+    /// Which ASR provider to use: "qwen" (default), "doubao", "glm", "mimo", "chatgpt", "mlx", "sherpa-onnx", "whisper-cpp", "apple-speech"
     #[serde(
         default = "default_asr_provider",
         deserialize_with = "deserialize_asr_provider"
@@ -133,6 +133,10 @@ pub struct AsrSection {
     /// Sherpa-ONNX local ASR configuration (CPU)
     #[serde(rename = "sherpa-onnx", default)]
     pub sherpa_onnx: SherpaOnnxAsrConfig,
+
+    /// whisper.cpp local ASR configuration (ggml models, Metal)
+    #[serde(rename = "whisper-cpp", default)]
+    pub whisper_cpp: WhisperCppAsrConfig,
 
     /// Apple Speech local ASR configuration (macOS 26+)
     #[serde(rename = "apple-speech", default)]
@@ -371,6 +375,29 @@ impl Default for SherpaOnnxAsrConfig {
             num_threads: default_sherpa_onnx_num_threads(),
             hotwords_score: default_sherpa_onnx_hotwords_score(),
             endpoint_silence: default_sherpa_onnx_endpoint_silence(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WhisperCppAsrConfig {
+    /// Model folder under ~/.velikiy-moguchiy/models/, or a full path; empty
+    /// until the user picks one.
+    #[serde(default)]
+    pub model: String,
+    /// ISO 639-1 code, or "auto" for the model to tell.
+    #[serde(default = "default_whisper_cpp_language")]
+    pub language: String,
+    #[serde(default = "default_whisper_cpp_num_threads")]
+    pub num_threads: i32,
+}
+
+impl Default for WhisperCppAsrConfig {
+    fn default() -> Self {
+        Self {
+            model: String::new(),
+            language: default_whisper_cpp_language(),
+            num_threads: default_whisper_cpp_num_threads(),
         }
     }
 }
@@ -1564,6 +1591,12 @@ fn default_sherpa_onnx_hotwords_score() -> f32 {
 fn default_sherpa_onnx_endpoint_silence() -> f32 {
     1.2
 }
+fn default_whisper_cpp_language() -> String {
+    "auto".into()
+}
+fn default_whisper_cpp_num_threads() -> i32 {
+    4
+}
 fn default_glm_url() -> String {
     "https://open.bigmodel.cn/api/paas/v4/audio/transcriptions".into()
 }
@@ -2665,7 +2698,7 @@ const DEFAULT_CONFIG_YAML: &str = r#"# Великий & Могучий — на�
 
 asr:
   # Провайдер распознавания: "qwen" (по умолчанию; DashScope, ваш ключ), "chatgpt", "apple-speech", "mlx",
-  # "sherpa-onnx", а также "doubao", "glm", "mimo" (они рассчитаны на китайский и английский, русский не поддерживают)
+  # "sherpa-onnx", "whisper-cpp", а также "doubao", "glm", "mimo" (они рассчитаны на китайский и английский, русский не поддерживают)
   provider: "qwen"
 
   # Doubao (ByteDance), потоковое распознавание 2.0. Русский не поддерживает.
@@ -2744,6 +2777,12 @@ asr:
     num_threads: 2
     hotwords_score: 1.5         # насколько выделять слова из словаря
     endpoint_silence: 1.2       # сколько секунд тишины считать концом предложения
+
+  # whisper.cpp, распознавание на устройстве (модели ggml, видеокарта Mac)
+  whisper-cpp:
+    model: ""                   # папка модели от ~/.velikiy-moguchiy/models/; выберите в «Модели распознавания»
+    language: "auto"            # auto (модель определяет сама) | ru | en | …
+    num_threads: 4
 
 llm:
   # Выключено по умолчанию: у новой установки ниже нет api_key, и включённая

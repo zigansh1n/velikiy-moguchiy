@@ -22,6 +22,7 @@ default = ["mlx", "apple-speech", "sherpa-onnx"]
 mlx = ["velikiy-moguchiy-asr/mlx"]
 apple-speech = ["velikiy-moguchiy-asr/apple-speech"]
 sherpa-onnx = ["velikiy-moguchiy-asr/sherpa-onnx"]
+whisper-cpp = ["velikiy-moguchiy-asr/whisper-cpp"]
 wetype-offline = ["velikiy-moguchiy-asr/wetype-offline"]
 
 [dependencies]

@@ -1434,6 +1434,7 @@ static NSString *SPCondensedProviderError(NSString *raw) {
   NSDictionary *localProviderLabels = @{
     @"mlx" : @"MLX (на устройстве, Apple Silicon)",
     @"sherpa-onnx" : @"Sherpa-ONNX (на устройстве)",
+    @"whisper-cpp" : @"Whisper.cpp (на устройстве)",
   };
   for (NSString *provider in supportedLocalProviders) {
     NSString *label = localProviderLabels[provider];
@@ -6526,6 +6527,8 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       currentModel = configGet(@"asr.mlx.model");
     } else if ([provider isEqualToString:@"sherpa-onnx"]) {
       currentModel = configGet(@"asr.sherpa-onnx.model");
+    } else if ([provider isEqualToString:@"whisper-cpp"]) {
+      currentModel = configGet(@"asr.whisper-cpp.model");
     } else if ([provider isEqualToString:@"wetype"]) {
       currentModel = configGet(@"asr.wetype.model");
     }
@@ -7059,6 +7062,10 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
       NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
       if (modelPath)
         saveOk &= configSet(@"asr.sherpa-onnx.model", modelPath);
+    } else if ([selectedProvider isEqualToString:@"whisper-cpp"]) {
+      NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
+      if (modelPath)
+        saveOk &= configSet(@"asr.whisper-cpp.model", modelPath);
     } else if ([selectedProvider isEqualToString:@"wetype"]) {
       NSString *modelPath = self.localModelPopup.selectedItem.representedObject;
       if (modelPath)

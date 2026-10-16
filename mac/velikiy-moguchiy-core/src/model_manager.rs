@@ -189,6 +189,8 @@ pub fn supported_providers() -> &'static [&'static str] {
         "mlx",
         #[cfg(feature = "sherpa-onnx")]
         "sherpa-onnx",
+        #[cfg(feature = "whisper-cpp")]
+        "whisper-cpp",
         #[cfg(feature = "wetype-offline")]
         "wetype",
     ]
@@ -309,6 +311,42 @@ pub fn external_source(model_dir: &Path) -> Option<ExternalSource> {
             .unwrap_or("")
             .to_string(),
     })
+}
+
+/// The `provider` a model's manifest names.
+pub fn model_provider(model_dir: &Path) -> Option<String> {
+    load_manifest(model_dir).map(|m| m.manifest.provider)
+}
+
+/// The ggml file of a whisper.cpp model: `model` names the file itself, or a
+/// model folder whose manifest's `whisper_cpp` section names it. Inside an
+/// added folder the file may be a link, as in the Hugging Face cache;
+/// inside the models folder it may not.
+pub fn whisper_cpp_model_file(model: &Path) -> std::result::Result<PathBuf, String> {
+    if std::fs::metadata(model).is_ok_and(|m| m.is_file()) {
+        return Ok(model.to_path_buf());
+    }
+    let name = manifest_section(model, "whisper_cpp")
+        .and_then(|s| s.get("model")?.as_str().map(str::to_string))
+        .ok_or_else(|| format!("{} is not a whisper.cpp model", model.display()))?;
+    let rel = Path::new(&name);
+    if rel
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(format!("unsafe model file name {name}"));
+    }
+    let external = external_source(model).is_some();
+    let path = files_dir(model).join(rel);
+    let meta = if external {
+        std::fs::metadata(&path)
+    } else {
+        std::fs::symlink_metadata(&path)
+    };
+    if !meta.is_ok_and(|m| m.is_file()) {
+        return Err(format!("model file missing: {}", path.display()));
+    }
+    Ok(path)
 }
 
 /// The folder an engine reads a model's files from: where an added model

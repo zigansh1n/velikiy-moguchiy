@@ -43,6 +43,7 @@
 
 - (void)testProviderTitles {
     XCTAssertEqualObjects([SPFileTranscriptionPolicy providerTitle:@"sherpa-onnx"], @"локальная модель");
+    XCTAssertEqualObjects([SPFileTranscriptionPolicy providerTitle:@"whisper-cpp"], @"локальная модель Whisper");
     XCTAssertEqualObjects([SPFileTranscriptionPolicy providerTitle:@"qwen"], @"Qwen");
     XCTAssertEqualObjects([SPFileTranscriptionPolicy providerTitle:@"future"], @"future");
 }

@@ -107,7 +107,8 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
         return SPErrorKindAccessDenied;
     }
     if (containsAny(lower, @[ @"model not found", @"tokens.txt", @"read model dir",
-                              @"sherpa-onnx recognizer", @"sherpa-onnx offline recognizer" ])) {
+                              @"sherpa-onnx recognizer", @"sherpa-onnx offline recognizer",
+                              @"whisper.cpp could not load", @"model file missing" ])) {
         return SPErrorKindLocalModel;
     }
     if (containsAny(lower, @[ @"microphone", @"audio device", @"audio capture", @"audio buffer" ])) {

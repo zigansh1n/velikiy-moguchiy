@@ -743,6 +743,31 @@ mod tests {
     }
 
     #[test]
+    fn a_cached_whisper_cpp_model_runs_from_its_blob() {
+        let home = temp("ggml-cache");
+        let hub = home.join("hub");
+        let mut ggml = b"lmgg".to_vec();
+        ggml.extend(vec![0u8; 64]);
+        cached_repo(&hub, "ggerganov", "whisper.cpp", &[("ggml-base.bin", ggml)]);
+        let models_root = home.join("models");
+        let find = &scan(&[(hub, RootKind::HfCache)], &models_root, ENGINES)[0];
+        let rel = add_external(
+            &models_root,
+            Path::new(&find.location),
+            &find.variants[0].id,
+            ENGINES,
+        )
+        .unwrap();
+        let file = crate::model_manager::whisper_cpp_model_file(&models_root.join(&rel)).unwrap();
+        assert!(file.starts_with(&find.location));
+        assert!(fs::symlink_metadata(&file)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        let _ = fs::remove_dir_all(&home);
+    }
+
+    #[test]
     fn a_picked_folder_without_a_model_says_why() {
         let dir = temp("empty-pick");
         fs::write(dir.join("model.safetensors"), b"x").unwrap();
@@ -757,7 +782,12 @@ mod tests {
     #[test]
     fn default_roots_skip_folders_macos_guards() {
         let home = temp("roots");
-        for dir in ["sherpa-onnx-zipformer-ru", "Downloads", "Documents", "Desktop"] {
+        for dir in [
+            "sherpa-onnx-zipformer-ru",
+            "Downloads",
+            "Documents",
+            "Desktop",
+        ] {
             fs::create_dir_all(home.join(dir)).unwrap();
         }
         let roots = default_roots(&home);

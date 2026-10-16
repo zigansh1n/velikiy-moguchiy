@@ -50,10 +50,10 @@
 ## 4. Rust (macOS-приложение и CLI)
 
 `mac/Cargo.lock`: крейты с crates.io, у всех есть поле `license`. В приложение и встроенный CLI
-(ядро с `--no-default-features --features apple-speech,sherpa-onnx`, aarch64-apple-darwin) линкуются 182 крейта, все под
+(ядро с `--no-default-features --features apple-speech,sherpa-onnx,whisper-cpp`, aarch64-apple-darwin) линкуются 184 крейта, все под
 разрешительными лицензиями: MIT, Apache-2.0, их сочетания, ISC, BSD, Unicode-3.0, Zlib, BSL-1.0,
-CDLA-Permissive-2.0 (данные корневых сертификатов `webpki-roots`). Их список и тексты лицензий (из самих крейтов,
-плюс `COPYING` встроенной libopus) лежат в приложении: `mac/MacApp/VelikiyMoguchiy/Licenses/ThirdPartyNotices.txt`,
+CDLA-Permissive-2.0 (данные корневых сертификатов `webpki-roots`), Unlicense. Их список и тексты лицензий (из самих
+крейтов, плюс `COPYING` встроенной libopus и `LICENSE` встроенного whisper.cpp) лежат в приложении: `mac/MacApp/VelikiyMoguchiy/Licenses/ThirdPartyNotices.txt`,
 окно «О программе → Лицензии». Пересобрать после смены зависимостей: `python3 tools/third-party-notices/generate.py`.
 
 | Что отметить | Лицензия | Статус |
@@ -63,6 +63,7 @@ CDLA-Permissive-2.0 (данные корневых сертификатов `web
 | `audiopus_sys` собирает и статически линкует **libopus** | BSD-подобная (Xiph.Org и др.) | текст `opus/COPYING` кладётся в приложение (`ThirdPartyNotices.txt`) |
 | `ring` (код BoringSSL/OpenSSL) | Apache-2.0 AND ISC + уведомления BoringSSL | файлы лицензий `ring` кладутся в приложение (`ThirdPartyNotices.txt`) |
 | `sherpa-onnx` / `sherpa-onnx-sys` и их статические библиотеки: sherpa-onnx, kaldi-native-fbank, kaldi-decoder, OpenFst, simple-sentencepiece, ONNX Runtime, KISS FFT | Apache-2.0; ONNX Runtime — MIT; KISS FFT — BSD-3-Clause | в релизной сборке: вариант **без синтеза речи** (`mac/scripts/sherpa-onnx-libs.sh`, закреплён по SHA-256), потому что обычный тянет espeak-ng (GPL-3.0); тексты лицензий — в `ThirdPartyNotices.txt` |
+| `whisper-rs` / `whisper-rs-sys` собирают и статически линкуют **whisper.cpp** и **ggml** | крейты — Unlicense; whisper.cpp и ggml — MIT | текст `whisper.cpp/LICENSE` кладётся в приложение (`ThirdPartyNotices.txt`); сборочные зависимости (`bindgen`, `cmake`) в приложение не линкуются |
 | `libsqlite3-sys` | MIT | линкуется системный SQLite, свой не встраивается |
 
 ## 4а. Windows (`windows/`)

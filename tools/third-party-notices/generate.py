@@ -19,14 +19,14 @@ MAC = ROOT / "mac"
 TARGET = "aarch64-apple-darwin"
 # Must match the release build: MacApp/project.yml (core) and the CLI build in build-apple.yml.
 BUILDS = [
-    ["-p", "velikiy-moguchiy-core", "--no-default-features", "--features", "apple-speech,sherpa-onnx"],
+    ["-p", "velikiy-moguchiy-core", "--no-default-features", "--features", "apple-speech,sherpa-onnx,whisper-cpp"],
     ["-p", "velikiy-moguchiy-cli"],
 ]
 LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING|NOTICE|COPYRIGHT|AUTHORS)([-._].*)?$", re.I)
 OWN = {"velikiy-moguchiy-core", "velikiy-moguchiy-asr", "velikiy-moguchiy-cli"}
 # License files below the crate root of code that is compiled in: audiopus_sys builds and
-# statically links its bundled libopus.
-EXTRA_FILES = {"audiopus_sys": ["opus/COPYING"]}
+# statically links its bundled libopus, whisper-rs-sys its bundled whisper.cpp and ggml.
+EXTRA_FILES = {"audiopus_sys": ["opus/COPYING"], "whisper-rs-sys": ["whisper.cpp/LICENSE"]}
 RULE = "=" * 78
 # Native libraries the sherpa-onnx-sys crate links statically: the no-TTS build that
 # mac/scripts/sherpa-onnx-libs.sh fetches. The crates' own license files cover sherpa-onnx.

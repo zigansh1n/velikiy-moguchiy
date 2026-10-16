@@ -17,9 +17,11 @@ use velikiy_moguchiy_asr::{
 use velikiy_moguchiy_asr::{MlxConfig, MlxProvider};
 #[cfg(feature = "sherpa-onnx")]
 use velikiy_moguchiy_asr::{SherpaOnnxConfig, SherpaOnnxProvider};
+#[cfg(feature = "whisper-cpp")]
+use velikiy_moguchiy_asr::{WhisperCppConfig, WhisperCppProvider};
 
 /// Provider names that can be constructed in this build.
-/// Local engines (mlx, sherpa-onnx, apple-speech) only appear when their
+/// Local engines (mlx, sherpa-onnx, whisper-cpp, apple-speech) only appear when their
 /// Cargo features are enabled.
 pub fn supported_providers() -> Vec<&'static str> {
     #[allow(unused_mut)]
@@ -28,6 +30,8 @@ pub fn supported_providers() -> Vec<&'static str> {
     providers.push("mlx");
     #[cfg(feature = "sherpa-onnx")]
     providers.push("sherpa-onnx");
+    #[cfg(feature = "whisper-cpp")]
+    providers.push("whisper-cpp");
     #[cfg(feature = "wetype-offline")]
     providers.push("wetype");
     #[cfg(feature = "apple-speech")]
@@ -186,6 +190,26 @@ pub fn create_asr_provider(
             (
                 AsrConfig::default(),
                 Box::new(SherpaOnnxProvider::new(sherpa_config)),
+            )
+        }
+        #[cfg(feature = "whisper-cpp")]
+        "whisper-cpp" => {
+            let w = &cfg.asr.whisper_cpp;
+            let model = crate::config::resolve_model_dir(&w.model);
+            let model_path =
+                crate::model_manager::whisper_cpp_model_file(&model).unwrap_or_else(|e| {
+                    log::warn!("whisper.cpp: {e}");
+                    model
+                });
+            let config = WhisperCppConfig {
+                model_path,
+                language: w.language.clone(),
+                num_threads: w.num_threads,
+                hotwords: dictionary.to_vec(),
+            };
+            (
+                AsrConfig::default(),
+                Box::new(WhisperCppProvider::new(config)),
             )
         }
         #[cfg(feature = "wetype-offline")]

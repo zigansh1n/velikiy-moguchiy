@@ -125,7 +125,8 @@ Bundle id сборок — `io.github.zigansh1n.velikiy-moguchiy` (`MacApp/Confi
   предупреждает об этом. Подходит и бесплатный аккаунт. Расшифровка не тратит сообщения чата, но у голосового ввода
   OpenAI есть свой лимит, размер которого не публикуется; когда он закончится, приложение скажет об этом и по нажатию
   на уведомление вернёт прежнюю модель. Вход хранится в связке ключей, «Проверить» отправляет секунду тишины;
-- **локальные:** Apple Speech (macOS 26+, без ключа), MLX (модели Qwen3-ASR на Apple Silicon), sherpa-onnx (CPU);
+- **локальные:** Apple Speech (macOS 26+, без ключа), MLX (модели Qwen3-ASR на Apple Silicon), sherpa-onnx (CPU),
+  whisper.cpp (модели Whisper в формате ggml, на видеокарте Mac через Metal);
 - **LLM для исправления:** OpenAI Chat Completions и Responses, Anthropic Messages, совместимые шлюзы, локальные
   модели MLX.
 
@@ -222,9 +223,10 @@ velikiy-moguchiy transcribe лекция.mp4 --format srt > лекция.srt   #
 - **Swift-пакеты** `MLXBridge` и `AppleSpeechBridge`: мосты к MLX и к Apple SpeechAnalyzer через C FFI.
 
 Локальные провайдеры включаются функциями Cargo в `velikiy-moguchiy-core/Cargo.toml`: `mlx`, `apple-speech`,
-`sherpa-onnx` (по умолчанию все три). `make build` и релизная сборка собирают ядро с `--no-default-features --features
-apple-speech,sherpa-onnx` (`Makefile`, `MacApp/project.yml`): облачные провайдеры, Apple Speech и sherpa-onnx (MLX
-пока не собирается на Xcode 26.3). sherpa-onnx линкуется в варианте без синтеза речи (`scripts/sherpa-onnx-libs.sh`):
+`sherpa-onnx` (по умолчанию все три) и `whisper-cpp`. `make build` и релизная сборка собирают ядро с
+`--no-default-features --features apple-speech,sherpa-onnx,whisper-cpp` (`Makefile`, `MacApp/project.yml`): облачные
+провайдеры, Apple Speech, sherpa-onnx и whisper.cpp (MLX пока не собирается на Xcode 26.3). whisper.cpp собирается из
+исходников (нужен cmake) и линкуется статически, шейдеры Metal встроены в библиотеку. sherpa-onnx линкуется в варианте без синтеза речи (`scripts/sherpa-onnx-libs.sh`):
 обычные библиотеки тянут в приложение espeak-ng под GPL-3.0. Функция `wetype-offline` никогда не входит ни в сборку
 по умолчанию, ни в релиз.
 

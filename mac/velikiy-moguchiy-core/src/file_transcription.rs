@@ -29,7 +29,13 @@ pub const CHUNK_MAX_SECS: f32 = 20.0;
 const CHUNK_TIMEOUT: Duration = Duration::from_secs(120);
 /// Cloud requests run a few at a time; local engines share one CPU-bound model.
 const CLOUD_PARALLEL_CHUNKS: usize = 3;
-const LOCAL_PROVIDERS: &[&str] = &["mlx", "sherpa-onnx", "apple-speech", "wetype"];
+const LOCAL_PROVIDERS: &[&str] = &[
+    "mlx",
+    "sherpa-onnx",
+    "whisper-cpp",
+    "apple-speech",
+    "wetype",
+];
 /// Subtitle cues longer than this are split at sentence ends.
 const MAX_CUE_SECS: f64 = 7.0;
 

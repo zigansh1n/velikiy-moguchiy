@@ -24,6 +24,7 @@ static NSString *const kModelDeniedMessage =
         kModelDeniedMessage : @(SPErrorKindAccessDenied),
         @"ASR connection failed: model not found: models/vosk-ru" : @(SPErrorKindLocalModel),
         @"ASR error: failed to create sherpa-onnx offline recognizer" : @(SPErrorKindLocalModel),
+        @"ASR error: whisper.cpp could not load /m/ggml-base.bin: failed to load model" : @(SPErrorKindLocalModel),
         @"audio buffer error: overflow" : @(SPErrorKindMicrophone),
         @"ASR connection failed: connection timed out" : @(SPErrorKindTimeout),
         @"ASR result timed out" : @(SPErrorKindTimeout),

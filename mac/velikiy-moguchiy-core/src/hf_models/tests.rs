@@ -1212,6 +1212,14 @@ fn a_whisper_cpp_model_installs_with_its_engine_section() {
         ))
         .unwrap();
     assert_eq!(fs::read(dir.join("ggml-tiny-q5_1.bin")).unwrap(), model);
+    assert_eq!(
+        crate::model_manager::whisper_cpp_model_file(&dir).unwrap(),
+        dir.join("ggml-tiny-q5_1.bin")
+    );
+    let elsewhere = root.join("elsewhere.bin");
+    fs::rename(dir.join("ggml-tiny-q5_1.bin"), &elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, dir.join("ggml-tiny-q5_1.bin")).unwrap();
+    assert!(crate::model_manager::whisper_cpp_model_file(&dir).is_err());
     let _ = fs::remove_dir_all(&root);
 }
 

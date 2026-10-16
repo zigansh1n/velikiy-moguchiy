@@ -24,6 +24,7 @@
 | `AppleSpeechProvider` | macOS Speech Framework | `apple-speech` | локально | не нужны |
 | `MlxProvider` | Qwen3-ASR на MLX (Apple Silicon) | `mlx` | локально | не нужны (локальная модель) |
 | `SherpaOnnxProvider` | Sherpa-ONNX | `sherpa-onnx` | локально | не нужны (локальная модель) |
+| `WhisperCppProvider` | whisper.cpp (модели ggml, Metal на macOS) | `whisper-cpp` (нужен cmake) | локально | не нужны (локальная модель) |
 | `WeTypeOfflineProvider` | WeType `embed_140m` (китайский на устройстве) | `wetype-offline`, только для разработчиков, см. ниже | локально | не нужны (скачивает модель) |
 
 ## Подключение
@@ -138,6 +139,31 @@ async fn main() -> Result<(), velikiy_moguchiy_asr::AsrError> {
     asr.connect(&AsrConfig::default()).await?;
 
     // Same streaming loop...
+    asr.close().await?;
+    Ok(())
+}
+```
+
+### whisper.cpp (локально, без сети)
+
+Один файл `ggml-*.bin`. Запись режется на куски по паузам (до 28 с), каждый распознаётся целиком; слова словаря
+уходят модели как подсказка (`initial_prompt`). Модель остаётся в памяти 10 минут после последней диктовки.
+
+```rust
+use velikiy_moguchiy_asr::{AsrConfig, AsrProvider, WhisperCppConfig, WhisperCppProvider};
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() -> Result<(), velikiy_moguchiy_asr::AsrError> {
+    let mut asr = WhisperCppProvider::new(WhisperCppConfig {
+        model_path: PathBuf::from("/path/to/ggml-large-v3-turbo-q5_0.bin"),
+        language: "auto".into(), // or "ru"
+        num_threads: 4,
+        hotwords: vec!["Kubernetes".into()],
+    });
+    asr.connect(&AsrConfig::default()).await?;
+
+    // Same loop: send_audio, finish_input, then next_event until AsrEvent::Final
     asr.close().await?;
     Ok(())
 }

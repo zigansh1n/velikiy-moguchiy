@@ -1,6 +1,6 @@
-//! «Проверить»: a short recording through a local sherpa-onnx model, to show
-//! the user what it hears. The app runs this in a child process, because
-//! sherpa-onnx exits the process when a model file is not what it expects.
+//! «Проверить»: a short recording through a local model, to show the user
+//! what it hears. The app runs this in a child process, because sherpa-onnx
+//! exits the process when a model file is not what it expects.
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -93,23 +93,43 @@ pub fn check_model(model_dir: &Path, pcm: &[i16]) -> CheckOutcome {
     }
 }
 
-#[cfg(feature = "sherpa-onnx")]
-async fn recognize(model_dir: &Path, pcm: &[i16]) -> Result<String, String> {
-    use velikiy_moguchiy_asr::{
-        AsrConfig, AsrEvent, AsrProvider, SherpaOnnxConfig, SherpaOnnxProvider,
-    };
+fn local_provider(model_dir: &Path) -> Result<Box<dyn velikiy_moguchiy_asr::AsrProvider>, String> {
+    let provider = crate::model_manager::model_provider(model_dir).unwrap_or_default();
+    match provider.as_str() {
+        #[cfg(feature = "sherpa-onnx")]
+        "sherpa-onnx" => {
+            use velikiy_moguchiy_asr::{SherpaOnnxConfig, SherpaOnnxProvider};
+            let defaults = crate::config::SherpaOnnxAsrConfig::default();
+            Ok(Box::new(SherpaOnnxProvider::new(SherpaOnnxConfig {
+                model_dir: crate::model_manager::files_dir(model_dir),
+                num_threads: defaults.num_threads,
+                hotwords: Vec::new(),
+                hotwords_score: defaults.hotwords_score,
+                endpoint_silence: defaults.endpoint_silence,
+                offline_model_type: crate::model_manager::sherpa_offline_model_type(model_dir),
+                layout: crate::model_manager::sherpa_layout(model_dir),
+                follow_links: crate::model_manager::external_source(model_dir).is_some(),
+            })))
+        }
+        #[cfg(feature = "whisper-cpp")]
+        "whisper-cpp" => {
+            use velikiy_moguchiy_asr::{WhisperCppConfig, WhisperCppProvider};
+            let defaults = crate::config::WhisperCppAsrConfig::default();
+            Ok(Box::new(WhisperCppProvider::new(WhisperCppConfig {
+                model_path: crate::model_manager::whisper_cpp_model_file(model_dir)?,
+                language: defaults.language,
+                num_threads: defaults.num_threads,
+                hotwords: Vec::new(),
+            })))
+        }
+        _ => Err(format!("в этой сборке нет движка «{provider}»")),
+    }
+}
 
-    let defaults = crate::config::SherpaOnnxAsrConfig::default();
-    let mut provider = SherpaOnnxProvider::new(SherpaOnnxConfig {
-        model_dir: crate::model_manager::files_dir(model_dir),
-        num_threads: defaults.num_threads,
-        hotwords: Vec::new(),
-        hotwords_score: defaults.hotwords_score,
-        endpoint_silence: defaults.endpoint_silence,
-        offline_model_type: crate::model_manager::sherpa_offline_model_type(model_dir),
-        layout: crate::model_manager::sherpa_layout(model_dir),
-        follow_links: crate::model_manager::external_source(model_dir).is_some(),
-    });
+async fn recognize(model_dir: &Path, pcm: &[i16]) -> Result<String, String> {
+    use velikiy_moguchiy_asr::{AsrConfig, AsrEvent};
+
+    let mut provider = local_provider(model_dir)?;
     provider
         .connect(&AsrConfig::default())
         .await
@@ -146,11 +166,6 @@ async fn recognize(model_dir: &Path, pcm: &[i16]) -> Result<String, String> {
     };
     let _ = provider.close().await;
     outcome.map(|()| text.trim().to_string())
-}
-
-#[cfg(not(feature = "sherpa-onnx"))]
-async fn recognize(_model_dir: &Path, _pcm: &[i16]) -> Result<String, String> {
-    Err("в этой сборке нет локального распознавания sherpa-onnx".into())
 }
 
 #[cfg(test)]
