@@ -2645,6 +2645,15 @@ pub unsafe extern "C" fn sp_core_download_model(
     0
 }
 
+/// Whether `sp_core_download_model` is fetching `model_path` right now.
+pub(crate) fn model_download_in_progress(model_path: &str) -> bool {
+    MODEL_DOWNLOADS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .is_some_and(|map| map.contains_key(model_path))
+}
+
 /// Cancel an active download. Returns 1 if cancelled, 0 if not found.
 ///
 /// # Safety

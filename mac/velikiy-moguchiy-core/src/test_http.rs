@@ -10,6 +10,12 @@ pub enum Reply {
     Body(Vec<u8>),
     /// Served whole, whatever `Range` says.
     IgnoreRange(Vec<u8>),
+    /// A file of `size` bytes that ends with `tail` and is zero before it,
+    /// for model files too large to hold.
+    Sparse {
+        size: usize,
+        tail: Vec<u8>,
+    },
     Status(u16, Vec<(&'static str, String)>),
     Redirect(String),
 }
@@ -82,6 +88,20 @@ impl Server {
     }
 }
 
+/// `bytes=S-`, `bytes=S-E` or `bytes=-N` of a `len`-byte file as `start..end`.
+fn byte_range(header: &str, len: usize) -> Option<(usize, usize)> {
+    let spec = header.strip_prefix("bytes=")?;
+    let (from, to) = spec.split_once('-').unwrap_or((spec, ""));
+    let (start, end) = if from.is_empty() {
+        (len.saturating_sub(to.parse().ok()?), len)
+    } else {
+        let start: usize = from.parse().ok()?;
+        let end = to.parse::<usize>().map(|e| (e + 1).min(len)).unwrap_or(len);
+        (start, end)
+    };
+    (start < end).then_some((start, end))
+}
+
 fn respond(reply: Option<&Reply>, range: Option<&str>) -> (u16, Vec<(String, String)>, Vec<u8>) {
     match reply {
         None => (404, Vec::new(), Vec::new()),
@@ -95,6 +115,27 @@ fn respond(reply: Option<&Reply>, range: Option<&str>) -> (u16, Vec<(String, Str
             Vec::new(),
         ),
         Some(Reply::Redirect(to)) => (302, vec![("Location".into(), to.clone())], Vec::new()),
+        Some(Reply::Sparse { size, tail }) => {
+            let byte = |i: usize| {
+                let from = size - tail.len();
+                if i >= from {
+                    tail[i - from]
+                } else {
+                    0
+                }
+            };
+            let Some((start, end)) = range.and_then(|r| byte_range(r, *size)) else {
+                return (400, Vec::new(), Vec::new());
+            };
+            (
+                206,
+                vec![(
+                    "Content-Range".into(),
+                    format!("bytes {start}-{}/{size}", end - 1),
+                )],
+                (start..end).map(byte).collect(),
+            )
+        }
         Some(Reply::Body(body)) => {
             let len = body.len();
             let Some(spec) = range.and_then(|r| r.strip_prefix("bytes=")) else {

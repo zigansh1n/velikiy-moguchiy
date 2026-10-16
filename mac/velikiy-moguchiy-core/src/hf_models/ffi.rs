@@ -7,6 +7,8 @@ use std::ffi::{c_char, c_void, CString};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use futures_util::FutureExt;
+
 use super::{repo, Inspection};
 
 /// Receives the JSON result; the string is valid only during the call.
@@ -46,6 +48,17 @@ fn hf_runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
+/// Runs `work` so that a panic inside it still answers the window, which
+/// otherwise waits for the callback forever.
+async fn answered<T>(
+    work: impl std::future::Future<Output = Result<T, String>>,
+) -> Result<T, String> {
+    std::panic::AssertUnwindSafe(work)
+        .catch_unwind()
+        .await
+        .unwrap_or_else(|_| Err("Внутренняя ошибка ядра. Попробуйте ещё раз.".into()))
+}
+
 fn c_text(ptr: *const c_char) -> String {
     unsafe { crate::ffi::cstr_to_str(ptr) }
         .unwrap_or("")
@@ -75,11 +88,11 @@ pub unsafe extern "C" fn sp_hf_inspect_start(
     let revision = c_text(revision);
     let callback = Callback { done, ctx };
     hf_runtime().spawn(async move {
-        let result = async {
+        let result = answered(async {
             let repo = repo::parse_repo_input(&input, &revision)?;
             let client = super::http_client()?;
             super::inspect(&client, &super::endpoint(), &repo).await
-        }
+        })
         .await;
         match result {
             Ok(inspection) => {
@@ -120,7 +133,7 @@ pub unsafe extern "C" fn sp_hf_install_start(
         .find(|(t, _)| *t == token)
         .map(|(_, i)| i.clone());
     hf_runtime().spawn(async move {
-        let result = async {
+        let result = answered(async {
             let inspection =
                 inspection.ok_or("Сведения о репозитории устарели: проверьте его ещё раз.")?;
             let client = super::http_client()?;
@@ -132,7 +145,7 @@ pub unsafe extern "C" fn sp_hf_install_start(
                 &variant_id,
             )
             .await
-        }
+        })
         .await;
         callback.finish(match result {
             Ok(path) => serde_json::json!({ "model_path": path }),
@@ -149,6 +162,11 @@ pub unsafe extern "C" fn sp_hf_install_start(
 #[no_mangle]
 pub unsafe extern "C" fn sp_hf_remove_model_json(model_path: *const c_char) -> *mut c_char {
     let path = c_text(model_path);
+    if crate::model_download_in_progress(&path) {
+        return into_c_string(serde_json::json!({
+            "error": "Модель сейчас скачивается: остановите загрузку и удалите её снова."
+        }));
+    }
     into_c_string(
         match super::remove_user_model(&crate::model_manager::models_dir(), &path) {
             Ok(freed) => serde_json::json!({ "freed": freed }),

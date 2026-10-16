@@ -67,7 +67,10 @@ pub fn parse_repo_input(input: &str, revision: &str) -> Result<RepoRef, String> 
     };
     let mut via_link = false;
     for host in ["www.huggingface.co/", "huggingface.co/", "hf.co/"] {
-        if text.len() >= host.len() && text[..host.len()].eq_ignore_ascii_case(host) {
+        if text
+            .get(..host.len())
+            .is_some_and(|p| p.eq_ignore_ascii_case(host))
+        {
             text = &text[host.len()..];
             via_link = true;
             break;
@@ -201,13 +204,19 @@ impl RepoInfo {
 pub fn short_name(name: &str) -> &str {
     let mut name = name;
     for prefix in ["sherpa-onnx-", "sherpa_onnx_"] {
-        if name.len() > prefix.len() && name[..prefix.len()].eq_ignore_ascii_case(prefix) {
+        if name.len() > prefix.len()
+            && name
+                .get(..prefix.len())
+                .is_some_and(|p| p.eq_ignore_ascii_case(prefix))
+        {
             name = &name[prefix.len()..];
         }
     }
     for suffix in ["-sherpa-onnx", "_sherpa_onnx", "-onnx", "_onnx"] {
         if name.len() > suffix.len()
-            && name[name.len() - suffix.len()..].eq_ignore_ascii_case(suffix)
+            && name
+                .get(name.len() - suffix.len()..)
+                .is_some_and(|p| p.eq_ignore_ascii_case(suffix))
         {
             name = &name[..name.len() - suffix.len()];
         }
@@ -270,6 +279,8 @@ mod tests {
             "a/b/c",
             "owner/..",
             "own er/name",
+            "владелец/модель",
+            "hf.co/владелец",
         ] {
             assert!(parse_repo_input(bad, "").is_err(), "{bad:?} accepted");
         }
@@ -289,5 +300,7 @@ mod tests {
         assert_eq!(short_name("gigaam-v3-onnx"), "gigaam-v3");
         assert_eq!(short_name("GigaAM-v3-sherpa-onnx"), "GigaAM-v3");
         assert_eq!(short_name("parakeet-tdt-0.6b-v3"), "parakeet-tdt-0.6b-v3");
+        assert_eq!(short_name("модель"), "модель");
+        assert_eq!(short_name("sherpa-onnx-модель-onnx"), "модель");
     }
 }

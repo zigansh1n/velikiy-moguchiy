@@ -36,6 +36,7 @@ const MAX_CANDIDATES: usize = 12;
 const MAX_GIT_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_API_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_LICENSE_BYTES: u64 = 64 * 1024;
+const METADATA_READS_AT_ONCE: usize = 4;
 
 /// `HF_ENDPOINT` when set (a mirror), else huggingface.co.
 pub fn endpoint() -> String {
@@ -192,14 +193,14 @@ pub async fn fetch_info(
     serde_json::from_slice(&body).map_err(|e| format!("Hugging Face ответил непонятно: {e}"))
 }
 
+type MetadataRead = Result<BTreeMap<String, String>, String>;
+
 /// Metadata of an ONNX file, from its last [`onnx_meta::TAIL_BYTES`].
-async fn fetch_metadata(
-    client: &reqwest::Client,
-    url: &str,
-    size: u64,
-) -> Result<BTreeMap<String, String>, String> {
-    let range = if size > onnx_meta::TAIL_BYTES {
-        format!("bytes=-{}", onnx_meta::TAIL_BYTES)
+async fn fetch_metadata(client: &reqwest::Client, url: &str, size: u64) -> MetadataRead {
+    // An explicit range: some object stores ignore suffix ranges.
+    let start = size.saturating_sub(onnx_meta::TAIL_BYTES);
+    let range = if size > 0 {
+        format!("bytes={start}-{}", size - 1)
     } else {
         "bytes=0-".to_string()
     };
@@ -214,6 +215,16 @@ async fn fetch_metadata(
     let partial = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
     if !partial && size > onnx_meta::TAIL_BYTES {
         return Err("Сервер отдал файл модели целиком вместо его конца.".into());
+    }
+    let served_from = response
+        .headers()
+        .get(reqwest::header::CONTENT_RANGE)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("bytes "))
+        .and_then(|v| v.split('-').next())
+        .and_then(|v| v.parse::<u64>().ok());
+    if partial && served_from.is_some_and(|from| from != start) {
+        return Err("Сервер отдал не тот кусок файла модели.".into());
     }
     let tail = read_limited(response, onnx_meta::TAIL_BYTES)
         .await?
@@ -404,22 +415,41 @@ pub async fn inspect(
                 }
             }
         }
-        let fetched = futures_util::future::join_all(wanted.iter().map(|file| {
-            let url = file_url(base, &repo_id, &sha, &file.path);
-            async move {
-                (
-                    file.path.clone(),
-                    fetch_metadata(client, &url, file.size).await,
-                )
-            }
-        }))
-        .await;
+        let reads: Vec<_> = wanted
+            .iter()
+            .map(|file| {
+                let url = file_url(base, &repo_id, &sha, &file.path);
+                let path = file.path.clone();
+                let size = file.size;
+                async move { (path, fetch_metadata(client, &url, size).await) }
+            })
+            .collect();
+        let fetched: Vec<(String, MetadataRead)> = futures_util::stream::iter(reads)
+            .buffer_unordered(METADATA_READS_AT_ONCE)
+            .collect()
+            .await;
+        let mut unreadable: HashMap<String, String> = HashMap::new();
         for (path, result) in fetched {
-            metadata.insert(path, result?);
+            match result {
+                Ok(meta) => {
+                    metadata.insert(path, meta);
+                }
+                Err(error) => {
+                    unreadable.insert(path, error);
+                }
+            }
         }
 
         let empty = BTreeMap::new();
         for candidate in candidates.iter().take(MAX_CANDIDATES) {
+            if let Some(error) = unreadable.get(&candidate.primary) {
+                inspection.rejected.push(Rejection {
+                    label: candidate.label.clone(),
+                    reason: detect::RejectReason::Unreadable,
+                    message: format!("Не удалось прочитать {}: {error}", candidate.primary),
+                });
+                continue;
+            }
             let meta = metadata.get(&candidate.primary).unwrap_or(&empty);
             match detect::classify(candidate, meta) {
                 Ok(classified) => inspection
@@ -534,10 +564,20 @@ pub fn model_rel_path(inspection: &Inspection, variant: &Variant) -> String {
         .unwrap_or(("hf", &inspection.repo));
     let mut dir = format!("{name}@{}", &inspection.sha[..12]);
     if inspection.variants.len() > 1 {
-        let tag = slug(&variant.label);
-        if !tag.is_empty() {
-            dir = format!("{dir}-{tag}");
+        let mut tag = slug(&variant.label);
+        let shared = inspection
+            .variants
+            .iter()
+            .any(|other| other.id != variant.id && slug(&other.label) == tag);
+        if tag.is_empty() || shared {
+            let id_hash = &sha256_hex(variant.id.as_bytes())[..8];
+            tag = if tag.is_empty() {
+                id_hash.to_string()
+            } else {
+                format!("{tag}-{id_hash}")
+            };
         }
+        dir = format!("{dir}-{tag}");
     }
     format!("{USER_MODELS_DIR}/{owner}/{dir}")
 }

@@ -58,6 +58,8 @@ pub enum RejectReason {
     UnsupportedMode,
     NoTokens,
     NoSherpaMetadata,
+    /// The main file could not be read from the server.
+    Unreadable,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -182,6 +184,7 @@ pub fn candidates(files: &[RepoFile]) -> Vec<Candidate> {
     let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
     let onnx: Vec<OnnxName> = paths.iter().filter_map(|p| parse_onnx(p)).collect();
     let tokens: Vec<(&str, String, &str)> = paths.iter().filter_map(|p| parse_tokens(p)).collect();
+    let onnx_dirs: std::collections::HashSet<&str> = onnx.iter().map(|n| n.dir).collect();
 
     let mut order: Vec<(String, String, String)> = Vec::new();
     let mut groups: HashMap<(String, String, String), Vec<&OnnxName>> = HashMap::new();
@@ -238,11 +241,13 @@ pub fn candidates(files: &[RepoFile]) -> Vec<Candidate> {
                     .collect(),
             )
         })
+        // From another folder only when that folder holds no model of its
+        // own (alphacep's `lang/`): a model's tokens must not go to another.
         .or_else(|| {
             unique(
                 tokens
                     .iter()
-                    .filter(|(_, p, _)| p == prefix)
+                    .filter(|(d, p, _)| p == prefix && !onnx_dirs.contains(d))
                     .map(|(_, _, path)| path)
                     .collect(),
             )
@@ -251,7 +256,7 @@ pub fn candidates(files: &[RepoFile]) -> Vec<Candidate> {
             unique(
                 tokens
                     .iter()
-                    .filter(|(_, p, _)| p.is_empty())
+                    .filter(|(d, p, _)| p.is_empty() && !onnx_dirs.contains(d))
                     .map(|(_, _, path)| path)
                     .collect(),
             )
@@ -562,7 +567,12 @@ pub fn classify(
 /// without it stops the process instead of failing to load.
 fn required_metadata(family: SherpaFamily, streaming: bool) -> &'static [&'static str] {
     match (family, streaming) {
-        (SherpaFamily::NemoTransducer, _) => &["vocab_size", "pred_rnn_layers", "pred_hidden"],
+        (SherpaFamily::NemoTransducer, _) => &[
+            "vocab_size",
+            "subsampling_factor",
+            "pred_rnn_layers",
+            "pred_hidden",
+        ],
         (SherpaFamily::NemoCtc, _) => &["vocab_size", "subsampling_factor"],
         (SherpaFamily::Transducer, true) => &["decode_chunk_len", "T"],
         (SherpaFamily::Whisper, _) => &["n_mels", "n_text_layer", "sot_sequence"],
@@ -814,6 +824,19 @@ mod tests {
             !c[2].roles.contains_key(&SherpaRole::Tokens),
             "c has two equally good tokens files"
         );
+
+        let c = candidates(&files(&[
+            "a/model.onnx",
+            "b/encoder.onnx",
+            "b/decoder.onnx",
+            "b/joiner.onnx",
+            "b/tokens.txt",
+        ]));
+        assert!(
+            !c[0].roles.contains_key(&SherpaRole::Tokens),
+            "b's tokens belong to b"
+        );
+        assert_eq!(c[1].roles[&SherpaRole::Tokens], "b/tokens.txt");
     }
 
     fn meta(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -861,6 +884,7 @@ mod tests {
         assert!(!offline.layout.streaming);
         let nemo = [
             ("vocab_size", "1024"),
+            ("subsampling_factor", "4"),
             ("pred_rnn_layers", "1"),
             ("pred_hidden", "320"),
         ];

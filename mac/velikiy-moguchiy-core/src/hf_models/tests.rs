@@ -58,9 +58,19 @@ fn hub_for(fixture: &str) -> (Server, RepoRef) {
     if let Some(metadata) = doc["metadata"].as_object() {
         for (path, meta) in metadata {
             let meta: BTreeMap<String, String> = serde_json::from_value(meta.clone()).unwrap();
+            let tail = onnx_body(&meta);
+            let size = info["siblings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["rfilename"] == path.as_str())
+                .and_then(|s| s["lfs"]["size"].as_u64().or_else(|| s["size"].as_u64()))
+                .map(|s| s as usize)
+                .unwrap_or(tail.len())
+                .max(tail.len());
             routes.insert(
                 resolve_path(repo_id, sha, path),
-                Reply::Body(onnx_body(&meta)),
+                Reply::Sparse { size, tail },
             );
         }
     }
@@ -662,7 +672,7 @@ fn metadata_comes_from_a_range_request_not_the_whole_file() {
         .into_iter()
         .find(|r| r.path.ends_with("/model.onnx"))
         .unwrap();
-    assert_eq!(model.range.as_deref(), Some("bytes=-65536"));
+    assert_eq!(model.range.as_deref(), Some("bytes=144128166-144193701"));
 }
 
 #[test]
@@ -684,8 +694,61 @@ fn a_server_that_ignores_ranges_is_not_asked_for_gigabytes() {
     );
     let hub = Server::start(routes);
     let repo = repo::parse_repo_input(repo_id, "").unwrap();
-    let err = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap_err();
-    assert!(err.contains("целиком"), "{err}");
+    let i = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    let problem = i.problem.unwrap();
+    assert_eq!(problem.code, "unreadable");
+    assert!(problem.message.contains("целиком"), "{}", problem.message);
+}
+
+#[test]
+fn one_unreadable_variant_does_not_hide_the_others() {
+    let doc: serde_json::Value =
+        serde_json::from_str(fixture!("BahamutRU__GigaAM-v3-sherpa-onnx")).unwrap();
+    let info = &doc["info"];
+    let repo_id = "BahamutRU/GigaAM-v3-sherpa-onnx";
+    let sha = info["sha"].as_str().unwrap();
+    let mut routes = HashMap::new();
+    routes.insert(
+        api_path(repo_id, "main"),
+        Reply::Body(info.to_string().into_bytes()),
+    );
+    for (path, meta) in doc["metadata"].as_object().unwrap() {
+        if path.contains("_ctc") {
+            continue;
+        }
+        let meta: BTreeMap<String, String> = serde_json::from_value(meta.clone()).unwrap();
+        let size = info["siblings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["rfilename"] == path.as_str())
+            .and_then(|s| s["lfs"]["size"].as_u64())
+            .unwrap() as usize;
+        routes.insert(
+            resolve_path(repo_id, sha, path),
+            Reply::Sparse {
+                size,
+                tail: onnx_body(&meta),
+            },
+        );
+    }
+    let hub = Server::start(routes);
+    let repo = repo::parse_repo_input(repo_id, "").unwrap();
+    let i = run(inspect(&http_client().unwrap(), &hub.base, &repo)).unwrap();
+    let labels: Vec<&str> = i.variants.iter().map(|v| v.label.as_str()).collect();
+    assert_eq!(labels, vec!["gigaam_v3_e2e_rnnt", "gigaam_v3_rnnt"]);
+    assert_eq!(
+        i.rejected
+            .iter()
+            .filter(|r| r.reason == detect::RejectReason::Unreadable)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn a_repository_name_in_cyrillic_is_refused_not_a_crash() {
+    assert!(repo::parse_repo_input("https://huggingface.co/владелец/модель", "").is_err());
 }
 
 /// A tiny repository whose files the hub really serves, behind a redirect
@@ -702,6 +765,7 @@ fn tiny_repo(tamper_tokens: bool) -> TinyRepo {
     let meta: BTreeMap<String, String> = [
         ("model_type", "EncDecRNNTBPEModel"),
         ("vocab_size", "3"),
+        ("subsampling_factor", "4"),
         ("pred_rnn_layers", "1"),
         ("pred_hidden", "8"),
         ("is_giga_am", "1"),
