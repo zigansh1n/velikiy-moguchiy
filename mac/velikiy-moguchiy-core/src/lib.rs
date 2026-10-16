@@ -2073,7 +2073,12 @@ pub unsafe extern "C" fn sp_dashscope_check_key(
     let key = unsafe { cstr_to_str(key) }.unwrap_or_default().trim().to_string();
     let model = unsafe { cstr_to_str(model) }.unwrap_or_default().to_string();
     let check = match Runtime::new() {
-        Ok(rt) => rt.block_on(dashscope_check::check_key_and_region(&url, &key, &model)),
+        Ok(rt) => {
+            let check = rt.block_on(dashscope_check::check_key_and_region(&url, &key, &model));
+            // Dropping the runtime would wait for a DNS lookup the timeout gave up on.
+            rt.shutdown_background();
+            check
+        }
         Err(e) => dashscope_check::KeyCheck {
             ok: false,
             message: format!("Failed to create async runtime: {e}"),

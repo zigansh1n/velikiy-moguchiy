@@ -7911,6 +7911,14 @@ static void appleSpeechInstallCallback(void *ctx, int32_t eventType,
   } else if ([provider isEqualToString:@"chatgpt"]) {
     [self testChatgptConnection];
   }
+  [self revealAsrTestResult];
+}
+
+/// The result line is pinned to the bottom of the form card, which for a tall
+/// provider (Qwen) sits below the viewport fold, far from the Test button.
+- (void)revealAsrTestResult {
+  [self.asrTestResultLabel
+      scrollRectToVisible:NSInsetRect(self.asrTestResultLabel.bounds, 0, -8.0)];
 }
 
 #pragma mark - ChatGPT account
@@ -8373,17 +8381,24 @@ static NSString *dashScopeRegionName(NSString *url) {
 
   __weak typeof(self) weakSelf = self;
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-    NSMutableArray<NSDictionary *> *results = [NSMutableArray array];
-    for (NSString *key in keys) {
-      char *raw = sp_dashscope_check_key(url.UTF8String, key.UTF8String, model.UTF8String);
-      NSDictionary *result = nil;
-      if (raw) {
-        NSData *data = [NSData dataWithBytes:raw length:strlen(raw)];
-        sp_core_free_string(raw);
-        result = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+    NSMutableArray *results = [NSMutableArray arrayWithCapacity:keys.count];
+    for (NSUInteger i = 0; i < keys.count; i++)
+      [results addObject:@{ @"ok" : @NO }];
+    // In parallel: each check can take the core's full connect timeout, twice
+    // when it also tries the other region.
+    dispatch_apply(keys.count, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^(size_t i) {
+      char *raw = sp_dashscope_check_key(url.UTF8String, keys[i].UTF8String, model.UTF8String);
+      if (!raw)
+        return;
+      NSData *data = [NSData dataWithBytes:raw length:strlen(raw)];
+      sp_core_free_string(raw);
+      NSDictionary *result = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+      if (![result isKindOfClass:[NSDictionary class]])
+        return;
+      @synchronized(results) {
+        results[i] = result;
       }
-      [results addObject:[result isKindOfClass:[NSDictionary class]] ? result : @{ @"ok" : @NO }];
-    }
+    });
     dispatch_async(dispatch_get_main_queue(), ^{
       [weakSelf showQwenKeyCheckResults:results url:url model:model];
     });
@@ -8394,6 +8409,7 @@ static NSString *dashScopeRegionName(NSString *url) {
                             url:(NSString *)url
                           model:(NSString *)model {
   self.asrTestButton.enabled = YES;
+  [self revealAsrTestResult];
   NSUInteger failed = 0;
   NSInteger firstFailure = -1;
   NSString *otherRegionURL = nil;

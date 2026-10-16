@@ -10,6 +10,7 @@ pub const CHINA_URL: &str = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime";
 pub const INTERNATIONAL_URL: &str = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime";
 
 const CHECK_CONNECT_TIMEOUT_MS: u64 = 8000;
+const CHECK_CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// The same endpoint in the other region, for the two DashScope hosts.
 pub fn other_region_url(url: &str) -> Option<&'static str> {
@@ -53,7 +54,7 @@ pub async fn check_key(url: &str, key: &str, model: &str) -> Result<(), String> 
     )
     .await
     .unwrap_or_else(|_| Err(velikiy_moguchiy_asr::AsrError::Timeout));
-    let _ = provider.close().await;
+    let _ = tokio::time::timeout(CHECK_CLOSE_TIMEOUT, provider.close()).await;
     result.map_err(|e| e.to_string())
 }
 
