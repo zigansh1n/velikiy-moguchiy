@@ -213,8 +213,9 @@ static NSString *const kNoSpeechReason = @"в записи не было реч�
     switch ([SPErrorExplainer kindForMessage:message]) {
         case SPErrorKindNoKey:
         case SPErrorKindBadKey:
-        case SPErrorKindAccessDenied:
             return @"проблема с API-ключом";
+        case SPErrorKindAccessDenied:
+            return @"нет доступа к модели распознавания";
         case SPErrorKindNoBalance:
         case SPErrorKindRateLimit:
             return @"лимит или баланс ключа исчерпан";

@@ -4,6 +4,10 @@
 @interface SPErrorExplainerTests : XCTestCase
 @end
 
+static NSString *const kModelDeniedMessage =
+    @"connect: ASR connection failed: connection closed before session.updated: code=1007, "
+    @"reason=Utf8Bytes(b\"Access to model denied. Please make sure you are eligible for using the model.\")";
+
 @implementation SPErrorExplainerTests
 
 - (void)testCoreMessagesMapToKinds {
@@ -17,6 +21,7 @@
         @"ASR connection failed: HTTP error: 429 Too Many Requests" : @(SPErrorKindRateLimit),
         @"ASR protocol error: Throttling.RateQuota" : @(SPErrorKindRateLimit),
         @"ASR connection failed: HTTP error: 403 Forbidden" : @(SPErrorKindAccessDenied),
+        kModelDeniedMessage : @(SPErrorKindAccessDenied),
         @"ASR connection failed: model not found: models/vosk-ru" : @(SPErrorKindLocalModel),
         @"ASR error: failed to create sherpa-onnx offline recognizer" : @(SPErrorKindLocalModel),
         @"audio buffer error: overflow" : @(SPErrorKindMicrophone),
@@ -39,6 +44,7 @@
         @"ASR connection failed: Invalid API-key provided.",
         @"ASR protocol error: Arrearage",
         @"ASR connection failed: connection timed out",
+        kModelDeniedMessage,
         @"something odd 14012",
     ];
     NSCharacterSet *latin = [NSCharacterSet characterSetWithCharactersInString:
@@ -48,13 +54,24 @@
         XCTAssertGreaterThan(explanation.shortText.length, 0u);
         XCTAssertLessThanOrEqual(explanation.shortText.length, 26u, @"%@", explanation.shortText);
         XCTAssertFalse([explanation.detail containsString:message], @"%@", message);
-        NSString *withoutBrands = [[[explanation.detail stringByReplacingOccurrencesOfString:@"DashScope" withString:@""]
+        NSString *withoutBrands = [[[[explanation.detail stringByReplacingOccurrencesOfString:@"DashScope" withString:@""]
+            stringByReplacingOccurrencesOfString:@"Alibaba Cloud Model Studio" withString:@""]
             stringByReplacingOccurrencesOfString:@"Alibaba Cloud" withString:@""]
             stringByReplacingOccurrencesOfString:@"VPN" withString:@""];
         withoutBrands = [withoutBrands stringByReplacingOccurrencesOfString:@"Mac" withString:@""];
         XCTAssertEqual([withoutBrands rangeOfCharacterFromSet:latin].location, (NSUInteger)NSNotFound,
                        @"%@", explanation.detail);
     }
+}
+
+- (void)testModelAccessDeniedIsNotANetworkFailure {
+    SPErrorExplanation *explanation = [SPErrorExplainer explanationForMessage:kModelDeniedMessage recordingKept:YES];
+    XCTAssertEqual(explanation.kind, SPErrorKindAccessDenied);
+    XCTAssertEqualObjects(explanation.shortText, @"Нет доступа к модели");
+    XCTAssertEqualObjects(explanation.detail,
+                          @"Ключу не открыт доступ к выбранной модели. Включите её в консоли Alibaba Cloud Model "
+                          @"Studio (или пополните баланс) либо выберите другую модель: Настройки → Распознавание.");
+    XCTAssertEqual(explanation.action, SPErrorActionAsrSettings);
 }
 
 - (void)testActionsLeadToTheFix {

@@ -98,8 +98,11 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
         mentionsHttpStatus(lower, @"429")) {
         return SPErrorKindRateLimit;
     }
-    if (containsAny(lower, @[ @"accessdenied", @"access denied", @"model_not_found", @"model not exist",
-                              @"modelnotfound", @"does not exist" ]) ||
+    // DashScope closes the socket with 1007 "Access to model denied" before the session
+    // starts, and "closed" below would read it as a network failure.
+    if (containsAny(lower, @[ @"accessdenied", @"access denied", @"access to model denied", @"not eligible",
+                              @"eligible for using the model", @"code=1007", @"model_not_found",
+                              @"model not exist", @"modelnotfound", @"does not exist" ]) ||
         mentionsHttpStatus(lower, @"403")) {
         return SPErrorKindAccessDenied;
     }
@@ -180,8 +183,9 @@ static NSRange chatGPTMarker(NSString *message, NSRange *close) {
                                    later, message);
         case SPErrorKindAccessDenied:
             return makeExplanation(kind, @"Нет доступа к модели",
-                                   @"Ключ не может пользоваться выбранной моделью. Выберите другую модель "
-                                   @"или проверьте ключ: Настройки → Распознавание.",
+                                   @"Ключу не открыт доступ к выбранной модели. Включите её в консоли "
+                                   @"Alibaba Cloud Model Studio (или пополните баланс) либо выберите другую "
+                                   @"модель: Настройки → Распознавание.",
                                    SPErrorActionAsrSettings, message);
         case SPErrorKindLocalModel:
             return makeExplanation(kind, @"Нет локальной модели",

@@ -62,6 +62,10 @@
                           @"не удалось декодировать запись (ffmpeg)");
     XCTAssertEqualObjects([SPRetranscriber summaryForProviderMessage:@"WebSocket error: connection reset"],
                           @"нет связи с сервисом распознавания");
+    XCTAssertEqualObjects([SPRetranscriber summaryForProviderMessage:
+                              @"connection closed before session.updated: code=1007, reason=Utf8Bytes(b\"Access to "
+                              @"model denied. Please make sure you are eligible for using the model.\")"],
+                          @"нет доступа к модели распознавания");
     XCTAssertEqualObjects([SPRetranscriber summaryForProviderMessage:@"something odd 14012"],
                           @"ошибка распознавания");
 }
