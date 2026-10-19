@@ -27,7 +27,7 @@ jobs:
     name: Update docs/STATS.md
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ssh-key: ${{ github.event_name != 'pull_request' && secrets.BOT_PUSH_KEY || '' }}
 
