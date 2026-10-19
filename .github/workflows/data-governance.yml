@@ -21,7 +21,7 @@ jobs:
     name: Exclusions log
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tests
         run: python3 data-governance/exclusions/test_exclusions.py
       - name: Check the log
