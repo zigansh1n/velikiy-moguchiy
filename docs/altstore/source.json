@@ -20,6 +20,15 @@
       "screenshots": [],
       "versions": [
         {
+          "version": "0.1.3",
+          "buildVersion": "1",
+          "minOSVersion": "26.0",
+          "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.3/VelikiyMoguchiy-iOS-unsigned.ipa",
+          "size": 3323599,
+          "date": "2026-10-21T08:49:09Z",
+          "localizedDescription": "Исправления и мелкие улучшения.\n\nОбновлены зависимости: #96.\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.2...v0.1.3"
+        },
+        {
           "version": "0.1.2",
           "buildVersion": "1",
           "minOSVersion": "26.0",
@@ -56,11 +65,11 @@
           "NSMicrophoneUsageDescription": "«Великий & Могучий» держит микрофон наготове для диктовки с клавиатуры, передаёт звук в Alibaba Cloud DashScope для распознавания и хранит временную запись на случай сбоя связи."
         }
       },
-      "version": "0.1.2",
-      "versionDate": "2026-10-17T08:03:50Z",
-      "versionDescription": "Mac\n\n- Плашка показывает распознавание от остановки записи до результата (#72)\n- Sign builds with a stable self-signed certificate so permissions survive updates (#73)\n- Последние диктовки прямо в меню значка (#74)\n- Кнопка «Исправить» для разрешений, которые не включаются (#75)\n- Убрать нерабочие настройки «Оверлей» и «Шаблоны» (#76)\n- «Управление» по группам, с подписями и свёрнутым «Экспериментальным» (#82)\n- Качественная локальная модель GigaAM v3 (sherpa-onnx, офлайн, без ключа) (#78)\n- Карточка над плашкой для ответа, перевода и ошибки; подписи под значком (#77)\n- Расшифровка файлов и голосовых из Telegram (перетаскивание на значок, меню, Службы) (#86)\n- Запись кончается через 250 мс после отпускания клавиши, а не через ~650 мс (#81)\n- Плашка на мониторе с активным окном или под мышью (#83)\n- Вкладка «Словарь» — подписи под Omni, счётчик «N из 120», встроенный словарь; «Вернуть стандартный» промпт (#84)\n- «Запомнить „Kubernetes“?» после исправления слова и «Добавить слово в словарь…» в один клик (#89)\n- Настройки и config.yaml по-русски, русский по умолчанию для новых конфигов (#79)\n- Клавиши перевода и вопроса для новых конфигов, «нужен ключ DashScope» вместо тихой диктовки, двойное нажатие для отмены (#88)\n- Нечитаемый config.yaml называет строку, копия .bak, проверки при сохранении настроек (#87)\n- Падение после «О программе», невидимый итог «Проверить ключ» и «нет связи» вместо «нет доступа к модели» (#90)\n- Локальное распознавание запускает модели sherpa-onnx всех…",
-      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.2/VelikiyMoguchiy-iOS-unsigned.ipa",
-      "size": 3323596
+      "version": "0.1.3",
+      "versionDate": "2026-10-21T08:49:09Z",
+      "versionDescription": "Исправления и мелкие улучшения.\n\nОбновлены зависимости: #96.\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.2...v0.1.3",
+      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.3/VelikiyMoguchiy-iOS-unsigned.ipa",
+      "size": 3323599
     }
   ],
   "news": []
