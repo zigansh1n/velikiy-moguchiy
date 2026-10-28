@@ -1,8 +1,8 @@
 cask "velikiy-moguchiy" do
   # .github/workflows/stores.yml writes both on each published release; until then the checksum is zeros
   # on purpose, so an install fails instead of trusting an unknown file.
-  version "0.1.4"
-  sha256 "eb21a4d0499dbf3985b73b647ecb63d2ecffee9e494d7860b9278df268c19cec"
+  version "0.1.5"
+  sha256 "8119d7e848d88e90d4b824b9a08b02d3aa6190cbadcac2475c223b5539183819"
 
   url "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v#{version}/VelikiyMoguchiy-macOS-arm64.zip"
   name "Великий & Могучий"
