@@ -20,6 +20,15 @@
       "screenshots": [],
       "versions": [
         {
+          "version": "0.1.8",
+          "buildVersion": "1",
+          "minOSVersion": "26.0",
+          "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.8/VelikiyMoguchiy-iOS-unsigned.ipa",
+          "size": 3323599,
+          "date": "2026-11-10T11:30:52Z",
+          "localizedDescription": "Исправления и мелкие улучшения.\n\nОбновлены зависимости: #108.\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.7...v0.1.8"
+        },
+        {
           "version": "0.1.7",
           "buildVersion": "1",
           "minOSVersion": "26.0",
@@ -101,10 +110,10 @@
           "NSMicrophoneUsageDescription": "«Великий & Могучий» держит микрофон наготове для диктовки с клавиатуры, передаёт звук в Alibaba Cloud DashScope для распознавания и хранит временную запись на случай сбоя связи."
         }
       },
-      "version": "0.1.7",
-      "versionDate": "2026-11-05T11:16:43Z",
-      "versionDescription": "Исправления и мелкие улучшения.\n\nОбновлены зависимости: #107, #106.\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.6...v0.1.7",
-      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.7/VelikiyMoguchiy-iOS-unsigned.ipa",
+      "version": "0.1.8",
+      "versionDate": "2026-11-10T11:30:52Z",
+      "versionDescription": "Исправления и мелкие улучшения.\n\nОбновлены зависимости: #108.\n\nВсе изменения: https://github.com/zigansh1n/velikiy-moguchiy/compare/v0.1.7...v0.1.8",
+      "downloadURL": "https://github.com/zigansh1n/velikiy-moguchiy/releases/download/v0.1.8/VelikiyMoguchiy-iOS-unsigned.ipa",
       "size": 3323599
     }
   ],
