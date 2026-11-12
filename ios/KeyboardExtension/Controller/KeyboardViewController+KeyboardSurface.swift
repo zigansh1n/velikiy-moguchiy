@@ -48,6 +48,10 @@ extension KeyboardViewController: KeyboardSurfaceViewDelegate {
     microphoneTapped()
   }
 
+  func keyboardSurfaceMicrophoneHeld(_ surface: KeyboardSurfaceView) {
+    showEmojiPanel()
+  }
+
   func keyboardSurface(
     _ surface: KeyboardSurfaceView,
     showInputModeListFrom button: UIButton,

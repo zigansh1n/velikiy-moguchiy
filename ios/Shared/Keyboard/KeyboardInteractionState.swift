@@ -133,10 +133,16 @@ enum KeyboardRowArrangement: Equatable {
 struct KeyboardLayoutRow: Equatable {
   let keys: [KeyboardLayoutKey]
   let arrangement: KeyboardRowArrangement
+  /// Height relative to a letter row.
+  let heightRatio: Double
 
-  init(_ keys: [KeyboardLayoutKey], arrangement: KeyboardRowArrangement = .centered) {
+  init(
+    _ keys: [KeyboardLayoutKey], arrangement: KeyboardRowArrangement = .centered,
+    heightRatio: Double = 1
+  ) {
     self.keys = keys
     self.arrangement = arrangement
+    self.heightRatio = heightRatio
   }
 }
 
@@ -178,6 +184,8 @@ enum KeyboardMetrics {
     static let bottomPadding: Double = 0
   }
   static var gridHeight: Double { keyHeight * 4 + rowGap * 3 }
+  /// The optional digit row above the letters is a little lower than a letter row.
+  static let numberRowHeightRatio: Double = 0.84
 }
 
 /// Metrics of the key grid. Portrait values scale with the width (measured on a
@@ -200,6 +208,21 @@ struct KeyboardGeometry: Equatable {
   var punctuationKeyPoints: Double = KeyboardMetrics.punctuationKeyPoints
 
   var gridHeight: Double { keyHeight * 4 + rowGap * 3 }
+
+  /// With the digit row every page keeps this height; pages without the row
+  /// get taller keys instead of a jumping keyboard.
+  var gridHeightWithNumberRow: Double {
+    gridHeight + keyHeight * KeyboardMetrics.numberRowHeightRatio + rowGap
+  }
+
+  /// Heights of `rows` filling `gridHeight` with `rowGap` between them. Four
+  /// letter-height rows give exactly `keyHeight` each.
+  func rowHeights(for rows: [KeyboardLayoutRow], gridHeight: Double) -> [Double] {
+    let totalRatio = rows.map(\.heightRatio).reduce(0, +)
+    guard totalRatio > 0 else { return [] }
+    let unit = (gridHeight - rowGap * Double(max(rows.count - 1, 0))) / totalRatio
+    return rows.map { $0.heightRatio * unit }
+  }
 
   /// Space above the keys. Without the suggestion strip Apple's keyboard is
   /// 27 pt shorter and the keys stay where they were (iOS 26.2, Safari's
@@ -235,6 +258,8 @@ struct KeyboardInteractionState: Equatable {
   private(set) var page: KeyboardPage = .letters
   private(set) var capitalization: KeyboardCapitalization = .lowercase
   private var lastShiftTapTimestamp: TimeInterval?
+  /// "Ряд цифр": digits above the letters (off by default; Apple has none on iPhone).
+  var showsNumberRow = false
 
   init(
     language: KeyboardLayoutLanguage = .english,
@@ -393,7 +418,14 @@ private extension KeyboardInteractionState {
     needsInputModeSwitchKey: Bool
   ) -> [KeyboardLayoutRow] {
     let rows = language.letterRowStrings
-    return [
+    let numberRow =
+      showsNumberRow
+      ? [
+        KeyboardLayoutRow(
+          literalKeys(Array("1234567890").map(String.init)), arrangement: .fill,
+          heightRatio: KeyboardMetrics.numberRowHeightRatio)
+      ] : []
+    return numberRow + [
       KeyboardLayoutRow(textKeys(rows[0])),
       KeyboardLayoutRow(textKeys(rows[1])),
       KeyboardLayoutRow([sideKey] + textKeys(rows[2]) + [deleteKey]),

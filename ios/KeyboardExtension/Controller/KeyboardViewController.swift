@@ -114,6 +114,8 @@ final class KeyboardViewController: KeyboardBaseViewController, UIInputViewAudio
   /// The last automatic replacement, kept until the next key so ⌫ can undo it.
   var lastReplacement: (plan: BoundaryReplacement, boundary: String)?
   var autocorrectEnabled = false
+  var yoEnabled = true
+  let emojiPanel = EmojiPanelView()
   var currentInputKind = KeyboardInputKind.standard
   var currentPollingInterval: TimeInterval = 1
   var toolbarHeightConstraint: NSLayoutConstraint?
@@ -205,6 +207,10 @@ final class KeyboardViewController: KeyboardBaseViewController, UIInputViewAudio
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
     autocorrectEnabled = store.autocorrectEnabled
+    yoEnabled = store.yoEnabled
+    keyboardSurface.setShowsNumberRow(store.numberRowEnabled)
+    view.setNeedsLayout()
+    hideEmojiPanel()
     refreshKeyFeedbackPolicy()
     syncKeyboardSurfaceContext()
     updateAutomaticCapitalization()

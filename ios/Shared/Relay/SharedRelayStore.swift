@@ -257,6 +257,26 @@ final class SharedRelayStore {
     }
   }
 
+  /// "Буква «ё»" (default ON): written by the app, read by the Russian keyboard.
+  var yoEnabled: Bool {
+    get { KeyboardPreferences.isYoEnabled(defaults.object(forKey: KeyboardPreferences.yoKey)) }
+    set {
+      defaults.set(newValue, forKey: KeyboardPreferences.yoKey)
+      flush()
+    }
+  }
+
+  /// "Ряд цифр" (default OFF): written by the app, read by the keyboards.
+  var numberRowEnabled: Bool {
+    get {
+      KeyboardPreferences.isNumberRowEnabled(defaults.object(forKey: KeyboardPreferences.numberRowKey))
+    }
+    set {
+      defaults.set(newValue, forKey: KeyboardPreferences.numberRowKey)
+      flush()
+    }
+  }
+
   @discardableResult
   func issue(
     _ command: RelayCommand,

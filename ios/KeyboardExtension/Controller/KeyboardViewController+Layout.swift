@@ -21,7 +21,8 @@ extension KeyboardViewController {
     let statusRow = makeToolbar()
     statusRow.translatesAutoresizingMaskIntoConstraints = false
     statusOverlay.addSubview(statusRow)
-    for subview in [toolbar, keyboardSurface, statusOverlay] {
+    emojiPanel.isHidden = true
+    for subview in [toolbar, keyboardSurface, emojiPanel, statusOverlay] {
       subview.translatesAutoresizingMaskIntoConstraints = false
       view.addSubview(subview)
     }
@@ -71,7 +72,17 @@ extension KeyboardViewController {
       keyboardSurface.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
       gridHeight,
       gridBottom,
+      emojiPanel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      emojiPanel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      emojiPanel.topAnchor.constraint(equalTo: keyboardSurface.topAnchor),
+      emojiPanel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
     ])
+    emojiPanel.onInsert = { [weak self] emoji in self?.insertEmoji(emoji) }
+    emojiPanel.onDelete = { [weak self] in
+      guard let self else { return }
+      self.keyboardSurfaceDeleteBackward(self.keyboardSurface)
+    }
+    emojiPanel.onClose = { [weak self] in self?.hideEmojiPanel() }
     updateStatusOverlay()
   }
 
@@ -94,7 +105,8 @@ extension KeyboardViewController {
   var statusOverlayHeight: CGFloat {
     let geometry = keyboardSurface.geometry
     guard !showsSuggestionStrip else { return CGFloat(geometry.toolbarHeight) }
-    return CGFloat(geometry.topHeight(showsStrip: false) + geometry.keyHeight + geometry.rowGap / 2)
+    return CGFloat(geometry.topHeight(showsStrip: false) + geometry.rowGap / 2)
+      + keyboardSurface.topRowHeight
   }
 
   func updateKeyboardHeight() {

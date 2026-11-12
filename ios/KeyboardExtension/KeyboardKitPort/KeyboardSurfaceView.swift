@@ -14,6 +14,8 @@ protocol KeyboardSurfaceViewDelegate: AnyObject {
   func keyboardSurface(_ surface: KeyboardSurfaceView, moveCursorVerticallyBy lines: Int)
   func keyboardSurfacePlayInputClick(_ surface: KeyboardSurfaceView)
   func keyboardSurfaceMicrophoneTapped(_ surface: KeyboardSurfaceView)
+  /// The microphone key was held: the emoji panel.
+  func keyboardSurfaceMicrophoneHeld(_ surface: KeyboardSurfaceView)
   func keyboardSurface(
     _ surface: KeyboardSurfaceView,
     showInputModeListFrom button: UIButton,
@@ -26,6 +28,7 @@ extension KeyboardSurfaceViewDelegate {
     surface.delegate?.keyboardSurfaceDeleteBackward(surface)
   }
   func keyboardSurface(_ surface: KeyboardSurfaceView, moveCursorVerticallyBy lines: Int) {}
+  func keyboardSurfaceMicrophoneHeld(_ surface: KeyboardSurfaceView) {}
 }
 
 /// The key grid. One touch handler serves every key (see `KeyTouchTracker`), so
@@ -76,6 +79,7 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
   /// Hold times before a letter's accent panel and the space-bar trackpad open.
   static let alternatesDelay: TimeInterval = 0.36
   static let trackpadDelay: TimeInterval = 0.4
+  static let microphoneHoldDelay: TimeInterval = 0.45
 
   /// Haptics for key presses; one reused generator pair (see `KeyFeedbackEngine`).
   let feedback = KeyFeedbackEngine()
@@ -122,10 +126,30 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
     deleteTimer?.invalidate()
   }
 
-  /// Total height of the four key rows.
+  /// Total height of the key rows.
   var gridHeight: CGFloat {
-    guard inputKind.isDigitPad, !geometry.isLandscape else { return CGFloat(geometry.gridHeight) }
-    return CGFloat(KeyboardMetrics.DigitPad.gridHeight)
+    if inputKind.isDigitPad, !geometry.isLandscape {
+      return CGFloat(KeyboardMetrics.DigitPad.gridHeight)
+    }
+    if interactionState.showsNumberRow, !inputKind.isDigitPad {
+      return CGFloat(geometry.gridHeightWithNumberRow)
+    }
+    return CGFloat(geometry.gridHeight)
+  }
+
+  /// Height of the top row, which the status overlay covers in fields without a strip.
+  var topRowHeight: CGFloat {
+    guard !inputKind.isDigitPad else { return CGFloat(geometry.keyHeight) }
+    let heights = geometry.rowHeights(for: rows, gridHeight: Double(gridHeight))
+    return CGFloat(heights.first ?? geometry.keyHeight)
+  }
+
+  /// "Ряд цифр" from the app's settings; changes the keyboard's height.
+  func setShowsNumberRow(_ shows: Bool) {
+    guard interactionState.showsNumberRow != shows else { return }
+    interactionState.showsNumberRow = shows
+    invalidateIntrinsicContentSize()
+    rebuild()
   }
 
   /// Space between the last row and the bottom of the keyboard view.
@@ -355,8 +379,14 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
     let referenceCount = Double(interactionState.language.letterRowStrings[0].count)
     let letterWidth = (available - (referenceCount - 1) * gap) / referenceCount
 
+    let rowHeights =
+      inputKind.isDigitPad && !geometry.isLandscape
+      ? Array(repeating: keyHeight, count: rows.count)
+      : geometry.rowHeights(for: rows, gridHeight: Double(gridHeight))
+    var y = 0.0
     for (rowIndex, row) in rows.enumerated() {
-      let y = Double(rowIndex) * (keyHeight + rowGap)
+      let keyHeight = rowHeights[rowIndex]
+      defer { y += keyHeight + rowGap }
       let widths = keyWidths(
         for: row, available: available, gap: gap, letterWidth: letterWidth, scale: scale)
       var x = margin
@@ -505,6 +535,7 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
       button.tintOverride = microphone.isActive ? .systemBlue : nil
       button.glyphColorOverride = microphone.isActive ? .white : nil
       button.isEnabled = microphone.isEnabled
+      button.accessibilityHint = microphone.isActive ? nil : "Удерживайте, чтобы открыть эмодзи"
     }
     refreshTargets()
   }
@@ -641,6 +672,10 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
     apply(tracker.beginTrackpad(touch: id))
   }
 
+  func fireFunctionHold(touch id: Int) {
+    apply(tracker.holdFunction(touch: id))
+  }
+
   private func cleanUp(touch id: Int) {
     longPressTimers.removeValue(forKey: id)?.invalidate()
     lastTouchPoints.removeValue(forKey: id)
@@ -681,6 +716,10 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
       case .trackpadEnded:
         endTrackpad()
         onKeyOutput?()
+      case .held(_, let key):
+        guard button(for: key)?.key.action == .microphone else { break }
+        feedback.selectionChanged()
+        delegate?.keyboardSurfaceMicrophoneHeld(self)
       }
     }
   }
@@ -717,6 +756,11 @@ final class KeyboardSurfaceView: UIView, UIInputViewAudioFeedback {
       }
     case .delete, .function:
       highlight(button, touch: touch)
+      if button.key.action == .microphone, microphone.isEnabled, !microphone.isActive {
+        scheduleLongPress(touch: touch, delay: Self.microphoneHoldDelay) { [weak self] in
+          self?.fireFunctionHold(touch: touch)
+        }
+      }
     }
   }
 
