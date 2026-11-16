@@ -76,10 +76,10 @@ jobs:
       sha: ${{ steps.plan.outputs.sha }}
       prerelease: ${{ steps.plan.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Tool tests
@@ -123,7 +123,7 @@ jobs:
           TEXT_REVIEW_TOKEN: ${{ secrets.TEXT_REVIEW_TOKEN }}
         run: python3 tools/text_review.py --file release-changes.md --fail-on medium
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: hashFiles('release-notes.md') != ''
         with:
           name: release-notes
@@ -135,11 +135,11 @@ jobs:
     if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.sha }}
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Guard tests
@@ -199,17 +199,17 @@ jobs:
     steps:
       # The workflow's own revision, not the released commit: this job needs only the scanner, and the
       # released commit may be older than a fix to it.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download the builds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: VelikiyMoguchiy-*
           path: dist
           merge-multiple: true
 
       - name: Download the notes
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: release-notes
           path: ${{ runner.temp }}
